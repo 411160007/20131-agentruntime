@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -80,6 +81,13 @@ func TestWriteAndReadBack(t *testing.T) {
 }
 
 func TestFilePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		// Go reports 0666 for regular files on NTFS: Unix mode bits are
+		// not an access-control mechanism there (ACLs are). Owner-only
+		// privacy on windows rides on the per-user profile ACL of the
+		// output location; a native ACL hardening pass is Phase 1 scope.
+		t.Skip("permission-bit assertion is unix-only; windows privacy is ACL-based (see docs/architecture.md)")
+	}
 	path := filepath.Join(t.TempDir(), "perm.jsonl")
 	w, err := Open(path)
 	if err != nil {

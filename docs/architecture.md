@@ -44,6 +44,10 @@ The single persistence exit of the collector: append-only JSONL, created
 adds segment rotation on top of the same writer: size threshold (`MaxBytes`)
 and UTC day-cut (`Daily`), both parameterized, with optional history
 pruning that only ever removes files carrying a strict rotation stamp.
+On windows, file privacy is ACL-based rather than mode-bit based: the
+`0600` creation mode is honored on unix/darwin, while windows audit
+files inherit the per-user profile ACL of their location (native ACL
+hardening is Phase 1 scope; the tests encode this split honestly).
 This package imports only the filesystem — no socket, dial, or HTTP types
 exist anywhere in the collector code path, which is what makes the
 "audit data never leaves the machine" claim structural rather than

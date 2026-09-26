@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"20131.com/agentruntime/internal/schema"
 )
+
+// unixPermBits reports whether OS mode bits carry access control here.
+func unixPermBits() bool { return runtime.GOOS != "windows" }
 
 func evAt(id string, ts time.Time) *schema.Event {
 	return &schema.Event{
@@ -80,12 +84,14 @@ func TestSizeRotation(t *testing.T) {
 	total := countLines(t, path)
 	for _, s := range segs {
 		total += countLines(t, s)
-		st, err := os.Stat(s)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if st.Mode().Perm() != 0o600 && st.Size() > 0 {
-			t.Errorf("segment %s mode %o, want 600", s, st.Mode().Perm())
+		if unixPermBits() {
+			st, err := os.Stat(s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if st.Mode().Perm() != 0o600 && st.Size() > 0 {
+				t.Errorf("segment %s mode %o, want 600", s, st.Mode().Perm())
+			}
 		}
 	}
 	if total != 6 {
@@ -100,6 +106,9 @@ func TestSizeRotation(t *testing.T) {
 }
 
 func TestSizeRotationSegmentPerms(t *testing.T) {
+	if !unixPermBits() {
+		t.Skip("unix mode-bit assertion; windows ACL story in writer_test.go")
+	}
 	path := filepath.Join(t.TempDir(), "perm.jsonl")
 	l, err := OpenLog(path, &Rotation{MaxBytes: 10})
 	if err != nil {
