@@ -1,0 +1,75 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+      - name: gofmt clean
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: vet
+        run: go vet ./...
+      - name: unit tests
+        run: go test -count=1 ./...
+      - name: license gate selftest (control)
+        run: node scripts/licenses-check.mjs --selftest
+      - name: license gate
+        run: node scripts/licenses-check.mjs
+      - name: tripwire selftest (control)
+        run: bash scripts/tripwire.sh --selftest
+      - name: tripwire
+        run: bash scripts/tripwire.sh
+
+  cross:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            ext: ''
+          - os: macos-latest
+            ext: ''
+          - os: windows-latest
+            ext: '.exe'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+      - name: build
+        shell: bash
+        run: CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=0.1.0" -o dist/hello-collector${{ matrix.ext }} ./cmd/hello-collector
+      - name: --version exits 0
+        shell: bash
+        run: ./dist/hello-collector${{ matrix.ext }} --version
+      - name: produce JSONL audit and validate it
+        shell: bash
+        run: |
+          set -euo pipefail
+          events="${RUNNER_TEMP}/events.jsonl"
+          ./dist/hello-collector${{ matrix.ext }} --out "$events"
+          node scripts/validate-jsonl.mjs "$events" --min-lines 4
+      - name: validator control (must reject bad fixture)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bad="${RUNNER_TEMP}/bad.jsonl"
+          printf '%s\n' '{"v":9,"id":"!!","ts":"nope","stage":"wild","type":"x.y","decision":"block","severity":9,"summary":""}' > "$bad"
+          node scripts/validate-jsonl.mjs --expect-reject "$bad"
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hello-collector-${{ matrix.os }}
+          path: dist/hello-collector${{ matrix.ext }}

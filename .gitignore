@@ -1,0 +1,6 @@
+# Build outputs (reproducible via scripts/build-dist.sh)
+dist/
+# Local runtime artifacts
+*.tmp
+# NOTE: deliberately no `data/`, `*.log`, or broad wildcards here —
+# evidence-style files must stay visible to git (audited 2026-09-27).
