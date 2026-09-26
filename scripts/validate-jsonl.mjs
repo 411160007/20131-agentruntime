@@ -12,6 +12,7 @@ const STAGES = ['proposed', 'evaluated', 'enforcement', 'action', 'observation']
 const TYPES = [
   'command.proposed', 'tool.call', 'file.access', 'network.intent',
   'policy.decision', 'enforce.action', 'collector.start', 'collector.stop',
+  'agent.detected', 'agent.scan',
 ];
 const DECISIONS = ['allow', 'ask', 'would_block'];
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;

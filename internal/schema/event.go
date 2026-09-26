@@ -37,12 +37,35 @@ const (
 	TypeEnforceAction   EventType = "enforce.action"
 	TypeCollectorStart  EventType = "collector.start"
 	TypeCollectorStop   EventType = "collector.stop"
+	TypeAgentDetected   EventType = "agent.detected"
+	TypeAgentScan       EventType = "agent.scan"
 )
+
+// AllEventTypes lists every valid EventType in declaration order.
+// scripts/validate-jsonl.mjs mirrors this list as the independent second
+// source of truth; TestEnumsStayInSyncWithValidator fails if they diverge.
+func AllEventTypes() []string {
+	return []string{
+		string(TypeCommandProposed), string(TypeToolCall), string(TypeFileAccess),
+		string(TypeNetworkIntent), string(TypePolicyDecision), string(TypeEnforceAction),
+		string(TypeCollectorStart), string(TypeCollectorStop),
+		string(TypeAgentDetected), string(TypeAgentScan),
+	}
+}
+
+// AllStages lists every valid Stage in declaration order.
+func AllStages() []string {
+	return []string{
+		string(StageProposed), string(StageEvaluated), string(StageEnforcement),
+		string(StageAction), string(StageObservation),
+	}
+}
 
 func (t EventType) Valid() bool {
 	switch t {
 	case TypeCommandProposed, TypeToolCall, TypeFileAccess, TypeNetworkIntent,
-		TypePolicyDecision, TypeEnforceAction, TypeCollectorStart, TypeCollectorStop:
+		TypePolicyDecision, TypeEnforceAction, TypeCollectorStart, TypeCollectorStop,
+		TypeAgentDetected, TypeAgentScan:
 		return true
 	}
 	return false

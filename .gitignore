@@ -1,5 +1,8 @@
 # Build outputs (reproducible via scripts/build-dist.sh)
 dist/
+# Gate scratch (TMPDIR pin for test runs; this sandbox SIGKILLs binaries
+# executed from /tmp — see reports for the gate rationale)
+.tmptest/
 # Local runtime artifacts
 *.tmp
 # NOTE: deliberately no `data/`, `*.log`, or broad wildcards here —

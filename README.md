@@ -33,11 +33,24 @@ Early skeleton. Current contents:
 | Path | What it is |
 |---|---|
 | `cmd/hello-collector` | single-binary skeleton: writes a demo policy-evaluation pipeline to local JSONL |
+| `cmd/agent-collector` | discovery collector: polls the process table, identifies agent families, writes rotating JSONL audit (observe-only) |
 | `internal/schema` | core data model: `Agent`, `Event`, `Policy` with strict validation |
 | `internal/policy` | deterministic policy evaluator |
-| `internal/auditlog` | local JSONL audit writer |
-| `scripts/` | build, license gate, artifact verification, negative-scan tripwire |
+| `internal/discovery` | process-tree agent fingerprints (Claude Code, Codex, OpenClaw, MCP servers) + per-platform snapshot sources |
+| `internal/auditlog` | local JSONL audit writer with size and UTC day-cut rotation |
+| `scripts/` | build, gate batteries, license gate, artifact verification, negative-scan tripwire |
 | `docs/` | architecture notes and the dependency license register |
+
+## Running the collector
+
+```sh
+./agent-collector --once --out agent-audit.jsonl      # single scan
+./agent-collector --interval 30s                       # keep watching until Ctrl-C
+./agent-collector --rotate-bytes 4194304 --keep-history 8
+```
+
+Detections appear as `agent.detected` lines (kind, rule, pid lineage,
+redacted command line) and each pass as one `agent.scan` coverage line.
 
 ## Build & run
 

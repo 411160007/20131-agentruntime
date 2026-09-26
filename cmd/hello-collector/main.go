@@ -16,7 +16,7 @@ import (
 )
 
 // version is overridden at build time via -ldflags "-X main.version=...".
-var version = "0.1.0-d1"
+var version = "0.2.0-d2"
 
 func currentPlatform() schema.Platform { return schema.Platform(runtime.GOOS) }
 

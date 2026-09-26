@@ -50,10 +50,27 @@ jobs:
           go-version: '1.27.1'
       - name: build
         shell: bash
-        run: CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=0.1.0" -o dist/hello-collector${{ matrix.ext }} ./cmd/hello-collector
+        run: |
+          set -euo pipefail
+          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=0.2.0-d2" -o dist/hello-collector${{ matrix.ext }} ./cmd/hello-collector
+          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=0.2.0-d2" -o dist/agent-collector${{ matrix.ext }} ./cmd/agent-collector
       - name: --version exits 0
         shell: bash
-        run: ./dist/hello-collector${{ matrix.ext }} --version
+        run: |
+          set -euo pipefail
+          ./dist/hello-collector${{ matrix.ext }} --version
+          ./dist/agent-collector${{ matrix.ext }} --version
+      - name: native platform tests (build-tagged discovery + collector)
+        shell: bash
+        run: go test -count=1 ./internal/discovery ./cmd/agent-collector ./internal/auditlog
+      - name: live discovery scan validates on the native OS
+        shell: bash
+        run: |
+          set -euo pipefail
+          events="${RUNNER_TEMP}/live.jsonl"
+          ./dist/agent-collector${{ matrix.ext }} --once --out "$events"
+          node scripts/validate-jsonl.mjs "$events" --min-lines 3
+          grep -q '"type":"agent.scan"' "$events"
       - name: produce JSONL audit and validate it
         shell: bash
         run: |
@@ -71,5 +88,7 @@ jobs:
       - name: upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hello-collector-${{ matrix.os }}
-          path: dist/hello-collector${{ matrix.ext }}
+          name: collectors-${{ matrix.os }}
+          path: |
+            dist/hello-collector${{ matrix.ext }}
+            dist/agent-collector${{ matrix.ext }}

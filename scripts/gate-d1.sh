@@ -12,15 +12,17 @@ go version
 node --version
 
 step '01 fmt / vet / unit tests'
+export TMPDIR="$(pwd)/.tmptest"
+mkdir -p "$TMPDIR" # sandbox kills binaries executed from /tmp; pin scratch inside the repo
 test -z "$(gofmt -l .)" || { gofmt -l .; echo RED: gofmt; exit 1; }
 go vet ./...
 # Retry ONLY on rc 137 (SIGKILL): observed cold-cache environment kills in
 # this sandbox, not test failures. A red test exits 1 and never retries.
 rc=0
-go test -count=1 -p 1 ./... || rc=$?
+go test -count=1 -p 1 -parallel 1 ./... || rc=$?
 if [ "$rc" -eq 137 ]; then
   echo 'WARN: go test SIGKILLed by environment (rc137); retrying once'
-  go test -count=1 -p 1 ./... || rc=$?
+  go test -count=1 -p 1 -parallel 1 ./... || rc=$?
 fi
 if [ "$rc" -ne 0 ]; then echo RED: go test rc=$rc; exit "$rc"; fi
 
@@ -28,7 +30,8 @@ step '02 cross-build three platforms'
 bash scripts/build-dist.sh
 
 step '03 linux artifact executes: --version must exit 0'
-./dist/hello-collector-0.1.0-d1-linux-amd64 --version
+hello=$(ls dist/hello-collector-*-linux-amd64 | head -1)
+"$hello" --version
 
 step '04 windows/darwin artifacts: structural header verification'
 node scripts/verify-cross.mjs
@@ -37,7 +40,7 @@ node scripts/verify-cross.mjs --negative README.md
 
 step '05 hello-collector real run -> valid JSONL'
 out=$(mktemp -d)/events.jsonl
-./dist/hello-collector-0.1.0-d1-linux-amd64 --out "$out"
+"$hello" --out "$out"
 node scripts/validate-jsonl.mjs "$out" --min-lines 4
 step '05c control: validator must REJECT a bad fixture'
 bad=$(mktemp -d)/bad.jsonl

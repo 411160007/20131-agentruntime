@@ -8,7 +8,7 @@
 // Usage:
 //   node scripts/verify-cross.mjs            # verify the three dist targets, all must pass
 //   node scripts/verify-cross.mjs --negative <file>  # control mode: file must FAIL
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 
 const MIN_BYTES = 1_000_000; // a Go hello binary is ~1.5MB+ even stripped
 
@@ -75,13 +75,27 @@ if (argv[0] === '--negative') {
 }
 
 const dist = 'dist';
-const files = {
-  linux: `${dist}/hello-collector-0.1.0-d1-linux-amd64`,
-  windows: `${dist}/hello-collector-0.1.0-d1-windows-amd64.exe`,
-  darwin: `${dist}/hello-collector-0.1.0-d1-darwin-amd64`,
-};
+// Verify every collector artifact in dist/ (hello-collector and
+// agent-collector on all three platforms). At least one file per target
+// must exist, so a builder that silently drops a binary fails here.
+const all = readdirSync(dist).filter((f) => /-collector-/.test(f));
+const files = [];
+for (const f of all) {
+  if (f.includes('-windows-')) files.push(['windows', `${dist}/${f}`]);
+  else if (f.includes('-darwin-')) files.push(['darwin', `${dist}/${f}`]);
+  else if (f.includes('-linux-')) files.push(['linux', `${dist}/${f}`]);
+  else { console.error(`VERIFY FAIL: ${f} matches no known platform pattern`); process.exit(1); }
+}
+for (const kind of ['linux', 'windows', 'darwin']) {
+  for (const base of ['hello-collector', 'agent-collector']) {
+    if (!files.some(([k, f]) => k === kind && f.includes(`/${base}-`))) {
+      console.error(`VERIFY FAIL: missing ${base} artifact for ${kind}`);
+      process.exit(1);
+    }
+  }
+}
 let ok = true;
-for (const [kind, file] of Object.entries(files)) {
+for (const [kind, file] of files) {
   if (verify(file, kind)) console.log(`VERIFY PASS ${kind}: ${file}`);
   else ok = false;
 }
