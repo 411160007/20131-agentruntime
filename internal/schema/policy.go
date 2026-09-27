@@ -25,34 +25,52 @@ type MatchField string
 const (
 	FieldAgentID MatchField = "agent_id"
 	FieldType    MatchField = "type"
-	FieldTool    MatchField = "tool"   // matched against Attrs["tool"]
-	FieldPath    MatchField = "path"   // matched against Attrs["path"]
-	FieldDomain  MatchField = "domain" // matched against Attrs["domain"]
+	FieldTool    MatchField = "tool"    // matched against Attrs["tool"]
+	FieldPath    MatchField = "path"    // matched against Attrs["path"]
+	FieldDomain  MatchField = "domain"  // matched against Attrs["domain"]
+	FieldCmdline MatchField = "cmdline" // matched against Attrs["cmdline"]
+	FieldExe     MatchField = "exe"     // matched against Attrs["exe"]
 )
 
 func (m MatchField) Valid() bool {
 	switch m {
-	case FieldAgentID, FieldType, FieldTool, FieldPath, FieldDomain:
+	case FieldAgentID, FieldType, FieldTool, FieldPath, FieldDomain, FieldCmdline, FieldExe:
 		return true
 	}
 	return false
+}
+
+// AllMatchFields lists the rule match-field vocabulary in declaration
+// order; docs/api-v0.md mirrors it and the sync tests fail on drift.
+func AllMatchFields() []string {
+	return []string{
+		string(FieldAgentID), string(FieldType), string(FieldTool),
+		string(FieldPath), string(FieldDomain), string(FieldCmdline), string(FieldExe),
+	}
 }
 
 // MatchOp is the comparison operator applied to a rule value.
 type MatchOp string
 
 const (
-	OpEquals MatchOp = "equals"
-	OpPrefix MatchOp = "prefix"
-	OpSuffix MatchOp = "suffix"
+	OpEquals   MatchOp = "equals"
+	OpPrefix   MatchOp = "prefix"
+	OpSuffix   MatchOp = "suffix"
+	OpContains MatchOp = "contains"
 )
 
 func (o MatchOp) Valid() bool {
 	switch o {
-	case OpEquals, OpPrefix, OpSuffix:
+	case OpEquals, OpPrefix, OpSuffix, OpContains:
 		return true
 	}
 	return false
+}
+
+// AllMatchOps lists the rule operator vocabulary in declaration order;
+// docs/api-v0.md mirrors it and the sync tests fail on drift.
+func AllMatchOps() []string {
+	return []string{string(OpEquals), string(OpPrefix), string(OpSuffix), string(OpContains)}
 }
 
 // MaxRules bounds one policy document.
@@ -62,6 +80,15 @@ const MaxRules = 256
 // A rule matches when the selected event field satisfies Op(Value).
 // Rules are evaluated in priority order (higher first), ties broken by
 // declaration index; the first match wins.
+//
+// Hard and Caps are additive v1 members (absent = false/nil, so every
+// pre-existing policy document parses and evaluates identically):
+//   - Hard marks a rule the user may not downgrade. A hard rule must
+//     carry effect would_block and severity critical (the only
+//     non-downgradable decision shape in Phase 0), and merge surfaces
+//     refuse user documents that alter or exactly shadow one.
+//   - Caps names the capability vocabulary tokens (see capability.go)
+//     the rule guards; every token must exist in the built-in table.
 type Rule struct {
 	ID       string     `json:"id"`
 	Priority int        `json:"priority"`
@@ -70,6 +97,8 @@ type Rule struct {
 	Value    string     `json:"value"`
 	Effect   Effect     `json:"effect"`
 	Severity Severity   `json:"severity"`
+	Hard     bool       `json:"hard,omitempty"`
+	Caps     []string   `json:"caps,omitempty"`
 }
 
 // Validate checks the rule grammar.
@@ -91,6 +120,14 @@ func (r *Rule) Validate() error {
 	}
 	if !r.Severity.Valid() {
 		return fmt.Errorf("schema: rule %s: severity %d out of range", r.ID, int(r.Severity))
+	}
+	if r.Hard && (r.Effect != EffectWouldBlock || r.Severity != SevCritical) {
+		return fmt.Errorf("schema: rule %s: hard rules must carry effect would_block and severity critical", r.ID)
+	}
+	for _, c := range r.Caps {
+		if !Capability(c).Valid() {
+			return fmt.Errorf("schema: rule %s: cap %q not in capability vocabulary", r.ID, c)
+		}
 	}
 	return nil
 }

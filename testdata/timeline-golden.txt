@@ -1,0 +1,7 @@
+timeline: 6 event(s)
+2026-09-26T18:46:29Z  allow        collector.start   collector-641b3336        agent-collector started: local JSONL audit only, no network, observe-only (Phase 0)
+2026-09-26T18:46:29Z  allow        agent.detected    agi-1-641b3336            detected openclaw agent: docker-init (pid 1, rule openclaw)
+2026-09-26T18:46:29Z  allow        agent.detected    agi-7-641b3336            detected openclaw agent: openclaw-gatewa (pid 7, rule openclaw)
+2026-09-27T09:05:00Z  allow        agent.scan        agi-tl0002                scan cycle 42: 9 processes, 3 agent rows (0 new)
+2026-09-27T09:06:00Z  would_block  policy.decision   agi-tl0002                rule cred.ssh matched path contains "/.ssh/"
+2026-09-27T09:07:00Z  allow        agent.detected    agi-tl0001                detected sample agent: worker

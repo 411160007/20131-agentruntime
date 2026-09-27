@@ -118,8 +118,8 @@ if (!c.version_regex) {
   drift++;
 } else {
   const rx = new RegExp(c.version_regex);
-  const goodA = 'agent-collector 0.3.0-d3 linux/amd64 (go1.27.1)';
-  const goodH = 'hello-collector 0.3.0-d3 windows/arm64 (go1.27.1)';
+  const goodA = 'agent-collector 0.4.0-d4 linux/amd64 (go1.27.1)';
+  const goodH = 'hello-collector 0.4.0-d4 windows/arm64 (go1.27.1)';
   const badV = 'agent-collector v3 linux (go)';
   if (!rx.test(goodA) || rx.test(badV)) {
     console.error('DRIFT: version_regex contract does not pin the frozen shape');

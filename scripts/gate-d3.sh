@@ -148,14 +148,20 @@ echo 'CONTROL SURFACE OK (shape + corrupt-input control + mode gate + read-only)
 step '09 frozen contract cross-check (doc == validator == Go)'
 node scripts/apicontract-check.mjs
 node scripts/apicontract-check.mjs --negative
-# capability rules cross-grep (table vs rules): today zero rule carries a
-# cap reference; if either side drifts to nonzero-mismatch this fails.
-refs=$(grep -rhoE '"cap":"[A-Za-z0-9._-]+"' cmd/ internal/ --include='*.go' 2>/dev/null | grep -v _test | sort -u | wc -l || true)
+# capability rules cross-grep (table vs rules): the built-in judgement
+# set now carries cap references on every rule — each reference must
+# exist in the capability table (forward pairing); drift in either
+# direction lands here, and the rules package pins it again in Go.
+caprefs=$(node -e 'const s=require("node:fs").readFileSync("internal/rules/rules.go","utf8");const m=s.match(/"caps": \[[^\]]*\]/g)||[];const toks=new Set();for(const b of m){for(const t of b.matchAll(/([a-z][a-z0-9]*\.[a-z0-9.]+)/g)){toks.add(t[1])}}process.stdout.write([...toks].sort().join("\n"))')
 rows=$(node -e 'const s=require("node:fs").readFileSync("internal/schema/capability.go","utf8");const m=s.match(/\{Cap\("[^"]+"\)/g);if(!m||m.length===0){console.error("capability table parsed EMPTY (silent probe guard)");process.exit(1)}console.log(m.length)')
-echo "cap-carrying rule refs=$refs (must stay 0 until the rules slice; gate text below documents the pairing rule)"
-[ "$refs" -eq 0 ] || { echo 'RED: cap-carrying rules appeared; extend this step to validate each reference against the capability table'; exit 1; }
-echo "CAPABILITY TABLE OK ($rows entries, dual-source synced)"
-
+if [ -z "$caprefs" ]; then echo 'RED: built-in rules carry zero cap references; cross-check went vacuous'; exit 1; fi
+while IFS= read -r tok; do
+  [ -n "$tok" ] || continue
+  if ! node -e "const s=require('node:fs').readFileSync('internal/schema/capability.go','utf8');process.exit(s.includes('Cap(\"$tok\")')?0:1)"; then
+    echo "RED: rule cap token $tok missing from capability table"; exit 1
+  fi
+done <<<"$caprefs"
+echo "CAPABILITY CROSS-CHECK OK ($rows table entries; every built-in rule cap reference resolves)"
 step '10 D1/D2 regression: hello pipeline + rotation still valid'
 hout=$(mktemp "$TMPDIR"/events.XXXXXX.jsonl)
 "$hello" --out "$hout"

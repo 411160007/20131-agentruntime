@@ -6,9 +6,9 @@
 // with observed processes, and performs no network I/O of any kind; the
 // local audit file is the only output.
 //
-// Control surface (read-only): the "status" and "audit-tail"
-// subcommands summarize an existing audit file. The collector never
-// writes anything except its own JSONL audit stream.
+// Control surface (read-only): the "status", "audit-tail", and
+// "timeline" subcommands summarize an existing audit file. The
+// collector never writes anything except its own JSONL audit stream.
 package main
 
 import (
@@ -21,7 +21,7 @@ import (
 )
 
 // version is overridden at build time via -ldflags "-X main.version=...".
-var version = "0.3.0-d3"
+var version = "0.4.0-d4"
 
 func main() {
 	cfg, sub, err := parseFlags(flag.CommandLine, os.Args[1:])
@@ -40,8 +40,10 @@ func main() {
 		err = runStatus(cfg)
 	case "audit-tail":
 		err = runTail(cfg)
+	case "timeline":
+		err = runTimeline(cfg)
 	default:
-		fmt.Fprintf(os.Stderr, "agent-collector: unknown subcommand %q (want status | audit-tail)\n", sub)
+		fmt.Fprintf(os.Stderr, "agent-collector: unknown subcommand %q (want status | audit-tail | timeline)\n", sub)
 		os.Exit(2)
 	}
 	if err != nil {
@@ -62,6 +64,8 @@ type config struct {
 	mode        string // observe is the ONLY mode in Phase 0 (see phase0Modes)
 	trust       string // user trust file for status display (never written by the collector)
 	tailN       int
+	agentFilter string    // timeline: exact agent_id filter (empty = all)
+	since       time.Time // timeline: RFC3339 lower bound (zero = none)
 }
 
 // phase0Modes is the complete set of runtime modes in Phase 0. The
@@ -83,6 +87,8 @@ var knownFlags = map[string]bool{
 	"-mode": true, "--mode": true,
 	"-trust": true, "--trust": true,
 	"-n": true, "--n": true,
+	"-agent": true, "--agent": true,
+	"-since": true, "--since": true,
 }
 
 // parseFlags supports `agent-collector [subcommand] [flags...]`: the
@@ -108,8 +114,18 @@ func parseFlags(fs *flag.FlagSet, args []string) (config, string, error) {
 	fs.StringVar(&c.mode, "mode", "observe", "runtime mode; Phase 0 is observe-only")
 	fs.StringVar(&c.trust, "trust", "", "path of the user trust file listing explicit trusted agent ids (status display only)")
 	fs.IntVar(&c.tailN, "n", 10, "for audit-tail: number of trailing lines")
+	agent := fs.String("agent", "", "for timeline: show only this exact agent_id (empty = all)")
+	sinceStr := fs.String("since", "", "for timeline: RFC3339 lower bound on event time (empty = none)")
 	if err := fs.Parse(args); err != nil {
 		return c, sub, err
+	}
+	c.agentFilter = *agent
+	if *sinceStr != "" {
+		ts, err := time.Parse(time.RFC3339, *sinceStr)
+		if err != nil {
+			return c, sub, fmt.Errorf("-since must be RFC3339 (e.g. 2026-09-27T09:00:00Z): %w", err)
+		}
+		c.since = ts.UTC()
 	}
 	if !isPhase0Mode(c.mode) {
 		return c, sub, fmt.Errorf("mode %q is not available in this release (modes: %s)", c.mode, strings.Join(phase0Modes, ", "))

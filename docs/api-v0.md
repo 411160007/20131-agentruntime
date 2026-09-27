@@ -39,9 +39,14 @@ Reserved attrs keys:
   rejected by every validator and by the audit writer (zero bytes move).
 - `res_class` — resource sensitivity (see `res_classes`); empty means
   unclassified, wild values rejected.
+- `hard` — carried on `policy.decision` lines: `"true"` marks a
+  non-downgradable built-in finding (the annotated decision is
+  `would_block` with severity critical; nothing is enforced in
+  Phase 0).
 - `kind`, `rule`, `pid`, `ppid`, `name`, `exe`, `cmdline`, `identity`,
   `locator`, `state`, `run`, `observed`, `mode` — discovery annotation
-  surface (strings only).
+  surface (strings only). `rule` additionally names the matched
+  built-in/user rule id on `policy.decision` lines.
 
 ## Vocabularies (dual-source: Go enums == this list == validator)
 
@@ -83,8 +88,41 @@ Capability grants are NON-TRANSITIVE: a child process never inherits a
 parent's grants (annotation only in Phase 0; nothing enforces grants
 yet). Rule documents referencing capabilities must reference tokens in
 `caps` — machine-checked by the rules table vs capability table cross
-grep in the gate (currently zero cap-carrying rules; the check
-strengthens automatically as rules arrive).
+grep in the gate (the built-in set carries cap references on every
+rule; the gate asserts the pairing both ways).
+
+## Policy rule grammar (additive v1 extension of rule documents)
+
+Rule documents (the built-in set and user overrides) match one event
+field with one operator:
+
+```contract
+rule_fields: agent_id, type, tool, path, domain, cmdline, exe
+```
+
+```contract
+rule_ops: equals, prefix, suffix, contains
+```
+
+`tool`, `path`, `domain`, `cmdline`, and `exe` read the matching attrs
+key; absent attrs never match. Additive members of the Rule object:
+
+- `hard` (bool, default false) — non-downgradable annotation. A hard
+  rule MUST carry `effect=would_block` and `severity=4` (critical);
+  the schema grammar rejects any other shape, and the user-override
+  merge refuses documents that change a built-in rule or exactly
+  shadow a hard one with an allow rule.
+- `caps` ([]string, default empty) — capability tokens guarded by the
+  rule; every token must be a member of `caps` above.
+
+The built-in Phase 0 set is exactly 12 rules
+(`builtin-phase0`, embedded in the binary): cred.ssh, cred.aws,
+cred.browser, cred.dotenv, destroy.rmrf, destroy.disk,
+exec.remotepipe, net.egress, mcp.eval, agent.masquerade, path.sudoers,
+audit.tamper. Decisions are additive: matched rules record
+`would_block` audit lines; nothing is ever enforced (see decisions
+note above). The id ↔ threat mapping is `docs/threat-model.md` and is
+cross-checked in both directions by the gate.
 
 ## Agent identity (stable ids)
 
@@ -121,6 +159,7 @@ Binary grammar: `agent-collector [subcommand] [flags...]`
 | (none)      | `--out --interval --once --max-cycles --rotate-bytes --rotate-daily --keep-history --mode --trust` | scan loop; writes only the JSONL audit stream |
 | `status`    | `--out --trust` | line-oriented plain text: `status: <N> event lines`, then `by type:` / `by kind:` / `by state:` sections, keys byte-ascending, one `  <key> <count>` line each |
 | `audit-tail`| `--out --n`    | the trailing N valid audit lines printed verbatim (validates every line it prints; corrupt input ⇒ non-zero exit) |
+| `timeline`  | `--out --agent --since` | plain-text event timeline: header `timeline: <N> event(s)`, then one row per event `ts  decision  type  agent_id  summary` (columns left-aligned, single-space gap at least two); `--agent` exact id filter, `--since` RFC3339 lower bound; validates every line it reads; corrupt input ⇒ non-zero exit |
 
 - Every flag exists as `-flag` and `--flag` (Go flag grammar).
 - `--mode` accepts `observe` only (the complete Phase 0 mode set).
@@ -145,3 +184,9 @@ Sources named at wiring time: `discovery-scan` (active), `hook`, `mcp`
 until their slice ships). The collector.start line carries
 `bus_sources` with this exact comma-joined set, so the wiring shape is
 auditable from the file alone.
+
+Engine delivery: tier L2/L3 lines are handed, in order, to every
+attached rule-engine consumer (the built-in judgement layer renders
+the `policy.decision` line described above; the consumer never
+mutates the source line and never re-feeds decision lines to the
+engine).

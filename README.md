@@ -33,16 +33,17 @@ Early skeleton. Current contents:
 | Path | What it is |
 |---|---|
 | `cmd/hello-collector` | single-binary skeleton: writes a demo policy-evaluation pipeline to local JSONL |
-| `cmd/agent-collector` | discovery collector + read-only control surface (`status`, `audit-tail`); observe-only |
-| `internal/schema` | core data model: `Agent`, `Event` (+ tier routing, capability attrs), `Policy`, capability vocabulary; strict validation |
+| `cmd/agent-collector` | discovery collector + read-only control surface (`status`, `audit-tail`, `timeline`); observe-only |
+| `internal/schema` | core data model: `Agent`, `Event` (+ tier routing, capability attrs), `Policy` (rule grammar incl. hard/caps annotations), capability vocabulary; strict validation |
 | `internal/policy` | deterministic policy evaluator |
+| `internal/rules` | security judgement layer: built-in 12-rule Phase 0 policy (embedded JSON), user-override merge, would_block decision emitter, bus engine consumer |
 | `internal/discovery` | process-tree agent fingerprints (Claude Code, Codex, OpenClaw, MCP servers) + per-platform snapshot sources |
 | `internal/bus` | event bus: multi-source fan-in with tier routing into the single audit pipe; reserved adapter slots |
 | `internal/identity` | stable agent ids (machine fingerprint + normalized exe locator) + known/observed/trusted passport states |
 | `internal/auditlog` | local JSONL audit writer with size and UTC day-cut rotation |
 | `scripts/` | build, gate batteries, license gate, artifact verification, API contract cross-check, negative-scan tripwire |
-| `docs/` | architecture notes, the frozen Core API contract (`docs/api-v0.md`), and the dependency license register |
-| `testdata/` | pre-tier legacy JSONL fixtures pinning additive zero-breakage of the schema contract |
+| `docs/` | architecture notes, the frozen Core API contract (`docs/api-v0.md`), the threat model (`docs/threat-model.md`), and the dependency license register |
+| `testdata/` | legacy JSONL fixtures pinning additive zero-breakage + the frozen 40-case golden evaluation corpus (`testdata/golden/`) |
 
 ## Running the collector
 
@@ -67,6 +68,7 @@ observation machinery has structurally no transition edge into trusted.
 ```sh
 ./agent-collector status --out agent-audit.jsonl [--trust ~/.config/20131/trust.txt]
 ./agent-collector audit-tail --out agent-audit.jsonl --n 20
+./agent-collector timeline --out agent-audit.jsonl [--agent agi-…] [--since 2026-09-27T09:00:00Z]
 ```
 
 `--mode observe` is the ONLY mode this release accepts: the runtime

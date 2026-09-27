@@ -29,6 +29,8 @@ func TestAPIDocContractMatchesGoEnums(t *testing.T) {
 		{"tiers", AllTiers()},
 		{"caps", AllCapabilities()},
 		{"res_classes", AllResourceClasses()},
+		{"rule_fields", AllMatchFields()},
+		{"rule_ops", AllMatchOps()},
 	}
 	for _, tc := range cases {
 		got := contractList(t, doc, tc.key)

@@ -77,7 +77,7 @@ func fieldValue(e *schema.Event, f schema.MatchField) (string, bool) {
 		return e.AgentID, true
 	case schema.FieldType:
 		return string(e.Type), true
-	case schema.FieldTool, schema.FieldPath, schema.FieldDomain:
+	case schema.FieldTool, schema.FieldPath, schema.FieldDomain, schema.FieldCmdline, schema.FieldExe:
 		if e.Attrs == nil {
 			return "", false
 		}
@@ -97,6 +97,8 @@ func match(op schema.MatchOp, got, want string) bool {
 		return strings.HasPrefix(got, want)
 	case schema.OpSuffix:
 		return strings.HasSuffix(got, want)
+	case schema.OpContains:
+		return strings.Contains(got, want)
 	}
 	return false
 }
