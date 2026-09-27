@@ -27,8 +27,10 @@ Release assets add one packaging cap on top of the same name:
 Each archive embeds the binary (under its contract name), `LICENSE`,
 `NOTICE`, and a `CHECKSUM.txt` holding the binary's SHA-256. Outside the
 archives, one `SHA256SUMS.txt` per release lists every release asset.
-The older bare form (`hello-collector-linux`) is retired; the release
-gate asserts it has zero residue.
+The older bare form (binary name plus a lone OS suffix, no version and
+no architecture) is retired; the release
+name-contract gate greps every tracked file and asserts it has zero
+residue — including in documentation prose about the retirement itself.
 
 ## Platform matrix
 
