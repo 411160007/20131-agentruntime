@@ -182,6 +182,12 @@ func TestRedactSecrets(t *testing.T) {
 		"uploader -p hunter2 --user " + mail:                                                  {"hunter2", mail},
 		"curl https://" + urlSecret + "/v1":                                                   {urlSecret},
 		"proc --config /etc/app/keys.pem --name ok":                                           {"keys.pem"},
+		// header-shaped credentials (colon, optional auth scheme): the
+		// dominant command-line credential form the adapter surfaces see
+		"curl -H \"Authorization: Bearer b34rtok8x2\" https://api.example.test": {"b34rtok8x2"},
+		"fetch -H 'x-api-key: xk9t0k3n' https://api.example.test":               {"xk9t0k3n"},
+		"login --header \"Authorization: Basic dXNlcjpwYXNzMTIz\"":              {"dXNlcjpwYXNzMTIz"},
+		"api Authorization:plaincl7k":                                           {"plaincl7k"},
 	}
 	for in, secrets := range cases {
 		out := Redact(in)
@@ -197,6 +203,11 @@ func TestRedactSecrets(t *testing.T) {
 	clean := "git status --porcelain"
 	if got := Redact(clean); got != clean {
 		t.Errorf("Redact must leave benign lines untouched, got %q", got)
+	}
+	// benign-header negative control: only credential headers redact
+	benign := "curl -H \"Accept: application/json\" -H \"Content-Type: text/plain\" https://api.example.test"
+	if got := Redact(benign); got != benign {
+		t.Errorf("Redact altered benign headers: %q", got)
 	}
 }
 

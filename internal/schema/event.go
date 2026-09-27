@@ -39,6 +39,11 @@ const (
 	TypeCollectorStop   EventType = "collector.stop"
 	TypeAgentDetected   EventType = "agent.detected"
 	TypeAgentScan       EventType = "agent.scan"
+	// Additive v1 vocabulary (platform adapter slice, compatibility note in
+	// docs/api-v0.md): hook session lifecycle events observed through the
+	// agent-facing adapter surface.
+	TypeSessionStart EventType = "session.start"
+	TypeTurnStop     EventType = "turn.stop"
 )
 
 // AllEventTypes lists every valid EventType in declaration order.
@@ -50,6 +55,7 @@ func AllEventTypes() []string {
 		string(TypeNetworkIntent), string(TypePolicyDecision), string(TypeEnforceAction),
 		string(TypeCollectorStart), string(TypeCollectorStop),
 		string(TypeAgentDetected), string(TypeAgentScan),
+		string(TypeSessionStart), string(TypeTurnStop),
 	}
 }
 
@@ -65,7 +71,7 @@ func (t EventType) Valid() bool {
 	switch t {
 	case TypeCommandProposed, TypeToolCall, TypeFileAccess, TypeNetworkIntent,
 		TypePolicyDecision, TypeEnforceAction, TypeCollectorStart, TypeCollectorStop,
-		TypeAgentDetected, TypeAgentScan:
+		TypeAgentDetected, TypeAgentScan, TypeSessionStart, TypeTurnStop:
 		return true
 	}
 	return false

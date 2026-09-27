@@ -33,7 +33,7 @@ Early skeleton. Current contents:
 | Path | What it is |
 |---|---|
 | `cmd/hello-collector` | single-binary skeleton: writes a demo policy-evaluation pipeline to local JSONL |
-| `cmd/agent-collector` | discovery collector + read-only control surface (`status`, `audit-tail`, `timeline`); observe-only |
+| `cmd/agent-collector` | discovery collector + read-only control surface (`status`, `audit-tail`, `timeline`) + observe-only platform adapter surface (`hook`, `mcp` relay, `integrate` config generator) |
 | `internal/schema` | core data model: `Agent`, `Event` (+ tier routing, capability attrs), `Policy` (rule grammar incl. hard/caps annotations), capability vocabulary; strict validation |
 | `internal/policy` | deterministic policy evaluator |
 | `internal/rules` | security judgement layer: built-in 12-rule Phase 0 policy (embedded JSON), user-override merge, would_block decision emitter, bus engine consumer |
@@ -69,7 +69,17 @@ observation machinery has structurally no transition edge into trusted.
 ./agent-collector status --out agent-audit.jsonl [--trust ~/.config/20131/trust.txt]
 ./agent-collector audit-tail --out agent-audit.jsonl --n 20
 ./agent-collector timeline --out agent-audit.jsonl [--agent agi-…] [--since 2026-09-27T09:00:00Z]
+./agent-collector integrate --target claude-code --dir ~/.claude   # wire hook callbacks here
+./agent-collector hook --out agent-audit.jsonl                     # receiver: always rc 0, zero stdout
+./agent-collector mcp --server ./my-mcp-server --out agent-audit.jsonl  # audited pass-through relay
 ```
+
+The adapter surface is observation-only like everything else: the hook
+receiver can never answer for the agent (no stdout, no exit code), the
+MCP relay forwards every byte untouched and merely annotates completed
+tool calls with `would_block` audit lines, and `integrate` writes only
+recorder wiring (codex has no public hook face: it honestly writes
+nothing and says so).
 
 `--mode observe` is the ONLY mode this release accepts: the runtime
 observes, alerts, and audits; it never blocks. `would_block` decisions

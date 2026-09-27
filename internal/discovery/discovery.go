@@ -300,13 +300,19 @@ var (
 	reURLUser    = regexp.MustCompile(`(?i)[a-z][a-z0-9+.-]*://[^/\s]*@[^/\s]*`)
 	// reBareMail catches plain account-at-domain tokens on command lines.
 	reBareMail = regexp.MustCompile(`(?i)[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+`)
+	// reAuthHeader catches HTTP header-shaped credentials ("Authorization:
+	// Bearer <tok>", "-H Authorization: <tok>", "x-api-key: <tok>"): the
+	// colon-space form that reLongSecret (key=value) cannot see, and the
+	// dominant shape in agent tool command lines hitting adapter audits.
+	reAuthHeader = regexp.MustCompile("(?i)(\\b(?:proxy-)?authorization\\s*[:=]\\s*(?:(?:bearer|basic|token)\\s+)?|x-api-key\\s*[:=]\\s*)([^\\s\"',;]+)")
 )
 
 const redactMarker = "[redacted]"
 
 // Redact removes obvious credential material from a process string:
 // user@host and scheme://user:pass@host shapes, values of known secret
-// flags (--token=..., ssh -i /path), and key-file paths.
+// flags (--token=..., ssh -i /path), key-file paths, and HTTP
+// authorization header values (Bearer/Basic/plain, plus x-api-key).
 func Redact(s string) string {
 	if s == "" {
 		return s
@@ -317,6 +323,7 @@ func Redact(s string) string {
 	})
 	s = reBareMail.ReplaceAllString(s, redactMarker)
 	s = reLongSecret.ReplaceAllString(s, redactMarker)
+	s = reAuthHeader.ReplaceAllString(s, "$1"+redactMarker)
 
 	toks := strings.Fields(s)
 	var out []string

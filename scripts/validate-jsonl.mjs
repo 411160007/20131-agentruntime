@@ -12,7 +12,7 @@ const STAGES = ['proposed', 'evaluated', 'enforcement', 'action', 'observation']
 const TYPES = [
   'command.proposed', 'tool.call', 'file.access', 'network.intent',
   'policy.decision', 'enforce.action', 'collector.start', 'collector.stop',
-  'agent.detected', 'agent.scan',
+  'agent.detected', 'agent.scan', 'session.start', 'turn.stop',
 ];
 const DECISIONS = ['allow', 'ask', 'would_block'];
 // TIER mirrors the Go schema Tier enum (internal/schema/event.go); the

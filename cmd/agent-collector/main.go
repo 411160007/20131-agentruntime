@@ -7,8 +7,16 @@
 // local audit file is the only output.
 //
 // Control surface (read-only): the "status", "audit-tail", and
-// "timeline" subcommands summarize an existing audit file. The
-// collector never writes anything except its own JSONL audit stream.
+// "timeline" subcommands summarize an existing audit file.
+//
+// Adapter surface (platform integration): "hook" receives one agent
+// hook callback on stdin and records it (always exits 0, never writes
+// stdout — Phase 0 pass-through); "mcp" runs a stdio JSON-RPC relay
+// that forwards untouched while auditing tools/call round trips;
+// "integrate" generates per-agent configuration that routes callbacks
+// here. None of these can change what an observed process does; the
+// collector still never performs network I/O of any kind (the MCP
+// relay speaks over child-process pipes only).
 package main
 
 import (
@@ -42,8 +50,16 @@ func main() {
 		err = runTail(cfg)
 	case "timeline":
 		err = runTimeline(cfg)
+	case "hook":
+		// The receiver's failure contract: never disturb the agent.
+		_ = runHookSub(cfg)
+		return
+	case "mcp":
+		err = runMCPSub(cfg, cfg.rest)
+	case "integrate":
+		err = runIntegrateSub(cfg)
 	default:
-		fmt.Fprintf(os.Stderr, "agent-collector: unknown subcommand %q (want status | audit-tail | timeline)\n", sub)
+		fmt.Fprintf(os.Stderr, "agent-collector: unknown subcommand %q (want status | audit-tail | timeline | hook | mcp | integrate)\n", sub)
 		os.Exit(2)
 	}
 	if err != nil {
@@ -66,6 +82,13 @@ type config struct {
 	tailN       int
 	agentFilter string    // timeline: exact agent_id filter (empty = all)
 	since       time.Time // timeline: RFC3339 lower bound (zero = none)
+	// adapter surface: integrate target/dir/bin and mcp server exe plus
+	// its pass-through args (rest = positional args after flag parsing).
+	target string
+	dir    string
+	bin    string
+	server string
+	rest   []string
 }
 
 // phase0Modes is the complete set of runtime modes in Phase 0. The
@@ -89,6 +112,10 @@ var knownFlags = map[string]bool{
 	"-n": true, "--n": true,
 	"-agent": true, "--agent": true,
 	"-since": true, "--since": true,
+	"-target": true, "--target": true,
+	"-dir": true, "--dir": true,
+	"-bin": true, "--bin": true,
+	"-server": true, "--server": true,
 }
 
 // parseFlags supports `agent-collector [subcommand] [flags...]`: the
@@ -116,9 +143,18 @@ func parseFlags(fs *flag.FlagSet, args []string) (config, string, error) {
 	fs.IntVar(&c.tailN, "n", 10, "for audit-tail: number of trailing lines")
 	agent := fs.String("agent", "", "for timeline: show only this exact agent_id (empty = all)")
 	sinceStr := fs.String("since", "", "for timeline: RFC3339 lower bound on event time (empty = none)")
+	target := fs.String("target", "", "for integrate: adapter target (claude-code | codex | openclaw)")
+	dir := fs.String("dir", "", "for integrate: the agent config directory to write into")
+	bin := fs.String("bin", "", "for integrate: collector binary path embedded in generated config (default: this executable)")
+	server := fs.String("server", "", "for mcp: server executable to relay to (remaining positional args go to it)")
 	if err := fs.Parse(args); err != nil {
 		return c, sub, err
 	}
+	c.target = *target
+	c.dir = *dir
+	c.bin = *bin
+	c.server = *server
+	c.rest = fs.Args()
 	c.agentFilter = *agent
 	if *sinceStr != "" {
 		ts, err := time.Parse(time.RFC3339, *sinceStr)

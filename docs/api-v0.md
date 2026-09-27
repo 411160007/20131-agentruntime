@@ -55,8 +55,16 @@ stages: proposed, evaluated, enforcement, action, observation
 ```
 
 ```contract
-types: command.proposed, tool.call, file.access, network.intent, policy.decision, enforce.action, collector.start, collector.stop, agent.detected, agent.scan
+types: command.proposed, tool.call, file.access, network.intent, policy.decision, enforce.action, collector.start, collector.stop, agent.detected, agent.scan, session.start, turn.stop
 ```
+
+Additive compatibility note (platform adapter surface): `session.start`
+and `turn.stop` extend the vocabulary without renaming or re-grammaring
+anything frozen above. They are lifecycle observations recorded by the
+hook receiver (an agent session beginning / a turn ending); every
+existing consumer keeps validating lines by the unchanged field rules,
+and a pre-extension reader that filters on the older ten types simply
+ignores the two new ones. No prior meaning changed.
 
 ```contract
 decisions: allow, ask, would_block
@@ -160,11 +168,17 @@ Binary grammar: `agent-collector [subcommand] [flags...]`
 | `status`    | `--out --trust` | line-oriented plain text: `status: <N> event lines`, then `by type:` / `by kind:` / `by state:` sections, keys byte-ascending, one `  <key> <count>` line each |
 | `audit-tail`| `--out --n`    | the trailing N valid audit lines printed verbatim (validates every line it prints; corrupt input ⇒ non-zero exit) |
 | `timeline`  | `--out --agent --since` | plain-text event timeline: header `timeline: <N> event(s)`, then one row per event `ts  decision  type  agent_id  summary` (columns left-aligned, single-space gap at least two); `--agent` exact id filter, `--since` RFC3339 lower bound; validates every line it reads; corrupt input ⇒ non-zero exit |
+| `hook`      | `--out`        | adapter receiver: one hook payload on stdin → appended audit line(s); ALWAYS exits 0 with ZERO stdout bytes whatever it receives (an unreadable payload records nothing and still disturbs nothing); unparseable/oversized/unknown-event input ⇒ zero bytes recorded |
+| `mcp`       | `--out --server` + positional server args | stdio JSON-RPC relay: forwards every byte both ways untouched while auditing completed `tools/call` round trips (hash + redacted excerpt + latency/sizes); judgement annotations are emitted only, the relay never consults them; exits non-zero only on transport failure |
+| `integrate` | `--target --dir --bin` | config generator: `claude-code`/`openclaw` merge recorder wiring into an existing `--dir` file (idempotent; unparseable existing config ⇒ refusal, never overwrite); `codex` writes NOTHING and prints the honest coverage gap; unknown target or missing directory ⇒ non-zero exit, zero writes |
 
 - Every flag exists as `-flag` and `--flag` (Go flag grammar).
 - `--mode` accepts `observe` only (the complete Phase 0 mode set).
-- Subcommands never write: audit file opened read-only; the only file
-  sink in the program remains the scan loop's JSONL writer (0600).
+- Control subcommands never write; adapter subcommands write only
+  audit lines: `hook`/`mcp` append exclusively to the JSONL audit
+  stream (0600), `integrate` writes only inside its explicit `--dir`.
+  The scan loop remains a pure audit emitter. Nothing in this binary
+  performs network I/O: the relay speaks over child-process pipes only.
 - Unknown flags/subcommands exit 2.
 
 ## Version line
