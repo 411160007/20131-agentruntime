@@ -23,6 +23,10 @@ func TestEnumsStayInSyncWithValidator(t *testing.T) {
 	_ = lists
 	stages := extractArray(t, src, "STAGES")
 	types := extractArray(t, src, "TYPES")
+	decisions := extractArray(t, src, "DECISIONS")
+	tiers := extractArray(t, src, "TIER")
+	caps := extractArray(t, src, "CAPS")
+	resClasses := extractArray(t, src, "RES_CLASSES")
 
 	if diff := symDiff(stages, AllStages()); len(diff) > 0 {
 		t.Errorf("validate-jsonl.mjs STAGES diverges from Go Stage enum: %v", diff)
@@ -30,11 +34,27 @@ func TestEnumsStayInSyncWithValidator(t *testing.T) {
 	if diff := symDiff(types, AllEventTypes()); len(diff) > 0 {
 		t.Errorf("validate-jsonl.mjs TYPES diverges from Go EventType enum: %v", diff)
 	}
+	if diff := symDiff(decisions, AllDecisions()); len(diff) > 0 {
+		t.Errorf("validate-jsonl.mjs DECISIONS diverges from Go Decision enum: %v", diff)
+	}
+	if diff := symDiff(tiers, AllTiers()); len(diff) > 0 {
+		t.Errorf("validate-jsonl.mjs TIER diverges from Go Tier enum: %v", diff)
+	}
+	if diff := symDiff(caps, AllCapabilities()); len(diff) > 0 {
+		t.Errorf("validate-jsonl.mjs CAPS diverges from Go capability vocabulary: %v", diff)
+	}
+	if diff := symDiff(resClasses, AllResourceClasses()); len(diff) > 0 {
+		t.Errorf("validate-jsonl.mjs RES_CLASSES diverges from Go sensitivity classes: %v", diff)
+	}
 }
 
 var arrayRE = map[string]*regexp.Regexp{
-	"STAGES": regexp.MustCompile(`(?s)const STAGES = \[(.*?)\];`),
-	"TYPES":  regexp.MustCompile(`(?s)const TYPES = \[(.*?)\];`),
+	"STAGES":      regexp.MustCompile(`(?s)const STAGES = \[(.*?)\];`),
+	"TYPES":       regexp.MustCompile(`(?s)const TYPES = \[(.*?)\];`),
+	"DECISIONS":   regexp.MustCompile(`(?s)const DECISIONS = \[(.*?)\];`),
+	"TIER":        regexp.MustCompile(`(?s)const TIER = \[(.*?)\];`),
+	"CAPS":        regexp.MustCompile(`(?s)const CAPS = \[(.*?)\];`),
+	"RES_CLASSES": regexp.MustCompile(`(?s)const RES_CLASSES = \[(.*?)\];`),
 }
 
 func extractArray(t *testing.T, src, name string) []string {

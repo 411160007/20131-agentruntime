@@ -33,24 +33,47 @@ Early skeleton. Current contents:
 | Path | What it is |
 |---|---|
 | `cmd/hello-collector` | single-binary skeleton: writes a demo policy-evaluation pipeline to local JSONL |
-| `cmd/agent-collector` | discovery collector: polls the process table, identifies agent families, writes rotating JSONL audit (observe-only) |
-| `internal/schema` | core data model: `Agent`, `Event`, `Policy` with strict validation |
+| `cmd/agent-collector` | discovery collector + read-only control surface (`status`, `audit-tail`); observe-only |
+| `internal/schema` | core data model: `Agent`, `Event` (+ tier routing, capability attrs), `Policy`, capability vocabulary; strict validation |
 | `internal/policy` | deterministic policy evaluator |
 | `internal/discovery` | process-tree agent fingerprints (Claude Code, Codex, OpenClaw, MCP servers) + per-platform snapshot sources |
+| `internal/bus` | event bus: multi-source fan-in with tier routing into the single audit pipe; reserved adapter slots |
+| `internal/identity` | stable agent ids (machine fingerprint + normalized exe locator) + known/observed/trusted passport states |
 | `internal/auditlog` | local JSONL audit writer with size and UTC day-cut rotation |
-| `scripts/` | build, gate batteries, license gate, artifact verification, negative-scan tripwire |
-| `docs/` | architecture notes and the dependency license register |
+| `scripts/` | build, gate batteries, license gate, artifact verification, API contract cross-check, negative-scan tripwire |
+| `docs/` | architecture notes, the frozen Core API contract (`docs/api-v0.md`), and the dependency license register |
+| `testdata/` | pre-tier legacy JSONL fixtures pinning additive zero-breakage of the schema contract |
 
 ## Running the collector
 
 ```sh
 ./agent-collector --once --out agent-audit.jsonl      # single scan
-./agent-collector --interval 30s                       # keep watching until Ctrl-C
-./agent-collector --rotate-bytes 4194304 --keep-history 8
+./agent-collector --mode observe --interval 60s --rotate-bytes 1048576
 ```
 
 Detections appear as `agent.detected` lines (kind, rule, pid lineage,
 redacted command line) and each pass as one `agent.scan` coverage line.
+
+## Identity and the control surface (read-only)
+
+Discovery sightings carry STABLE ids: `agi-` + a sha256 over the machine
+fingerprint and the normalized executable locator (exe path, else
+command line, else name), so the same agent keeps its id across scans
+and across collector runs. Passport states run
+`known -> observed -> trusted`; promotion to `trusted` only ever happens
+from an explicit user trust file — never automatically, and the
+observation machinery has structurally no transition edge into trusted.
+
+```sh
+./agent-collector status --out agent-audit.jsonl [--trust ~/.config/20131/trust.txt]
+./agent-collector audit-tail --out agent-audit.jsonl --n 20
+```
+
+`--mode observe` is the ONLY mode this release accepts: the runtime
+observes, alerts, and audits; it never blocks. `would_block` decisions
+are recorded, not enforced. The full frozen field/command contract lives
+in [docs/api-v0.md](docs/api-v0.md); machine gates cross-check it
+against both implementations.
 
 ## Build & run
 
@@ -72,7 +95,9 @@ node scripts/verify-cross.mjs
 ## Quality gates
 
 ```sh
-go vet ./... && go test ./...
+bash scripts/gate-d1.sh   # skeleton + core model
+bash scripts/gate-d2.sh   # discovery slice + rotation
+bash scripts/gate-d3.sh   # core completion: bus, capability, identity, control surface, frozen contract
 node scripts/licenses-check.mjs --selftest && node scripts/licenses-check.mjs
 bash scripts/tripwire.sh --selftest && bash scripts/tripwire.sh
 ```

@@ -36,6 +36,10 @@ func DemoPolicy() *schema.Policy {
 		Rules: []schema.Rule{
 			{ID: "block-etc-write", Priority: 100, Field: schema.FieldPath, Op: schema.OpPrefix, Value: "/etc/", Effect: schema.EffectWouldBlock, Severity: schema.SevHigh},
 			{ID: "allow-echo", Priority: 10, Field: schema.FieldTool, Op: schema.OpEquals, Value: "echo", Effect: schema.EffectAllow, Severity: schema.SevInfo},
+			// ask-touch keeps the reserved "ask" effect exercised in the
+			// policy document itself; the runtime maps ask to would_block
+			// (see PipelineEvents), so Phase 0 output never carries ask.
+			{ID: "ask-touch", Priority: 20, Field: schema.FieldTool, Op: schema.OpEquals, Value: "touch", Effect: schema.EffectAsk, Severity: schema.SevMedium},
 		},
 	}
 }
@@ -68,6 +72,9 @@ func PipelineEvents(agent *schema.Agent, ev *policy.Evaluator) ([]*schema.Event,
 			Type:     typ,
 			Decision: schema.DecisionAllow,
 			Severity: schema.SevInfo,
+			// The demo models the Phase 0 runtime path: tier L1 (direct
+			// persist). L2/L3 routing feeds the rule-engine slot.
+			Tier: schema.TierL1,
 		}
 	}
 
@@ -75,10 +82,11 @@ func PipelineEvents(agent *schema.Agent, ev *policy.Evaluator) ([]*schema.Event,
 	start := base(0, schema.StageObservation, schema.TypeCollectorStart)
 	start.Summary = "hello-collector started (local JSONL audit only, no network)"
 
-	// 2. Agent Proposed
+	// 2. Agent Proposed (capability + sensitivity annotations per the
+	// vocabulary; Phase 0 expresses, never enforces)
 	prop := base(10, schema.StageProposed, schema.TypeCommandProposed)
 	prop.Summary = "demo agent proposed running a harmless local echo command"
-	prop.Attrs = map[string]string{"tool": "echo", "path": "./hello.txt"}
+	prop.Attrs = map[string]string{"tool": "echo", "path": "./hello.txt", "cap": "file.write", "res_class": "medium"}
 
 	// 3. Policy Evaluated
 	res, err := ev.Evaluate(prop)
@@ -88,6 +96,13 @@ func PipelineEvents(agent *schema.Agent, ev *policy.Evaluator) ([]*schema.Event,
 	dec, err := schema.DecisionFor(res.Effect)
 	if err != nil {
 		return nil, fmt.Errorf("pipeline: %w", err)
+	}
+	// The demo models the PHASE 0 RUNTIME PATH: a matching ask rule is
+	// presented with its runtime-equivalent value would_block (recorded,
+	// never enforced). Phase 0 decision values stay inside
+	// {allow, would_block}; "ask" is reserved contract vocabulary only.
+	if dec == schema.DecisionAsk {
+		dec = schema.DecisionWouldBlock
 	}
 	eval := base(20, schema.StageEvaluated, schema.TypePolicyDecision)
 	eval.Summary = fmt.Sprintf("policy evaluated demo proposal: %s (%s)", res.Effect, res.Reason)

@@ -1,0 +1,3 @@
+{"v":1,"ts":"2026-09-26T18:00:00Z","id":"ev-legacy-1","agent_id":"agi-legacy0001","stage":"observation","type":"agent.scan","decision":"allow","severity":0,"summary":"pre-tier scan line without attrs"}
+{"v":1,"ts":"2026-09-26T18:00:01Z","id":"ev-legacy-2","agent_id":"agi-legacy0002","stage":"observation","type":"agent.detected","decision":"allow","severity":0,"summary":"pre-tier detection line","attrs":{"kind":"codex","rule":"codex-cli","pid":"4242"}}
+{"v":1,"ts":"2026-09-26T18:00:02Z","id":"ev-legacy-3","agent_id":"agi-legacy0003","stage":"observation","type":"collector.stop","decision":"allow","severity":0,"summary":"pre-tier stop line","attrs":{"run":"legacy"}}

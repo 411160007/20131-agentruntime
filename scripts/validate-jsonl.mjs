@@ -1,7 +1,7 @@
 // validate-jsonl.mjs — schema validator for collector JSONL output.
 // Independently re-implements the field contract of the Go schema package
 // (second source of truth for the gate; divergence is caught by the
-// cross-check fixtures below).
+// cross-check fixtures and the enum sync tests below).
 //
 // Usage:
 //   node scripts/validate-jsonl.mjs <file> [--min-lines N]
@@ -15,6 +15,18 @@ const TYPES = [
   'agent.detected', 'agent.scan',
 ];
 const DECISIONS = ['allow', 'ask', 'would_block'];
+// TIER mirrors the Go schema Tier enum (internal/schema/event.go); the
+// sync test fails if the two sources diverge. Absent key = L1 default.
+const TIER = ['L0', 'L1', 'L2', 'L3'];
+// CAPS mirrors internal/schema/capability.go; RES_CLASSES the three
+// sensitivity levels. attrs["cap"]/attrs["res_class"] are validated here
+// exactly as Event.Validate() validates them in Go.
+const CAPS = [
+  'file.read', 'file.write', 'file.delete', 'net.outbound', 'net.listen',
+  'proc.spawn', 'shell.exec', 'mcp.tool', 'credential.access', 'env.read',
+  'process.inspect',
+];
+const RES_CLASSES = ['low', 'medium', 'high'];
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const SCHEMA_VERSION = 1;
 
@@ -33,12 +45,15 @@ function lineErrors(e) {
   if (!TYPES.includes(e.type)) errs.push(`type=${JSON.stringify(e.type)}`);
   if (!DECISIONS.includes(e.decision)) errs.push(`decision=${JSON.stringify(e.decision)}`);
   if (!Number.isInteger(e.severity) || e.severity < 0 || e.severity > 4) errs.push(`severity=${JSON.stringify(e.severity)}`);
+  if (e.tier !== undefined && !TIER.includes(e.tier)) errs.push(`tier=${JSON.stringify(e.tier)}`);
   if (typeof e.summary !== 'string' || e.summary.length === 0 || Buffer.byteLength(e.summary) > 512) errs.push('summary invalid');
   if (e.attrs !== undefined) {
     if (typeof e.attrs !== 'object' || e.attrs === null || Array.isArray(e.attrs)) errs.push('attrs not a map');
     else for (const [k, v] of Object.entries(e.attrs)) {
       if (!k || k.length > 64) errs.push(`attr key ${JSON.stringify(k)} invalid`);
       if (typeof v !== 'string' || Buffer.byteLength(v) > 1024) errs.push(`attr ${k} value invalid`);
+      if (k === 'cap' && !CAPS.includes(v)) errs.push(`attr cap ${JSON.stringify(v)} not in vocabulary`);
+      if (k === 'res_class' && !RES_CLASSES.includes(v)) errs.push(`attr res_class ${JSON.stringify(v)} not in vocabulary`);
     }
   }
   return errs;

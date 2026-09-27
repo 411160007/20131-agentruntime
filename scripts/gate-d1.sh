@@ -14,7 +14,14 @@ node --version
 step '01 fmt / vet / unit tests'
 export TMPDIR="$(pwd)/.tmptest"
 mkdir -p "$TMPDIR" # sandbox kills binaries executed from /tmp; pin scratch inside the repo
-test -z "$(gofmt -l .)" || { gofmt -l .; echo RED: gofmt; exit 1; }
+# environment-harvest guard: wipe a previous gate's leftover go-build scratch
+# before any whole-tree step, so generated _testmain.go can never false-red.
+find "$TMPDIR" -mindepth 1 -maxdepth 1 -name 'go-build*' -exec rm -rf {} + 2>/dev/null || true
+# format gate judges shipped sources only: tracked .go files — the gate
+# must never judge its own scratch (leftover go-build dirs from a prior run
+# once false-red the re-run chain; judge tracked sources, nothing else)
+fmt=$(git ls-files '*.go' | xargs -r gofmt -l)
+test -z "$fmt" || { printf '%s\n' "$fmt"; echo RED: gofmt; exit 1; }
 go vet ./...
 # Retry ONLY on rc 137 (SIGKILL): observed cold-cache environment kills in
 # this sandbox, not test failures. A red test exits 1 and never retries.
@@ -68,6 +75,15 @@ echo 'ZERO-NETWORK CLOSURE OK: no net/*, crypto/tls, os/exec in dependency closu
 ! grep -rnE '"(net|net/http|crypto/tls|os/exec)"' --include='*.go' . | grep -v '_test\.go'
 
 step '09 audit file privacy bits'
-grep -q '0o600' internal/auditlog/writer.go && echo 'writer opens audit files 0600: OK'
+grep -q '0o600' internal/auditlog/writer.go
+if [ "$(go version | cut -d' ' -f3)" = "go1.27.1" ] && [ "$(uname)" = "Linux" ]; then
+  echo 'PASS unix 0600 (checked exactly here: GOOS=linux go1.27.1)'
+else
+  echo 'SKIP unix 0600 spot-check: darwin/windows privacy = owner ACLs (mode bits advisory), asserted in CI native leg (identity: go version + uname)'
+fi
+
+step '10 frozen core API contract (doc == validator == Go)'
+node scripts/apicontract-check.mjs
+node scripts/apicontract-check.mjs --negative
 
 printf '\nGATE-D1: ALL GREEN\n'

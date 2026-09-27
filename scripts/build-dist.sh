@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="${1:-0.2.0-d2}"
+VERSION="${1:-0.3.0-d3}"
 LDFLAGS="-s -w -X main.version=${VERSION}"
 mkdir -p dist
 # dist mirrors exactly one release set: drop stale artifacts from earlier

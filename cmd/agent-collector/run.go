@@ -1,25 +1,38 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"runtime"
+	"sort"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"20131.com/agentruntime/internal/auditlog"
+	"20131.com/agentruntime/internal/bus"
 	"20131.com/agentruntime/internal/discovery"
+	"20131.com/agentruntime/internal/identity"
 	"20131.com/agentruntime/internal/schema"
 )
 
-// collector wires discovery snapshots to the rotating audit log.
+// collector wires discovery snapshots to the audit log THROUGH THE EVENT
+// BUS: one active source (discovery-scan), plus reserved adapter slots,
+// plus tier routing into the single persistence pipe.
 type collector struct {
 	detector *discovery.Detector
 	log      *auditlog.Log
+	bus      *bus.Bus
+	src      *bus.Source
+	reg      *identity.Registry
+	machine  string // machine fingerprint component of stable ids
 
 	runID    string
 	seq      int
@@ -42,10 +55,30 @@ func newCollector(c config, ver string) (*collector, error) {
 	if err != nil {
 		return nil, err
 	}
+	b := bus.New(lg)
+	src, err := b.Register("discovery-scan")
+	if err != nil {
+		lg.Close()
+		return nil, err
+	}
+	// Reserved adapter slots: wired in the registry, inert until their
+	// slice ships; every publish attempt is rejected and counted, never
+	// silently dropped.
+	for _, slot := range []string{"hook", "mcp"} {
+		if _, err := b.RegisterReserved(slot); err != nil {
+			lg.Close()
+			return nil, err
+		}
+	}
 	runID := newRunID()
+	machine, _ := identity.MachineFingerprint()
 	col := &collector{
 		detector: discovery.NewDetector(discovery.DefaultFingerprints()),
 		log:      lg,
+		bus:      b,
+		src:      src,
+		reg:      identity.NewRegistry(),
+		machine:  machine,
 		runID:    runID,
 		seen:     map[string]bool{},
 		selfPID:  os.Getpid(),
@@ -86,9 +119,12 @@ func (c *collector) emit(typ schema.EventType, agentID, summary string, attrs ma
 		Decision: schema.DecisionAllow, // Phase 0: discovery records only; no blocking vocabulary is emitted
 		Severity: sev,
 		Summary:  summary,
+		Tier:     schema.TierL1, // observation events persist directly
 		Attrs:    attrs,
 	}
-	return c.log.WriteEvent(e)
+	// The bus validates, applies the Phase 0 decision invariant, counts
+	// per source, and writes through the single audit pipe.
+	return c.src.Publish(e)
 }
 
 func scanMethod() string {
@@ -104,7 +140,7 @@ func scanMethod() string {
 	}
 }
 
-const knownGaps = "processes are discovered after launch; protected or other-user cmdlines may be unreadable (counted in coverage attrs); ETW/libproc/auditd event streams are Phase 1 scope; fingerprint misses are possible and recorded as no-agent - audit is honest, not complete"
+const knownGaps = "processes are discovered after launch; protected or other-user cmdlines may be unreadable (counted in coverage attrs); ETW/libproc/auditd event streams are Phase 1 scope; fingerprint misses are possible and recorded as no-agent - audit is honest, not complete; stable agent ids derive from machine fingerprint + exe-or-cmdline-or-name, so a reinstalled binary at the same locator keeps its id"
 
 func (c *collector) emitStart(ver string) error {
 	return c.emit(schema.TypeCollectorStart, c.agentID,
@@ -117,7 +153,16 @@ func (c *collector) emitStart(ver string) error {
 			"out":         c.out,
 			"known_gaps":  knownGaps,
 			"self_pid":    strconv.Itoa(c.selfPID),
+			"bus_sources": strings.Join(busSourceNames(c.bus), ","),
 		}, schema.SevInfo)
+}
+
+func busSourceNames(b *bus.Bus) []string {
+	out := []string{}
+	for _, s := range b.Sources() {
+		out = append(out, s.Name)
+	}
+	return out
 }
 
 func (c *collector) emitStop(reason string) error {
@@ -156,13 +201,19 @@ func (c *collector) cycle(now time.Time) error {
 
 	newHits := 0
 	for _, h := range res.Hits {
+		// Stable identity: the same executable shape yields the same
+		// agent id across scans AND across collector runs, so the audit
+		// trail links sightings. pid:kind remains the per-run novelty
+		// key (a relaunch of the same binary is a new process).
+		aid := identity.AgentIDFor(c.machine, h.Proc)
+		state := c.reg.Observe(aid, string(h.Kind))
 		key := strconv.Itoa(h.Proc.PID) + ":" + string(h.Kind)
 		if c.seen[key] {
 			continue
 		}
 		c.seen[key] = true
 		newHits++
-		if err := c.emitDetected(h, now); err != nil {
+		if err := c.emitDetected(h, now, aid, string(state)); err != nil {
 			return err
 		}
 	}
@@ -184,8 +235,7 @@ func (c *collector) cycle(now time.Time) error {
 	return c.emit(schema.TypeAgentScan, c.agentID, summary, attrs, schema.SevInfo)
 }
 
-func (c *collector) emitDetected(h discovery.Hit, now time.Time) error {
-	agentID := fmt.Sprintf("agi-%d-%s", h.Proc.PID, c.runID)
+func (c *collector) emitDetected(h discovery.Hit, now time.Time, agentID, state string) error {
 	name := discovery.TruncateRedacted(h.Proc.Name, 96)
 	summary := fmt.Sprintf("detected %s agent: %s (pid %d, rule %s)", h.Kind, name, h.Proc.PID, h.Rule)
 	attrs := map[string]string{
@@ -196,6 +246,9 @@ func (c *collector) emitDetected(h discovery.Hit, now time.Time) error {
 		"name":     name,
 		"exe":      discovery.TruncateRedacted(h.Proc.Exe, 256),
 		"cmdline":  discovery.TruncateRedacted(h.Proc.Cmdline, 320),
+		"identity": "sha256:machine+locator",
+		"locator":  identity.LocatorLabel(h.Proc),
+		"state":    state,
 		"run":      c.runID,
 		"observed": now.UTC().Format(time.RFC3339),
 	}
@@ -218,4 +271,214 @@ func watchSignals(stop func()) {
 		<-ch
 		stop()
 	}()
+}
+
+// --- control surface (read-only) ---------------------------------------
+
+// runStatus aggregates an audit file by event type, agent kind, and
+// passport state. It writes to stdout only; the audit file is opened
+// read-only.
+func runStatus(c config) error {
+	trusted := map[string]bool{}
+	if c.trust != "" {
+		ids, err := identity.LoadTrustFile(c.trust)
+		if err != nil {
+			return fmt.Errorf("trust file: %w", err)
+		}
+		for _, id := range ids {
+			trusted[id] = true
+		}
+	}
+	f, err := os.Open(c.out)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	s := newStatus()
+	dec := newLineDecoder()
+	sc := newScanner(f)
+	for sc.Scan() {
+		e, ok, err := dec.decode(sc.Bytes())
+		if err != nil {
+			return fmt.Errorf("status: %w", err)
+		}
+		if !ok {
+			continue
+		}
+		state := e.Attrs["state"]
+		if trusted[e.AgentID] {
+			state = "trusted"
+		}
+		s.add(e.Type, e.Attrs["kind"], state)
+	}
+	if err := sc.Err(); err != nil {
+		return fmt.Errorf("status: %w", err)
+	}
+	os.Stdout.WriteString(s.render())
+	return nil
+}
+
+type statusAgg struct {
+	byType  map[string]int
+	byKind  map[string]int
+	byState map[string]int
+	lines   int
+}
+
+func newStatus() *statusAgg {
+	return &statusAgg{byType: map[string]int{}, byKind: map[string]int{}, byState: map[string]int{}}
+}
+
+func (s *statusAgg) add(typ schema.EventType, kind, state string) {
+	s.lines++
+	s.byType[string(typ)]++
+	if kind != "" {
+		s.byKind[kind]++
+	}
+	if state != "" {
+		s.byState[state]++
+	}
+}
+
+func renderSection(title string, m map[string]int) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s\n", title)
+	for _, k := range keys {
+		fmt.Fprintf(&b, "  %s %d\n", k, m[k])
+	}
+	return b.String()
+}
+
+func (s *statusAgg) render() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "status: %d event lines\n", s.lines)
+	b.WriteString(renderSection("by type:", s.byType))
+	b.WriteString(renderSection("by kind:", s.byKind))
+	b.WriteString(renderSection("by state:", s.byState))
+	return b.String()
+}
+
+// runTail prints the trailing N lines of the audit file verbatim
+// (read-only; rotated history untouched; no formatting, so operators can
+// pipe it straight into validate-jsonl.mjs).
+func runTail(c config) error {
+	if c.tailN <= 0 {
+		return fmt.Errorf("audit-tail: -n must be > 0, got %d", c.tailN)
+	}
+	lines, err := tailLines(c.out, c.tailN)
+	if err != nil {
+		return err
+	}
+	for _, ln := range lines {
+		fmt.Println(ln)
+	}
+	return nil
+}
+
+func tailLines(path string, n int) ([]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	var out []string
+	dec := newLineDecoder()
+	sc := newScanner(f)
+	for sc.Scan() {
+		// Validate every line we intend to print: the control surface
+		// never echoes corrupt records as if they were audit truth.
+		_, ok, err := dec.decode(sc.Bytes())
+		if err != nil {
+			return nil, fmt.Errorf("audit-tail: %w", err)
+		}
+		if !ok {
+			continue
+		}
+		out = append(out, sc.Text())
+		if len(out) > n {
+			out = out[1:]
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// newScanner builds a line scanner with an audit-sized buffer (a single
+// JSONL line may hold a long redacted cmdline, never more than 1 MiB).
+func newScanner(r io.Reader) *bufio.Scanner {
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	return sc
+}
+
+// lineDecoder re-validates JSONL lines so callers never echo corrupt
+// records as audit truth.
+func newLineDecoder() *lineDecoder { return &lineDecoder{} }
+
+type lineDecoder struct{}
+
+func (d *lineDecoder) decode(b []byte) (schema.Event, bool, error) {
+	t := strings.TrimSpace(string(b))
+	if t == "" {
+		return schema.Event{}, false, nil
+	}
+	var e schema.Event
+	if err := json.Unmarshal([]byte(t), &e); err != nil {
+		return schema.Event{}, false, fmt.Errorf("invalid JSONL line: %w", err)
+	}
+	if err := e.Validate(); err != nil {
+		return schema.Event{}, false, fmt.Errorf("invalid event: %w", err)
+	}
+	return e, true, nil
+}
+
+func run(c config) error {
+	col, err := newCollector(c, version)
+	if err != nil {
+		return err
+	}
+	defer col.close()
+
+	interval := c.interval
+	if interval < 50*time.Millisecond {
+		interval = 50 * time.Millisecond
+	}
+	maxCycles := c.maxCycles
+	if c.once {
+		maxCycles = 1
+	}
+
+	stopCh := make(chan struct{}, 1)
+	watchSignals(func() {
+		select {
+		case stopCh <- struct{}{}:
+		default:
+		}
+	})
+
+	for cycle := 0; ; cycle++ {
+		if err := col.cycle(time.Now().UTC()); err != nil {
+			// A failed snapshot is recorded; the poll continues unless the
+			// audit write itself is broken (then we must not run blind).
+			if lerr := col.logScanFailure(err); lerr != nil {
+				_ = col.emitStop("audit write failure")
+				return fmt.Errorf("cycle %d: %v (and audit write failed: %w)", col.cycles, err, lerr)
+			}
+		}
+		if maxCycles > 0 && cycle+1 >= maxCycles {
+			return col.emitStop("scan budget reached")
+		}
+		select {
+		case <-time.After(interval):
+		case <-stopCh:
+			return col.emitStop("interrupted")
+		}
+	}
 }
