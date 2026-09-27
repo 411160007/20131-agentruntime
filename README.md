@@ -42,7 +42,7 @@ Early skeleton. Current contents:
 | `internal/identity` | stable agent ids (machine fingerprint + normalized exe locator) + known/observed/trusted passport states |
 | `internal/auditlog` | local JSONL audit writer with size and UTC day-cut rotation |
 | `scripts/` | build, gate batteries, license gate, artifact verification, API contract cross-check, negative-scan tripwire |
-| `docs/` | architecture notes, the frozen Core API contract (`docs/api-v0.md`), the threat model (`docs/threat-model.md`), and the dependency license register |
+| `docs/` | architecture notes, the frozen Core API contract (`docs/api-v0.md`), the threat model (`docs/threat-model.md`), the distribution/release contract (`docs/distribution.md`), and the dependency license register |
 | `testdata/` | legacy JSONL fixtures pinning additive zero-breakage + the frozen 40-case golden evaluation corpus (`testdata/golden/`) |
 
 ## Running the collector
@@ -100,13 +100,26 @@ node scripts/verify-cross.mjs
 bash scripts/gate-d1.sh   # skeleton + core model
 bash scripts/gate-d2.sh   # discovery slice + rotation
 bash scripts/gate-d3.sh   # core completion: bus, capability, identity, control surface, frozen contract
+bash scripts/gate-d4.sh   # security judgement layer: rules, evals, timeline (chains d1-d3)
+bash scripts/gate-d5.sh   # release slice: artifact matrix, stamp identity, signature gate (chains d1-d4)
 node scripts/licenses-check.mjs --selftest && node scripts/licenses-check.mjs
 bash scripts/tripwire.sh --selftest && bash scripts/tripwire.sh
 ```
 
-CI (`.github/workflows/build.yml`) runs the test suite plus the gates above
-and builds + executes `hello-collector --version` on Linux, macOS, and
-Windows.
+CI (`.github/workflows/build.yml`) runs the test suite plus the gates above,
+builds + executes the collectors natively on Linux, macOS, and Windows, and
+maintains the darwin/amd64 signing branch described in
+[docs/distribution.md](docs/distribution.md).
+
+## Releases
+
+The version stamp lives in the repo-root `VERSION` file; the `v<ver>` git
+tag, the binaries, the archive names, and `SHA256SUMS.txt` all derive from
+it. Prebuilt binaries for linux (amd64/arm64), macOS (Apple Silicon, plus
+Intel through the signing branch), and Windows (amd64) are attached to each
+git release. Read [docs/distribution.md](docs/distribution.md) first: it
+explains what our free ad-hoc signatures do and do not guarantee, and how
+to get past the first-run trust prompts honestly.
 
 ## License
 

@@ -21,7 +21,7 @@ import (
 )
 
 // version is overridden at build time via -ldflags "-X main.version=...".
-var version = "0.4.0-d4"
+var version = "0.5.0"
 
 func main() {
 	cfg, sub, err := parseFlags(flag.CommandLine, os.Args[1:])

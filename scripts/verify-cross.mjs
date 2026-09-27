@@ -24,7 +24,7 @@ function checkELF(buf, file) {
   if (buf[4] !== 2) return fail(`${file}: ELF class must be 64-bit`);
   if (buf[5] !== 1) return fail(`${file}: ELF must be little-endian`);
   const machine = buf.readUInt16LE(18);
-  if (machine !== 0x3e) return fail(`${file}: ELF e_machine=${machine}, want 0x3e (x86-64)`);
+  if (machine !== 0x3e && machine !== 0xb7) return fail(`${file}: ELF e_machine=0x${machine.toString(16)}, want 0x3e (x86-64) or 0xb7 (aarch64)`);
   const etype = buf.readUInt16LE(16);
   if (etype !== 2 && etype !== 3) return fail(`${file}: ELF type ${etype}, want EXEC|DYN`);
   return true;
@@ -47,7 +47,7 @@ function checkMachO(buf, file) {
   // 0xfeedfacf = MH_MAGIC_64 little-endian bytes cf fa ed fe
   if (magic !== 0xfeedfacf) return fail(`${file}: not Mach-O 64-bit magic (got 0x${magic.toString(16)})`);
   const cputype = buf.readInt32LE(4);
-  if (cputype !== 0x01000007) return fail(`${file}: Mach-O cputype=0x${cputype.toString(16)}, want x86_64`);
+  if (cputype !== 0x01000007 && cputype !== 0x0100000c) return fail(`${file}: Mach-O cputype=0x${cputype.toString(16)}, want x86_64 or arm64`);
   return true;
 }
 
@@ -75,10 +75,12 @@ if (argv[0] === '--negative') {
 }
 
 const dist = 'dist';
-// Verify every collector artifact in dist/ (hello-collector and
-// agent-collector on all three platforms). At least one file per target
-// must exist, so a builder that silently drops a binary fails here.
-const all = readdirSync(dist).filter((f) => /-collector-/.test(f));
+// Verify every raw collector binary in dist/ (hello-collector and
+// agent-collector across the release matrix). Packaged archives and the
+// checksums files live beside them and are checked elsewhere; the raw
+// executable set must cover every target, so a builder that silently
+// drops a binary fails here.
+const all = readdirSync(dist).filter((f) => /-collector-/.test(f) && !/\.(tar\.gz|zip)$/.test(f));
 const files = [];
 for (const f of all) {
   if (f.includes('-windows-')) files.push(['windows', `${dist}/${f}`]);
@@ -86,10 +88,11 @@ for (const f of all) {
   else if (f.includes('-linux-')) files.push(['linux', `${dist}/${f}`]);
   else { console.error(`VERIFY FAIL: ${f} matches no known platform pattern`); process.exit(1); }
 }
-for (const kind of ['linux', 'windows', 'darwin']) {
+const TARGETS = ['linux-amd64', 'linux-arm64', 'darwin-arm64', 'darwin-amd64', 'windows-amd64'];
+for (const target of TARGETS) {
   for (const base of ['hello-collector', 'agent-collector']) {
-    if (!files.some(([k, f]) => k === kind && f.includes(`/${base}-`))) {
-      console.error(`VERIFY FAIL: missing ${base} artifact for ${kind}`);
+    if (!files.some(([, f]) => f.includes(`/${base}-`) && f.includes(`-${target}`))) {
+      console.error(`VERIFY FAIL: missing ${base} artifact for ${target}`);
       process.exit(1);
     }
   }

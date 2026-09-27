@@ -3,6 +3,7 @@ name: build
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
 
 permissions:
@@ -16,6 +17,14 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.27.1'
+      - name: version source of truth (VERSION file, single source)
+        run: |
+          set -euo pipefail
+          test -s VERSION || { echo 'RED: VERSION file missing/empty'; exit 1; }
+          grep -qE '^[0-9A-Za-z.-]+$' VERSION || { echo 'RED: VERSION file shape illegal'; exit 1; }
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            test "v$(cat VERSION)" = "${GITHUB_REF_NAME}" || { echo "RED: tag ${GITHUB_REF_NAME} != v$(cat VERSION) (stamp drift)"; exit 1; }
+          fi
       - name: gofmt clean
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - name: vet
@@ -38,28 +47,42 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
             ext: ''
           - os: macos-latest
+            goos: darwin
+            goarch: arm64
             ext: ''
           - os: windows-latest
+            goos: windows
+            goarch: amd64
             ext: '.exe'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: '1.27.1'
-      - name: build
+      - name: stamp (VERSION file or release tag, asserted equal on tags)
         shell: bash
         run: |
           set -euo pipefail
-          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=0.2.0-d2" -o dist/hello-collector${{ matrix.ext }} ./cmd/hello-collector
-          CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=0.2.0-d2" -o dist/agent-collector${{ matrix.ext }} ./cmd/agent-collector
-      - name: --version exits 0
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            test "v$(cat VERSION)" = "${GITHUB_REF_NAME}" || { echo "RED: tag ${GITHUB_REF_NAME} != v$(cat VERSION)"; exit 1; }
+          fi
+          echo "VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+      - name: build (contract artifact naming)
         shell: bash
         run: |
           set -euo pipefail
-          ./dist/hello-collector${{ matrix.ext }} --version
-          ./dist/agent-collector${{ matrix.ext }} --version
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o dist/hello-collector-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} ./cmd/hello-collector
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o dist/agent-collector-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} ./cmd/agent-collector
+      - name: --version exits 0 and carries the single stamp
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./dist/hello-collector-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} --version | grep -q "hello-collector ${VERSION} "
+          ./dist/agent-collector-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} --version | grep -q "agent-collector ${VERSION} "
       - name: native platform tests (build-tagged discovery + collector)
         shell: bash
         run: go test -count=1 ./internal/discovery ./cmd/agent-collector ./internal/auditlog
@@ -68,7 +91,7 @@ jobs:
         run: |
           set -euo pipefail
           events="${RUNNER_TEMP}/live.jsonl"
-          ./dist/agent-collector${{ matrix.ext }} --once --out "$events"
+          ./dist/agent-collector-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} --once --out "$events"
           node scripts/validate-jsonl.mjs "$events" --min-lines 3
           grep -q '"type":"agent.scan"' "$events"
       - name: produce JSONL audit and validate it
@@ -76,7 +99,7 @@ jobs:
         run: |
           set -euo pipefail
           events="${RUNNER_TEMP}/events.jsonl"
-          ./dist/hello-collector${{ matrix.ext }} --out "$events"
+          ./dist/hello-collector-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} --out "$events"
           node scripts/validate-jsonl.mjs "$events" --min-lines 4
       - name: validator control (must reject bad fixture)
         shell: bash
@@ -90,5 +113,57 @@ jobs:
         with:
           name: collectors-${{ matrix.os }}
           path: |
-            dist/hello-collector${{ matrix.ext }}
-            dist/agent-collector${{ matrix.ext }}
+            dist/hello-collector-${{ env.VERSION }}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
+            dist/agent-collector-${{ env.VERSION }}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
+
+  darwin-signing:
+    # Two-branch plan for darwin/amd64 (Intel): the Go linker does NOT
+    # ad-hoc-sign amd64 cross builds, so a mac runner signs them. If the
+    # sign branch goes red the release simply omits darwin-amd64 with an
+    # honest note — this job never fakes success, and it never turns the
+    # whole pipeline red on the skip branch.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+      - name: build darwin arm64 + amd64
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(cat VERSION)"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          for bin in hello-collector agent-collector; do
+            CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "dist/${bin}-${VERSION}-darwin-arm64" "./cmd/${bin}"
+            CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "dist/${bin}-${VERSION}-darwin-amd64" "./cmd/${bin}"
+          done
+      - name: arm64 auto ad-hoc signature present (positive control)
+        shell: bash
+        run: node scripts/macho-sig-check.mjs --present "dist/hello-collector-${VERSION}-darwin-arm64" "dist/agent-collector-${VERSION}-darwin-arm64"
+      - name: unsigned amd64 rejected by the same detector (negative control)
+        shell: bash
+        run: node scripts/macho-sig-check.mjs --absent "dist/hello-collector-${VERSION}-darwin-amd64" "LICENSE"
+      - name: ad-hoc sign darwin/amd64
+        id: sign
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          codesign -s - --force "dist/hello-collector-${VERSION}-darwin-amd64" "dist/agent-collector-${VERSION}-darwin-amd64"
+          node scripts/macho-sig-check.mjs --present "dist/hello-collector-${VERSION}-darwin-amd64" "dist/agent-collector-${VERSION}-darwin-amd64"
+      - name: branch A - publish signed amd64 binaries
+        if: steps.sign.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: darwin-amd64-signed
+          path: |
+            dist/hello-collector-${{ env.VERSION }}-darwin-amd64
+            dist/agent-collector-${{ env.VERSION }}-darwin-amd64
+      - name: branch B - record skip honestly (amd64 not shipped this release)
+        if: steps.sign.outcome != 'success'
+        shell: bash
+        run: |
+          echo 'darwin-amd64 ad-hoc signing failed on the mac runner.' | tee "$GITHUB_STEP_SUMMARY"
+          echo 'Release decision: skip darwin/amd64 this cycle and note it honestly on the download surface.' | tee -a "$GITHUB_STEP_SUMMARY"
+          echo 'BRANCH=B(skip-amd64)' >> "$GITHUB_STEP_SUMMARY"
