@@ -67,7 +67,11 @@ echo "RULE FIXTURES OK ($pn battery tests green: 12x positive+negative, hard sha
 step '05 golden corpus integrity + frozen-grammar validation'
 ng=$(wc -l < testdata/golden/normal.jsonl)
 dg=$(wc -l < testdata/golden/danger.jsonl)
-[ "$ng" -eq 20 ] && [ "$dg" -eq 20 ] || { echo "RED: golden corpus $ng/$dg, want 20/20"; exit 1; }
+# floor form (dimension expansion adds cases on top of the seed 20/20;
+# the seed lines themselves are byte-frozen, zero-regression proved by
+# gate-d7's baseline diff assertions, per the reserved-instruction
+# precedent of extending this step rather than forking it)
+[ "$ng" -ge 20 ] && [ "$dg" -ge 20 ] || { echo "RED: golden corpus $ng/$dg, want >= 20/20"; exit 1; }
 tracked=$(git ls-files --cached --others --exclude-standard testdata/golden | wc -l)
 [ "$tracked" -ge 3 ] || { echo 'RED: golden files not repo-visible (gitignore swallowing evidence?)'; exit 1; }
 node scripts/validate-jsonl.mjs testdata/golden/normal.jsonl --min-lines 20

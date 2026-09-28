@@ -1,42 +1,647 @@
 {
-  "gn-01": {"expect": "allow", "class": "observation"},
-  "gn-02": {"expect": "allow", "class": "observation"},
-  "gn-03": {"expect": "allow", "class": "observation"},
-  "gn-04": {"expect": "allow", "class": "observation"},
-  "gn-05": {"expect": "allow", "class": "observation"},
-  "gn-06": {"expect": "allow", "class": "observation"},
-  "gn-07": {"expect": "allow", "class": "observation"},
-  "gn-08": {"expect": "allow", "class": "observation"},
-  "gn-09": {"expect": "allow", "class": "observation"},
-  "gn-10": {"expect": "allow", "class": "observation"},
-  "gn-11": {"expect": "allow", "class": "observation"},
-  "gn-12": {"expect": "allow", "class": "observation"},
-  "gn-13": {"expect": "allow", "class": "observation"},
-  "gn-14": {"expect": "allow", "class": "observation"},
-  "gn-15": {"expect": "allow", "class": "observation"},
-  "gn-16": {"expect": "allow", "class": "observation"},
-  "gn-17": {"expect": "allow", "class": "observation"},
-  "gn-18": {"expect": "allow", "class": "observation"},
-  "gn-19": {"expect": "allow", "class": "observation"},
-  "gn-20": {"expect": "allow", "class": "observation"},
-  "gd-01": {"expect": "would_block", "class": "credential"},
-  "gd-02": {"expect": "would_block", "class": "credential"},
-  "gd-03": {"expect": "would_block", "class": "credential"},
-  "gd-04": {"expect": "would_block", "class": "credential"},
-  "gd-05": {"expect": "would_block", "class": "credential"},
-  "gd-06": {"expect": "would_block", "class": "destructive"},
-  "gd-07": {"expect": "would_block", "class": "destructive"},
-  "gd-08": {"expect": "would_block", "class": "destructive"},
-  "gd-09": {"expect": "would_block", "class": "credential"},
-  "gd-10": {"expect": "would_block", "class": "process"},
-  "gd-11": {"expect": "would_block", "class": "network"},
-  "gd-12": {"expect": "would_block", "class": "network"},
-  "gd-13": {"expect": "would_block", "class": "tool"},
-  "gd-14": {"expect": "would_block", "class": "tool"},
-  "gd-15": {"expect": "would_block", "class": "path"},
-  "gd-16": {"expect": "would_block", "class": "path"},
-  "gd-17": {"expect": "would_block", "class": "audit"},
-  "gd-18": {"expect": "would_block", "class": "credential"},
-  "gd-19": {"expect": "would_block", "class": "process"},
-  "gd-20": {"expect": "would_block", "class": "audit"}
+  "g7-b01": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
+  "g7-b02": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
+  "g7-b03": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
+  "g7-b04": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
+  "g7-b05": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
+  "g7-b06": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
+  "g7-b07": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
+  "g7-b08": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
+  "g7-b09": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "agent_behavior"
+  },
+  "g7-c01": {
+    "expect": "allow",
+    "class": "compat",
+    "dim": "compatibility"
+  },
+  "g7-c02": {
+    "expect": "allow",
+    "class": "compat",
+    "dim": "compatibility"
+  },
+  "g7-c03": {
+    "expect": "allow",
+    "class": "compat",
+    "dim": "compatibility"
+  },
+  "g7-c04": {
+    "expect": "allow",
+    "class": "compat",
+    "dim": "compatibility"
+  },
+  "g7-c05": {
+    "expect": "allow",
+    "class": "tool",
+    "dim": "compatibility"
+  },
+  "g7-c06": {
+    "expect": "allow",
+    "class": "compat",
+    "dim": "compatibility"
+  },
+  "g7-c07": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "compatibility"
+  },
+  "g7-c08": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "compatibility"
+  },
+  "g7-f01": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "g7-f02": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "g7-f03": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "g7-f04": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "g7-f05": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "g7-f06": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "g7-f07": {
+    "expect": "allow",
+    "class": "credential",
+    "dim": "functional"
+  },
+  "g7-l01": {
+    "expect": "allow",
+    "class": "locale",
+    "dim": "localization"
+  },
+  "g7-l02": {
+    "expect": "allow",
+    "class": "locale",
+    "dim": "localization"
+  },
+  "g7-l03": {
+    "expect": "allow",
+    "class": "locale",
+    "dim": "localization"
+  },
+  "g7-l04": {
+    "expect": "allow",
+    "class": "locale",
+    "dim": "localization"
+  },
+  "g7-l05": {
+    "expect": "allow",
+    "class": "locale",
+    "dim": "localization"
+  },
+  "g7-l06": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "localization"
+  },
+  "g7-l07": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "localization"
+  },
+  "g7-l08": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "localization"
+  },
+  "g7-p01": {
+    "expect": "allow",
+    "class": "perf",
+    "dim": "performance"
+  },
+  "g7-p02": {
+    "expect": "allow",
+    "class": "perf",
+    "dim": "performance"
+  },
+  "g7-p03": {
+    "expect": "allow",
+    "class": "perf",
+    "dim": "performance"
+  },
+  "g7-p04": {
+    "expect": "allow",
+    "class": "perf",
+    "dim": "performance"
+  },
+  "g7-p05": {
+    "expect": "allow",
+    "class": "perf",
+    "dim": "performance"
+  },
+  "g7-p06": {
+    "expect": "allow",
+    "class": "perf",
+    "dim": "performance"
+  },
+  "g7-p07": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "performance"
+  },
+  "g7-p08": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "performance"
+  },
+  "g7-q01": {
+    "expect": "allow",
+    "class": "credential",
+    "dim": "security_regression"
+  },
+  "g7-q02": {
+    "expect": "allow",
+    "class": "credential",
+    "dim": "security_regression"
+  },
+  "g7-q03": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security_regression"
+  },
+  "g7-q04": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security_regression"
+  },
+  "g7-q05": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "security_regression"
+  },
+  "g7-q06": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security_regression"
+  },
+  "g7-q07": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "security_regression"
+  },
+  "g7-q08": {
+    "expect": "would_block",
+    "class": "path",
+    "dim": "security_regression"
+  },
+  "g7-q09": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security_regression"
+  },
+  "g7-q10": {
+    "expect": "would_block",
+    "class": "audit",
+    "dim": "security_regression"
+  },
+  "g7-r01": {
+    "expect": "allow",
+    "class": "recovery",
+    "dim": "recovery"
+  },
+  "g7-r02": {
+    "expect": "allow",
+    "class": "recovery",
+    "dim": "recovery"
+  },
+  "g7-r03": {
+    "expect": "allow",
+    "class": "recovery",
+    "dim": "recovery"
+  },
+  "g7-r04": {
+    "expect": "allow",
+    "class": "recovery",
+    "dim": "recovery"
+  },
+  "g7-r05": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "recovery"
+  },
+  "g7-r06": {
+    "expect": "would_block",
+    "class": "audit",
+    "dim": "recovery"
+  },
+  "g7-r07": {
+    "expect": "would_block",
+    "class": "audit",
+    "dim": "recovery"
+  },
+  "g7-r08": {
+    "expect": "would_block",
+    "class": "audit",
+    "dim": "recovery"
+  },
+  "g7-s01": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "g7-s02": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "g7-s03": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "g7-s04": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "g7-s05": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "security"
+  },
+  "g7-s06": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "security"
+  },
+  "g7-s07": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
+  "g7-s08": {
+    "expect": "would_block",
+    "class": "network",
+    "dim": "security"
+  },
+  "g7-s09": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "security"
+  },
+  "g7-s10": {
+    "expect": "would_block",
+    "class": "path",
+    "dim": "security"
+  },
+  "g7-s11": {
+    "expect": "would_block",
+    "class": "audit",
+    "dim": "security"
+  },
+  "g7-s12": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "g7-u01": {
+    "expect": "allow",
+    "class": "workflow",
+    "dim": "ux"
+  },
+  "g7-u02": {
+    "expect": "allow",
+    "class": "workflow",
+    "dim": "ux"
+  },
+  "g7-u03": {
+    "expect": "allow",
+    "class": "workflow",
+    "dim": "ux"
+  },
+  "g7-u04": {
+    "expect": "allow",
+    "class": "workflow",
+    "dim": "ux"
+  },
+  "g7-u05": {
+    "expect": "allow",
+    "class": "workflow",
+    "dim": "ux"
+  },
+  "g7-u06": {
+    "expect": "allow",
+    "class": "workflow",
+    "dim": "ux"
+  },
+  "g7-u07": {
+    "expect": "allow",
+    "class": "workflow",
+    "dim": "ux"
+  },
+  "g7-u08": {
+    "expect": "allow",
+    "class": "workflow",
+    "dim": "ux"
+  },
+  "g7-u09": {
+    "expect": "allow",
+    "class": "credential",
+    "dim": "ux"
+  },
+  "g7-x01": {
+    "expect": "allow",
+    "class": "untrusted-content",
+    "dim": "untrusted"
+  },
+  "g7-x02": {
+    "expect": "allow",
+    "class": "untrusted-content",
+    "dim": "untrusted"
+  },
+  "g7-x03": {
+    "expect": "allow",
+    "class": "untrusted-content",
+    "dim": "untrusted"
+  },
+  "g7-x04": {
+    "expect": "allow",
+    "class": "untrusted-content",
+    "dim": "untrusted"
+  },
+  "g7-x05": {
+    "expect": "allow",
+    "class": "untrusted-content",
+    "dim": "untrusted"
+  },
+  "g7-x06": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "untrusted"
+  },
+  "g7-x07": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "untrusted"
+  },
+  "g7-x08": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "untrusted"
+  },
+  "g7-x09": {
+    "expect": "would_block",
+    "class": "network",
+    "dim": "untrusted"
+  },
+  "g7-x10": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "untrusted"
+  },
+  "gd-01": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-02": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-03": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-04": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-05": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-06": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "security"
+  },
+  "gd-07": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "security"
+  },
+  "gd-08": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "security"
+  },
+  "gd-09": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-10": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
+  "gd-11": {
+    "expect": "would_block",
+    "class": "network",
+    "dim": "security"
+  },
+  "gd-12": {
+    "expect": "would_block",
+    "class": "network",
+    "dim": "security"
+  },
+  "gd-13": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "security"
+  },
+  "gd-14": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "security"
+  },
+  "gd-15": {
+    "expect": "would_block",
+    "class": "path",
+    "dim": "security"
+  },
+  "gd-16": {
+    "expect": "would_block",
+    "class": "path",
+    "dim": "security"
+  },
+  "gd-17": {
+    "expect": "would_block",
+    "class": "audit",
+    "dim": "security"
+  },
+  "gd-18": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-19": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
+  "gd-20": {
+    "expect": "would_block",
+    "class": "audit",
+    "dim": "security"
+  },
+  "gn-01": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-02": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-03": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-04": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-05": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-06": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-07": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-08": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-09": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-10": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-11": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-12": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-13": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-14": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-15": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-16": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-17": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-18": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-19": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "gn-20": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  }
 }
