@@ -171,6 +171,19 @@ rotout=$(mktemp -d --tmpdir="$TMPDIR")/rot.jsonl
 total=0
 for f in "$rotout" "$rotout".*; do
   [ -f "$f" ] || continue
+  # legal rotation tail: rename-on-threshold can land on the very last
+  # cycle, leaving the freshly re-created main file empty until the next
+  # write. corpus non-emptiness is still asserted via total>=6 below and
+  # every archive segment stays validated; the empty head keeps its 0600
+  # mode gate. (criterion fix 2026-09-29: process-surface variance moves
+  # the rotate timing when this gate runs nested inside later batteries —
+  # validated-empty on a legal shape was an intermittent gate red, the
+  # product behaviour is correct)
+  if [ "$f" = "$rotout" ] && [ ! -s "$f" ]; then
+    mode=$(stat -c '%a' "$f")
+    [ "$mode" = "600" ] || { echo "RED: empty rotation head $f mode $mode != 600"; exit 1; }
+    continue
+  fi
   node scripts/validate-jsonl.mjs "$f" >/dev/null
   mode=$(stat -c '%a' "$f")
   [ "$mode" = "600" ] || { echo "RED: $f mode $mode != 600"; exit 1; }
