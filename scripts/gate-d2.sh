@@ -92,6 +92,14 @@ if [ "$segs" -lt 1 ]; then echo 'RED: size rotation produced no segments'; exit 
 total=0
 for f in "$rotout" "$rotout".*; do
   [ -f "$f" ] || continue
+  # legal rotation tail (see gate-d3 step 10 note): rename-on-threshold
+  # on the last cycle leaves an empty head; archives still validated,
+  # empty head keeps the mode gate, total>=6 still proves the corpus
+  if [ "$f" = "$rotout" ] && [ ! -s "$f" ]; then
+    mode=$(stat -c '%a' "$f")
+    [ "$mode" = "600" ] || { echo "RED: empty rotation head $f mode $mode != 600"; exit 1; }
+    continue
+  fi
   node scripts/validate-jsonl.mjs "$f" >/dev/null
   mode=$(stat -c '%a' "$f")
   [ "$mode" = "600" ] || { echo "RED: $f mode $mode != 600"; exit 1; }
