@@ -1,0 +1,39 @@
+name: Feature request
+description: Propose a capability, a detection improvement, or a usability change.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome. What this project ships today is Phase 0 only — an observe-only local collector that records, alerts on paper, and audits, but never blocks — with fingerprint-based discovery and an explicit known-gap list in `docs/threat-model.md`. Don't read a warm response as a commitment; you will get honest triage instead.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem this would solve
+      description: What are you trying to do that today's runtime can't do (or can't do without pain)? Real workflows beat hypotheticals.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Preferred shape
+      description: What should it look like — a flag, an output format, a detection rule, packaging, docs? One or two paragraphs is enough; detail can follow in the issue.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface affected
+      multiple: true
+      options:
+        - Discovery / detection
+        - Audit log / control surface
+        - Adapters (hook, MCP relay, integrate)
+        - Packaging / distribution
+        - Documentation
+        - Something else
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround you use today
+      description: If there is none, say so — that is useful information too.

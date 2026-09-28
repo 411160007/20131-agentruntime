@@ -1,0 +1,68 @@
+name: Bug report
+description: Report a crash, a wrong or dishonest audit record, or a detection that should have fired and did not.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file this. Before you start, the Phase 0 boundary in one paragraph: this runtime is **observe-only**. It records policy decisions (`would_block`) into the local audit log and never blocks anything; agent discovery is fingerprint-based with real blind spots; the collector cannot protect itself from whoever can delete its audit file; there are no resource-exhaustion controls and no OS log consumption (see `docs/threat-model.md`). If your "bug" is "it didn't stop the command", that is the design of every shipped release — please file it as a feature request instead.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `agent-collector --version` (or `hello-collector --version`), or the `v…` tag you built from.
+      placeholder: "0.5.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Which release target are you running?
+      options:
+        - Linux x86_64
+        - Linux ARM64
+        - macOS Apple Silicon
+        - macOS Intel
+        - Windows x86_64
+        - Built from source (say which OS below)
+    validations:
+      required: true
+  - type: input
+    id: agent-runtime
+    attributes:
+      label: Agent runtime involved
+      description: Which agent processes were running while you hit this (Claude Code, Codex, an MCP server, something else)? Write "none" if the bug does not involve detection.
+      placeholder: "Claude Code + two MCP servers"
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Exact command lines with the flags you used (`--once` or `--mode observe --interval … --rotate-bytes …`), and what you saw.
+      value: |
+        1.
+        2.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+      description: What should the collector have recorded or done, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: audit-snippet
+    attributes:
+      label: Audit log snippet
+      description: Paste the relevant JSONL lines from your audit file (`agent-collector audit-tail --out <file> --n 20` pulls the last ones). Redact at will — the collector already redacts command lines, but paths and usernames on your machine are yours to scrub. If the bug is a *missing* record, say what line should have been there.
+      render: json
+  - type: checkboxes
+    id: docs-check
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I read the README and the docs listed in it (api-v0, threat-model, distribution) and my issue is not answered there.
+          required: true
+        - label: I searched open issues and this is not a duplicate.
+          required: false
