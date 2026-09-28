@@ -131,6 +131,10 @@ git release. Read [docs/distribution.md](docs/distribution.md) first: it
 explains what our free ad-hoc signatures do and do not guarantee, and how
 to get past the first-run trust prompts honestly.
 
+## Feedback
+
+Bugs, feature requests, and questions: open an issue via [New issue](/issues/new/choose) and pick the matching template.
+
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).

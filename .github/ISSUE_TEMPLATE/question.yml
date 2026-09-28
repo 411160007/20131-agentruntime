@@ -1,0 +1,22 @@
+name: Question / help
+description: Ask how to do something, or what a recorded line actually means.
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Questions are fine here. Before asking, skim the README, `docs/api-v0.md` (the frozen command and field contract), `docs/distribution.md` (checksums, signatures, first-run trust prompts), and `docs/threat-model.md` (what is and isn't in scope). One answer given here up front: "will it block my agent?" — no. Phase 0 is observe-only by design; `would_block` decisions are recorded, not enforced.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What were you trying to do, and where did you get stuck? If the answer may differ by environment, include the version you run and your platform.
+    validations:
+      required: true
+  - type: checkboxes
+    id: docs-first
+    attributes:
+      label: Docs check
+      options:
+        - label: I looked through the docs listed above and did not find the answer.
+          required: true
