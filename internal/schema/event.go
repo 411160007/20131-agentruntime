@@ -124,6 +124,55 @@ func (t Tier) EffectiveTier() Tier {
 	return t
 }
 
+// SourceClass records WHERE an event's evidence was collected, using the
+// six evidence-provenance classes of the trust order, listed in
+// descending trust (highest first). It is an ADDITIVE v1 field, carried
+// on the same version-evolution mechanism as Tier: a record with no
+// "source_class" key is valid and means unclassified legacy, so every
+// line written before this field existed still validates and nothing
+// about it is reinterpreted.
+//
+// The class is a property of the collection mount, never of the payload:
+// a payload describing itself as high-trust does not raise its own
+// class (mount wiring lands with the collection slice; until a mount
+// stamps the field, emitters leave it absent). In this phase the field
+// is OBSERVATION-ONLY: no judgement, rule, or decision path consumes
+// it, and gate-d7 machine-asserts that zero-consumption structurally.
+type SourceClass string
+
+const (
+	SrcNativeOS          SourceClass = "native_os"          // native OS evidence (direct kernel/proc/FS observation)
+	SrcRuntime           SourceClass = "runtime"            // runtime event (in-process collector observation)
+	SrcToolMCP           SourceClass = "tool_mcp"           // tool/MCP metadata (relay-observed round trips)
+	SrcAgentMeta         SourceClass = "agent_meta"         // agent metadata (adapter/hook lifecycle facts)
+	SrcAgentSelf         SourceClass = "agent_self"         // agent self-description (payload claims)
+	SrcLLMInterpretation SourceClass = "llm_interpretation" // external LLM interpretation (derived reading)
+)
+
+// AllSourceClasses lists every SourceClass in declaration order, which
+// is the trust order: native_os is the highest class and
+// llm_interpretation the lowest. scripts/validate-jsonl.mjs mirrors
+// this list as the independent second source of truth and
+// docs/api-v0.md carries it as the frozen external contract; the sync
+// tests fail if any of the three sources diverges.
+func AllSourceClasses() []string {
+	return []string{
+		string(SrcNativeOS), string(SrcRuntime), string(SrcToolMCP),
+		string(SrcAgentMeta), string(SrcAgentSelf), string(SrcLLMInterpretation),
+	}
+}
+
+// Valid reports whether s is a legal source class. The empty string is
+// the absent-key legacy meaning (unclassified), matching the additive
+// contract: legacy lines validate unchanged.
+func (s SourceClass) Valid() bool {
+	switch s {
+	case "", SrcNativeOS, SrcRuntime, SrcToolMCP, SrcAgentMeta, SrcAgentSelf, SrcLLMInterpretation:
+		return true
+	}
+	return false
+}
+
 // Decision is the outcome of policy evaluation for an event.
 // In Phase 0 the runtime observes and records only; decisions are computed
 // but never enforced, and "would_block" is recorded as such.
@@ -208,22 +257,25 @@ func (s Severity) Valid() bool { return s >= SevInfo && s <= SevCritical }
 //   - AgentID: references Agent.ID of the emitting/observed agent.
 //   - Stage/Type/Decision/Severity: enums above.
 //   - Tier: optional routing tier (L0-L3); absent = L1.
+//   - SourceClass: optional evidence-provenance class (see SourceClass);
+//     absent = unclassified legacy; observation-only, never decides.
 //   - Summary: short human-readable text, no secrets.
 //   - Attrs: optional flat string map for details (paths, tool names...);
 //     the reserved keys "cap" and "res_class", when present, must be
 //     members of the capability and resource-sensitivity vocabularies.
 type Event struct {
-	V        int               `json:"v"`
-	TS       time.Time         `json:"ts"`
-	ID       string            `json:"id"`
-	AgentID  string            `json:"agent_id"`
-	Stage    Stage             `json:"stage"`
-	Type     EventType         `json:"type"`
-	Decision Decision          `json:"decision"`
-	Severity Severity          `json:"severity"`
-	Summary  string            `json:"summary"`
-	Tier     Tier              `json:"tier,omitempty"`
-	Attrs    map[string]string `json:"attrs,omitempty"`
+	V           int               `json:"v"`
+	TS          time.Time         `json:"ts"`
+	ID          string            `json:"id"`
+	AgentID     string            `json:"agent_id"`
+	Stage       Stage             `json:"stage"`
+	Type        EventType         `json:"type"`
+	Decision    Decision          `json:"decision"`
+	Severity    Severity          `json:"severity"`
+	Summary     string            `json:"summary"`
+	Tier        Tier              `json:"tier,omitempty"`
+	SourceClass SourceClass       `json:"source_class,omitempty"`
+	Attrs       map[string]string `json:"attrs,omitempty"`
 }
 
 // SchemaVersion is the current Event schema version.
@@ -263,6 +315,9 @@ func (e *Event) Validate() error {
 	}
 	if !e.Tier.Valid() {
 		return fmt.Errorf("schema: event %s: unknown tier %q", e.ID, string(e.Tier))
+	}
+	if !e.SourceClass.Valid() {
+		return fmt.Errorf("schema: event %s: unknown source_class %q", e.ID, string(e.SourceClass))
 	}
 	if v, ok := e.Attrs["cap"]; ok && !Capability(v).Valid() {
 		return fmt.Errorf("schema: event %s: attr cap %q not in vocabulary", e.ID, v)
