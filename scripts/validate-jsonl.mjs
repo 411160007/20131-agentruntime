@@ -21,6 +21,15 @@ const TIER = ['L0', 'L1', 'L2', 'L3'];
 // CAPS mirrors internal/schema/capability.go; RES_CLASSES the three
 // sensitivity levels. attrs["cap"]/attrs["res_class"] are validated here
 // exactly as Event.Validate() validates them in Go.
+// SOURCE_CLASS mirrors the Go schema SourceClass enum
+// (internal/schema/event.go) in trust order (native_os highest first);
+// the sync tests fail if the sources diverge. Absent key = unclassified
+// legacy; the field is observation-only and no judgement path here
+// consumes it.
+const SOURCE_CLASS = [
+  'native_os', 'runtime', 'tool_mcp', 'agent_meta', 'agent_self',
+  'llm_interpretation',
+];
 const CAPS = [
   'file.read', 'file.write', 'file.delete', 'net.outbound', 'net.listen',
   'proc.spawn', 'shell.exec', 'mcp.tool', 'credential.access', 'env.read',
@@ -46,6 +55,7 @@ function lineErrors(e) {
   if (!DECISIONS.includes(e.decision)) errs.push(`decision=${JSON.stringify(e.decision)}`);
   if (!Number.isInteger(e.severity) || e.severity < 0 || e.severity > 4) errs.push(`severity=${JSON.stringify(e.severity)}`);
   if (e.tier !== undefined && !TIER.includes(e.tier)) errs.push(`tier=${JSON.stringify(e.tier)}`);
+  if (e.source_class !== undefined && !SOURCE_CLASS.includes(e.source_class)) errs.push(`source_class=${JSON.stringify(e.source_class)}`);
   if (typeof e.summary !== 'string' || e.summary.length === 0 || Buffer.byteLength(e.summary) > 512) errs.push('summary invalid');
   if (e.attrs !== undefined) {
     if (typeof e.attrs !== 'object' || e.attrs === null || Array.isArray(e.attrs)) errs.push('attrs not a map');

@@ -155,6 +155,20 @@ step '07 evidence trust order: self-description never decides alone'
 go test -count=1 ./internal/rules -run TestEvidenceTrustOrder -v > "$TMPDIR/gate-d7-trust.out" 2>&1 || { tail -25 "$TMPDIR/gate-d7-trust.out"; echo RED: evidence trust order; exit 1; }
 grep -q '^--- PASS: TestEvidenceTrustOrder' "$TMPDIR/gate-d7-trust.out"
 echo 'TRUST ORDER OK (claim-only allow; native-evidence controls would_block; no built-in rule matches summary)'
+# source_class vocabulary fixtures: positive control (all six classes
+# validate) then rejecting control (wild values must be refused).
+node scripts/validate-jsonl.mjs testdata/sourceclass/good.jsonl --min-lines 6 \
+  || { echo 'RED: source-class positive fixture rejected'; exit 1; }
+node scripts/validate-jsonl.mjs --expect-reject testdata/sourceclass/wild.jsonl \
+  || { echo 'RED: source-class wild fixture NOT rejected'; exit 1; }
+# Phase 0 structural assertion: the decision and collection paths
+# consume ZERO source_class semantics (observation-only field; wiring
+# lands with the mount slice). The definition site (internal/schema)
+# and validators are excluded by directory, tests by filename.
+if grep -rnE 'SourceClass|source_class' --include='*.go' cmd/ internal/policy internal/rules internal/bus internal/discovery internal/adapter internal/mcpproxy internal/auditlog | grep -v _test; then
+  echo 'RED: shipped decision/collection path consumes source_class (must stay observation-only)'; exit 1
+fi
+echo 'SOURCE CLASS OK (fixtures reject wild / accept six; zero consumption on decision paths)'
 
 step '08 judgement fixtures + threat model ↔ rule table cross-check'
 go test -count=1 -p 1 -parallel 1 -v ./internal/rules -run 'TestEachBuiltinRule|TestHard|TestMultiMatch|TestBuiltinTables' > "$TMPDIR/gate-d7-rules.out" 2>&1 || { tail -20 "$TMPDIR/gate-d7-rules.out"; exit 1; }

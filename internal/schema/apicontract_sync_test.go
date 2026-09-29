@@ -29,6 +29,7 @@ func TestAPIDocContractMatchesGoEnums(t *testing.T) {
 		{"tiers", AllTiers()},
 		{"caps", AllCapabilities()},
 		{"res_classes", AllResourceClasses()},
+		{"source_classes", AllSourceClasses()},
 		{"rule_fields", AllMatchFields()},
 		{"rule_ops", AllMatchOps()},
 	}

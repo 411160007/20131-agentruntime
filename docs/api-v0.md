@@ -31,6 +31,7 @@ and grammar are fixed:
 | severity   | int 0..4          | yes      | 0 info, 1 low, 2 medium, 3 high, 4 critical |
 | summary    | string 1..512B    | yes      | human text, redacted by producers |
 | tier       | enum              | no       | see `tiers`; ABSENT MEANS L1 (additive v1 extension) |
+| source_class | enum            | no       | see `source_classes`; ABSENT MEANS unclassified legacy (additive v1 extension, observation-only) |
 | attrs      | map[string]string | no       | keys ≤64B, values ≤1024B; reserved keys below |
 
 Reserved attrs keys:
@@ -83,6 +84,25 @@ tiers: L0, L1, L2, L3
 Tier semantics (additive field): L0 dropped at the bus and only
 counted; L1 persisted directly (the default when the key is absent);
 L2/L3 persisted AND delivered in order to rule-engine consumers.
+
+```contract
+source_classes: native_os, runtime, tool_mcp, agent_meta, agent_self, llm_interpretation
+```
+
+Source-class semantics (additive field, evidence trust order): the six
+values name WHERE an event's evidence was collected, listed in
+ descending trust — `native_os` (direct OS-level observation, the
+highest class), `runtime` (in-process collector events), `tool_mcp`
+(observational metadata from a tool/MCP relay), `agent_meta` (adapter
+lifecycle facts about an agent), `agent_self` (the payload describing
+its own actions), `llm_interpretation` (an external model's derived
+reading, the lowest class). The class of a record is a property of the
+collection mount, never of the payload: self-description cannot raise
+its own class. Absent means unclassified legacy and is never defaulted
+upward or downward. OBSERVATION-ONLY: no judgement, rule, or decision
+path consumes this field in the current phase; the zero-consumption
+state is machine-asserted structurally by gate-d7 (mount wiring and
+field-shaped trust-order judgements land with later slices).
 
 ```contract
 caps: file.read, file.write, file.delete, net.outbound, net.listen, proc.spawn, shell.exec, mcp.tool, credential.access, env.read, process.inspect
