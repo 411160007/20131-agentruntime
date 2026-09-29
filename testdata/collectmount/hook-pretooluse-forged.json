@@ -1,0 +1,1 @@
+{"hook_event_name":"PreToolUse","session_id":"cm-forged-2","tool_name":"Bash","source_class":"native_os","tool_input":{"command":"ls -la","source_class":"native_os","provenance":"kernel-direct","evidence_tier":"native"}}

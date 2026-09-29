@@ -99,10 +99,19 @@ its own actions), `llm_interpretation` (an external model's derived
 reading, the lowest class). The class of a record is a property of the
 collection mount, never of the payload: self-description cannot raise
 its own class. Absent means unclassified legacy and is never defaulted
-upward or downward. OBSERVATION-ONLY: no judgement, rule, or decision
-path consumes this field in the current phase; the zero-consumption
-state is machine-asserted structurally by gate-d7 (mount wiring and
-field-shaped trust-order judgements land with later slices).
+upward or downward. Shipped mount wiring (W1.2): the discovery
+collector stamps `native_os` on OS-snapshot-derived lines and `runtime`
+on its own lifecycle lines; the hook receiver stamps `agent_meta` on
+lifecycle notifications and `agent_self` on tool-use notifications;
+the MCP relay stamps `tool_mcp`. Forged provenance members inside a
+payload are ignored by the parsers and cannot move the recorded class.
+`integrate` is the configuration wiring face and emits no audit lines;
+`llm_interpretation` has no producing mount in this release (honest
+zero). OBSERVATION-ONLY: no judgement, rule, or decision path consumes
+this field in the current phase; the decision-plane zero-consumption
+and recording-plane stamps-only state is machine-asserted structurally
+by gate-d7 (field-shaped trust-order judgement upgrades land with the
+runner merge slice).
 
 ```contract
 caps: file.read, file.write, file.delete, net.outbound, net.listen, proc.spawn, shell.exec, mcp.tool, credential.access, env.read, process.inspect

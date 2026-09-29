@@ -161,14 +161,52 @@ node scripts/validate-jsonl.mjs testdata/sourceclass/good.jsonl --min-lines 6 \
   || { echo 'RED: source-class positive fixture rejected'; exit 1; }
 node scripts/validate-jsonl.mjs --expect-reject testdata/sourceclass/wild.jsonl \
   || { echo 'RED: source-class wild fixture NOT rejected'; exit 1; }
-# Phase 0 structural assertion: the decision and collection paths
-# consume ZERO source_class semantics (observation-only field; wiring
-# lands with the mount slice). The definition site (internal/schema)
-# and validators are excluded by directory, tests by filename.
-if grep -rnE 'SourceClass|source_class' --include='*.go' cmd/ internal/policy internal/rules internal/bus internal/discovery internal/adapter internal/mcpproxy internal/auditlog | grep -v _test; then
-  echo 'RED: shipped decision/collection path consumes source_class (must stay observation-only)'; exit 1
+# Phase 0 structural assertion, mount-split form (W1.2 evolution of the
+# W1.1 whole-tree grep, split BEFORE the stamping landed — the old broad
+# form would flag the new legal recording lines, e.g.
+#   grep -rnE 'SourceClass|source_class' --include='*.go' internal/adapter | grep -v _test
+# currently returns the HookEvent/MCPEvent stamp lines, which is exactly
+# why the single blanket grep was retired in this same change):
+#   A) the DECISION plane (policy/rules/bus/auditlog) consumes ZERO
+#      source_class semantics — blanket grep must come up empty;
+#   B) the RECORDING plane (cmd/, discovery, adapter, mcpproxy) may only
+#      WRITE the field: legal lines are literal stamps (`SourceClass:`),
+#      field writes (`SourceClass =`), the type token
+#      (`schema.SourceClass`) and mount classifier names (`SourceClass(`)
+#      — any read/compare/switch form on the field is red.
+# Both segments carry planted-shape controls proving discriminating power.
+scan_zero_ref() { grep -rnE 'SourceClass|source_class' --include='*.go' "$@" | grep -v _test; }
+scan_recording_plane() { grep -rnE 'SourceClass|source_class' --include='*.go' "$@" | grep -v _test | grep -vE 'SourceClass[[:space:]]*[:=]|schema\.SourceClass|SourceClass\('; }
+if scan_zero_ref internal/policy internal/rules internal/bus internal/auditlog; then
+  echo 'RED: decision plane consumes source_class (Phase 0 observation-only line)'; exit 1
 fi
-echo 'SOURCE CLASS OK (fixtures reject wild / accept six; zero consumption on decision paths)'
+if scan_recording_plane cmd/ internal/discovery internal/adapter internal/mcpproxy; then
+  echo 'RED: recording plane reads/branches on source_class (mount may only stamp)'; exit 1
+fi
+# controls: a planted decision-plane reference and planted read-forms on
+# the recording plane must BOTH be caught (discriminating power; the
+# scanners return 0 exactly when a planted shape IS caught, so the red
+# branch is "||").
+mkdir -p "$TMPDIR/ctl-decision" "$TMPDIR/ctl-recording"
+printf 'package x\nimport "20131.com/agentruntime/internal/schema"\nfunc f(e *schema.Event) bool { return e.SourceClass == schema.SrcNativeOS }\n' > "$TMPDIR/ctl-decision/bad.go"
+printf 'package x\nfunc g(e *schema.Event) { switch e.SourceClass { } }\n' > "$TMPDIR/ctl-recording/bad.go"
+scan_zero_ref "$TMPDIR/ctl-decision" >/dev/null || { echo 'RED: decision-plane control reference not caught'; exit 1; }
+scan_recording_plane "$TMPDIR/ctl-recording" >/dev/null || { echo 'RED: recording-plane control read-form not caught'; exit 1; }
+rm -rf "$TMPDIR/ctl-decision" "$TMPDIR/ctl-recording"
+# mount-class battery: the collector/detector lines carry the OS-mount
+# class, hook lines carry the mount class even when the payload forges a
+# higher one, and the relay lines carry tool_mcp (all driven by the
+# testdata/collectmount fixtures through the REAL receiver process).
+go test -count=1 -v ./internal/adapter -run 'TestMountClass' > "$TMPDIR/gate-d7-mount.out" 2>&1 \
+  || { tail -25 "$TMPDIR/gate-d7-mount.out"; echo RED: adapter mount-class battery; exit 1; }
+go test -count=1 -v ./cmd/agent-collector -run 'TestCollectorMountStamps|TestMountClassHookEndToEnd' >> "$TMPDIR/gate-d7-mount.out" 2>&1 \
+  || { tail -25 "$TMPDIR/gate-d7-mount.out"; echo RED: collector/receiver mount-class battery; exit 1; }
+grep -q '^--- PASS: TestMountClassHookEvents' "$TMPDIR/gate-d7-mount.out"
+grep -q '^--- PASS: TestMountClassPairedFixtures' "$TMPDIR/gate-d7-mount.out"
+grep -q '^--- PASS: TestMountClassMCPEvent' "$TMPDIR/gate-d7-mount.out"
+grep -q '^--- PASS: TestCollectorMountStamps' "$TMPDIR/gate-d7-mount.out"
+grep -q '^--- PASS: TestMountClassHookEndToEnd' "$TMPDIR/gate-d7-mount.out"
+echo 'SOURCE CLASS OK (fixtures reject wild / accept six; zero decision-plane consumption; recording plane stamps only, controls caught; mount battery five-for-five)'
 
 step '08 judgement fixtures + threat model ↔ rule table cross-check'
 go test -count=1 -p 1 -parallel 1 -v ./internal/rules -run 'TestEachBuiltinRule|TestHard|TestMultiMatch|TestBuiltinTables' > "$TMPDIR/gate-d7-rules.out" 2>&1 || { tail -20 "$TMPDIR/gate-d7-rules.out"; exit 1; }

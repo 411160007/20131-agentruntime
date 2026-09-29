@@ -125,24 +125,35 @@ func ToolAttrs(raw json.RawMessage) map[string]string {
 // returned event carries tier L2 so the rule engine annotates it
 // (persist + judge, still observation-only). The summary never holds
 // credential-shaped content: free text passes through the redactor.
+//
+// Mount class (W1.2): the evidence-class stamp is decided by WHERE the
+// event was collected and by the event's position on the hook face —
+// never by what the payload claims. Lifecycle notifications (session
+// start / turn stop) are adapter-observed facts about the agent, so
+// they carry agent_meta; tool-use notifications relay the agent's own
+// description of its action (tool_name, tool_input), so they carry
+// agent_self. A payload forging a higher class cannot raise its own
+// class: the receiver's parser reads only the known fields below, and
+// the stamp is assigned from the mount, not from the input.
 func HookEvent(h HookInput, machine string, now time.Time, id string) (*schema.Event, error) {
 	var (
 		stype   schema.EventType
 		stage   schema.Stage
 		summary string
+		class   schema.SourceClass
 	)
 	switch h.HookEventName {
 	case EventPreToolUse:
-		stype, stage = schema.TypeToolCall, schema.StageProposed
+		stype, stage, class = schema.TypeToolCall, schema.StageProposed, schema.SrcAgentSelf
 		summary = "hook " + EventPreToolUse + " tool=" + discovery.TruncateRedacted(h.ToolName, 96)
 	case EventPostToolUse:
-		stype, stage = schema.TypeToolCall, schema.StageAction
+		stype, stage, class = schema.TypeToolCall, schema.StageAction, schema.SrcAgentSelf
 		summary = "hook " + EventPostToolUse + " tool=" + discovery.TruncateRedacted(h.ToolName, 96)
 	case EventSessionStart:
-		stype, stage = schema.TypeSessionStart, schema.StageObservation
+		stype, stage, class = schema.TypeSessionStart, schema.StageObservation, schema.SrcAgentMeta
 		summary = "hook " + EventSessionStart
 	case EventStop:
-		stype, stage = schema.TypeTurnStop, schema.StageObservation
+		stype, stage, class = schema.TypeTurnStop, schema.StageObservation, schema.SrcAgentMeta
 		summary = "hook " + EventStop
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnknownHook, h.HookEventName)
@@ -158,7 +169,7 @@ func HookEvent(h HookInput, machine string, now time.Time, id string) (*schema.E
 	for k, v := range ToolAttrs(h.ToolInput) {
 		attrs[k] = v
 	}
-	return &schema.Event{
+	e := &schema.Event{
 		V:        schema.SchemaVersion,
 		TS:       now.UTC(),
 		ID:       id,
@@ -170,7 +181,9 @@ func HookEvent(h HookInput, machine string, now time.Time, id string) (*schema.E
 		Summary:  summary,
 		Tier:     schema.TierL2,
 		Attrs:    attrs,
-	}, nil
+	}
+	e.SourceClass = class
+	return e, nil
 }
 
 // MCPEvent builds the audit line for one observed JSON-RPC tool call
@@ -179,7 +192,9 @@ func HookEvent(h HookInput, machine string, now time.Time, id string) (*schema.E
 // into the audit: only a truncated redacted excerpt plus a commitment
 // hash of the raw bytes survive, alongside transport metrics. The event
 // is L2 so the built-in rules annotate it; the transport decision is
-// made by the relay, which never consults this event.
+// made by the relay, which never consults this event. The mount class is
+// tool_mcp: the relay observed the round trip itself — nothing the args
+// claim about provenance can move that class.
 func MCPEvent(serverExe string, tool string, argsRaw []byte, latency time.Duration, reqBytes, respBytes int, machine string, now time.Time, id string) (*schema.Event, error) {
 	tool = discovery.TruncateRedacted(tool, 96)
 	h := sha256.Sum256(argsRaw)
@@ -199,16 +214,17 @@ func MCPEvent(serverExe string, tool string, argsRaw []byte, latency time.Durati
 	}
 	summary := "mcp tools/call " + discovery.TruncateRedacted(serverExe, 48) + "/" + tool
 	return &schema.Event{
-		V:        schema.SchemaVersion,
-		TS:       now.UTC(),
-		ID:       id,
-		AgentID:  identity.AgentID(machine, "mcp|"+strings.ToLower(serverExe)),
-		Stage:    schema.StageAction,
-		Type:     schema.TypeToolCall,
-		Decision: schema.DecisionAllow,
-		Severity: schema.SevInfo,
-		Summary:  summary,
-		Tier:     schema.TierL2,
-		Attrs:    attrs,
+		V:           schema.SchemaVersion,
+		TS:          now.UTC(),
+		ID:          id,
+		AgentID:     identity.AgentID(machine, "mcp|"+strings.ToLower(serverExe)),
+		Stage:       schema.StageAction,
+		Type:        schema.TypeToolCall,
+		Decision:    schema.DecisionAllow,
+		Severity:    schema.SevInfo,
+		Summary:     summary,
+		Tier:        schema.TierL2,
+		Attrs:       attrs,
+		SourceClass: schema.SrcToolMCP,
 	}, nil
 }

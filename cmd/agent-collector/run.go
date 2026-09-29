@@ -108,7 +108,14 @@ func (c *collector) nextID() string {
 	return fmt.Sprintf("ev-%s-%05d", c.runID, c.seq)
 }
 
-func (c *collector) emit(typ schema.EventType, agentID, summary string, attrs map[string]string, sev schema.Severity) error {
+// emitAt builds one collector event and stamps the evidence class of the
+// COLLECTION MOUNT it came from: schema.SrcNativeOS for lines whose
+// evidence is the OS process snapshot itself (detections, scan cycles,
+// snapshot failures), schema.SrcRuntime for the collector's own
+// in-process lifecycle lines (start/stop). The class is a property of
+// where the event was collected, never of payload content — and nothing
+// downstream reads it in this phase (gate-d7 mount-split assertion).
+func (c *collector) emitAt(class schema.SourceClass, typ schema.EventType, agentID, summary string, attrs map[string]string, sev schema.Severity) error {
 	e := &schema.Event{
 		V:        schema.SchemaVersion,
 		TS:       time.Now().UTC(),
@@ -122,6 +129,7 @@ func (c *collector) emit(typ schema.EventType, agentID, summary string, attrs ma
 		Tier:     schema.TierL1, // observation events persist directly
 		Attrs:    attrs,
 	}
+	e.SourceClass = class
 	// The bus validates, applies the Phase 0 decision invariant, counts
 	// per source, and writes through the single audit pipe.
 	return c.src.Publish(e)
@@ -143,7 +151,7 @@ func scanMethod() string {
 const knownGaps = "processes are discovered after launch; protected or other-user cmdlines may be unreadable (counted in coverage attrs); ETW/libproc/auditd event streams are Phase 1 scope; fingerprint misses are possible and recorded as no-agent - audit is honest, not complete; stable agent ids derive from machine fingerprint + exe-or-cmdline-or-name, so a reinstalled binary at the same locator keeps its id"
 
 func (c *collector) emitStart(ver string) error {
-	return c.emit(schema.TypeCollectorStart, c.agentID,
+	return c.emitAt(schema.SrcRuntime, schema.TypeCollectorStart, c.agentID,
 		"agent-collector started: local JSONL audit only, no network, observe-only (Phase 0)",
 		map[string]string{
 			"version":     ver,
@@ -166,7 +174,7 @@ func busSourceNames(b *bus.Bus) []string {
 }
 
 func (c *collector) emitStop(reason string) error {
-	return c.emit(schema.TypeCollectorStop, c.agentID,
+	return c.emitAt(schema.SrcRuntime, schema.TypeCollectorStop, c.agentID,
 		fmt.Sprintf("agent-collector stopping after %d scan cycle(s): %s", c.cycles, reason),
 		map[string]string{"run": c.runID, "uptime_s": strconv.FormatInt(int64(time.Since(c.started).Seconds()), 10)},
 		schema.SevInfo)
@@ -176,7 +184,7 @@ func (c *collector) emitStop(reason string) error {
 // collector never dies or degrades silently.
 func (c *collector) logScanFailure(err error) error {
 	c.cycles++
-	return c.emit(schema.TypeAgentScan, c.agentID,
+	return c.emitAt(schema.SrcNativeOS, schema.TypeAgentScan, c.agentID,
 		"scan cycle failed: "+discovery.TruncateRedacted(err.Error(), 200),
 		map[string]string{"run": c.runID, "status": "snapshot-error"}, schema.SevLow)
 }
@@ -232,7 +240,7 @@ func (c *collector) cycle(now time.Time) error {
 		"run":        c.runID,
 		"orphan_mcp": strconv.Itoa(len(res.MCPSiblings)),
 	}
-	return c.emit(schema.TypeAgentScan, c.agentID, summary, attrs, schema.SevInfo)
+	return c.emitAt(schema.SrcNativeOS, schema.TypeAgentScan, c.agentID, summary, attrs, schema.SevInfo)
 }
 
 func (c *collector) emitDetected(h discovery.Hit, now time.Time, agentID, state string) error {
@@ -255,7 +263,7 @@ func (c *collector) emitDetected(h discovery.Hit, now time.Time, agentID, state 
 	for i, r := range h.Roots {
 		attrs["root"+strconv.Itoa(i)] = string(r)
 	}
-	return c.emit(schema.TypeAgentDetected, agentID, summary, attrs, schema.SevInfo)
+	return c.emitAt(schema.SrcNativeOS, schema.TypeAgentDetected, agentID, summary, attrs, schema.SevInfo)
 }
 
 func (c *collector) close() {
