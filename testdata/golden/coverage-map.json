@@ -1,0 +1,499 @@
+{
+  "doc": "Evaluation coverage map v0 — the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (129 cases across ten evaluation dimensions).",
+  "corpus": {
+    "normal": 72,
+    "danger": 57,
+    "total": 129,
+    "labels": 129
+  },
+  "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
+  "honesty": [
+    "A pending class does NOT invalidate any shipped case: all 129 golden cases keep their current labels and thresholds unchanged.",
+    "Pending rows name the primitive rules (and their real matching cases) that catch parts of the class today, plus the build-order slices that carry the missing semantics.",
+    "Every detection here is a would_block record on the audit stream; Phase 0 observes, warns and audits — it never stops anything (see threat-model.md)."
+  ],
+  "known_gap_uncovered": {
+    "cases": [
+      "gd-19",
+      "gd-20"
+    ],
+    "note": "The two declared known-gap dangers match no shipped rule by design; they stay ledger-declared misses (threat model TM-11 / TM-12), which is why no coverage row cites them."
+  },
+  "security_classes": [
+    {
+      "name": "Prompt Injection",
+      "status": "pending",
+      "rules": [],
+      "primitive_cases": [
+        "g7-x06",
+        "g7-x07",
+        "g7-x08",
+        "g7-x09",
+        "g7-x10"
+      ],
+      "w_points": [
+        "W1 — evidence trust order: content of untrusted provenance gets a declared source_class (low tier), never decides alone (machine-judged trust battery already shipped in the runner)",
+        "W3 — intent contract: intent mutations sourced from untrusted content are recorded as UNTRUSTED-marked observations (observe-only in Phase 0)"
+      ],
+      "note": "No dedicated injection-semantics matcher ships today. The five injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.",
+      "cases": []
+    },
+    {
+      "name": "Goal Hijacking",
+      "status": "pending",
+      "rules": [],
+      "primitive_cases": [
+        "g7-b09"
+      ],
+      "w_points": [
+        "W3 — intent contract v0 with the four-way action taxonomy (DIRECT/INFERRED/UNCERTAIN/UNRELATED) records task-goal drift",
+        "W5 — behavior-chain Intent Deviation dimension upgrades drift from narrative to structured observation"
+      ],
+      "note": "One corpus case (task drift into an agent ssh key) is caught downstream by credential primitives; goal-semantics detection awaits the intent slices.",
+      "cases": []
+    },
+    {
+      "name": "Tool Abuse",
+      "status": "covered",
+      "rules": [
+        "mcp.eval",
+        "exec.remotepipe"
+      ],
+      "primitive_cases": [],
+      "w_points": [],
+      "note": "Eval-exposing tools and shell-piped command shapes on the hook/mcp surfaces.",
+      "cases": [
+        "g7-c08",
+        "g7-l08",
+        "g7-p08",
+        "g7-q06",
+        "g7-q07",
+        "g7-s09",
+        "g7-s12",
+        "g7-x06",
+        "g7-x08",
+        "gd-08",
+        "gd-13",
+        "gd-14"
+      ]
+    },
+    {
+      "name": "MCP Abuse",
+      "status": "covered",
+      "rules": [
+        "mcp.eval"
+      ],
+      "primitive_cases": [],
+      "w_points": [],
+      "note": "Covered shape = tool-exposing-raw-eval (threat-model TM-05) via the mcp reserved slot. Deeper metadata-plane abuse (tool description poisoning, confused-deputy delegation) is graded later: W1.2 assigns Tool/MCP collection tier, policy semantics later phases.",
+      "cases": [
+        "g7-c08",
+        "g7-l08",
+        "g7-q07",
+        "g7-s09",
+        "g7-x08",
+        "gd-13",
+        "gd-14"
+      ]
+    },
+    {
+      "name": "Skill Abuse",
+      "status": "pending",
+      "rules": [],
+      "w_points": [
+        "W1.2 — collection-mount grading: tool/skill invocations enter as Tool/MCP metadata tier (self-described fields never raise the tier)",
+        "W4 — nine data-action vocabulary re-adjudicates EXECUTE/SHARE per action, independent of skill naming"
+      ],
+      "note": "No skill-vocabulary matcher ships; eval-named tools are the closest primitive today.",
+      "cases": [],
+      "primitive_cases": [
+        "g7-c08",
+        "g7-l08",
+        "g7-q07",
+        "g7-s09",
+        "g7-x08",
+        "gd-13",
+        "gd-14"
+      ]
+    },
+    {
+      "name": "Credential Access",
+      "status": "covered",
+      "rules": [
+        "cred.ssh",
+        "cred.aws",
+        "cred.browser",
+        "cred.dotenv"
+      ],
+      "primitive_cases": [],
+      "w_points": [],
+      "note": "Four hard-priority credential-store rules plus the dotenv suffix rule; danger-side class detection 17/17 in the runner table.",
+      "cases": [
+        "g7-b09",
+        "g7-l07",
+        "g7-q03",
+        "g7-q04",
+        "g7-s01",
+        "g7-s02",
+        "g7-s03",
+        "g7-s04",
+        "g7-s12",
+        "g7-x07",
+        "gd-01",
+        "gd-02",
+        "gd-03",
+        "gd-04",
+        "gd-05",
+        "gd-09",
+        "gd-18"
+      ]
+    },
+    {
+      "name": "Privilege Escalation",
+      "status": "covered",
+      "rules": [
+        "path.sudoers"
+      ],
+      "primitive_cases": [],
+      "w_points": [],
+      "note": "Privilege configuration drop-ins (sudoers, sudoers.d variants, macOS prefixes). The sudo-prefixed destructive case lands in Mass Deletion; full token/session escalation semantics are later-phase scope (see threat-model known_gap wording on OS-integrity surfaces).",
+      "cases": [
+        "g7-q08",
+        "g7-s10",
+        "gd-15",
+        "gd-16"
+      ]
+    },
+    {
+      "name": "Memory Poisoning",
+      "status": "pending",
+      "rules": [],
+      "primitive_cases": [],
+      "w_points": [
+        "W2 — persistence/profile schema family (section 289 contracts) creates the typed surface a poisoning observation needs",
+        "W12 — memory-security and learning-safety design slice (sections 262-265) defines detection semantics before any enforcement claim"
+      ],
+      "note": "Nothing in today's corpus demonstrates this class; no existing case is invalidated — the class is simply not yet observable by shipped vocabulary.",
+      "cases": []
+    },
+    {
+      "name": "Agent-to-Agent Abuse",
+      "status": "pending",
+      "rules": [],
+      "primitive_cases": [],
+      "w_points": [
+        "W5/W6 carrier slice — delegation becomes a first-class observation record (parent/child/reason/scope/TTL, observe-only): delegation never inherits trust automatically until enforcement lands in later phases",
+        "W6 — least-agency step-count and parallelism counters record fan-out patterns typical of A2A abuse"
+      ],
+      "note": "Delegation shapes exist on the normal side of the corpus (delegated subtask session, webhook-bootstrapped agent detected as allow); no abuse-side golden case ships yet.",
+      "cases": []
+    },
+    {
+      "name": "Supply Chain Attack",
+      "status": "pending",
+      "rules": [],
+      "w_points": [
+        "W11 — supply-chain observation v0 (documentation surface + coverage truthfulness matrix) defines what is and is not seen",
+        "W1.2 — fetch-and-run events grade by collection mount, keeping remote-payload provenance in the record"
+      ],
+      "note": "Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules.",
+      "cases": [],
+      "primitive_cases": [
+        "g7-p08",
+        "g7-q06",
+        "g7-s12",
+        "g7-x06",
+        "gd-08"
+      ]
+    },
+    {
+      "name": "Mass Deletion",
+      "status": "covered",
+      "rules": [
+        "destroy.rmrf",
+        "destroy.disk"
+      ],
+      "primitive_cases": [],
+      "w_points": [],
+      "note": "Recursive force deletes and filesystem reformat shapes, incl. localized and piped variants.",
+      "cases": [
+        "g7-l06",
+        "g7-p07",
+        "g7-q05",
+        "g7-r05",
+        "g7-s05",
+        "g7-s06",
+        "g7-x10",
+        "gd-06",
+        "gd-07",
+        "gd-09"
+      ]
+    },
+    {
+      "name": "Policy Bypass",
+      "status": "covered",
+      "rules": [
+        "audit.tamper"
+      ],
+      "primitive_cases": [],
+      "w_points": [],
+      "note": "Covered shape = attack on the audit/policy sink itself (TM-08) plus the merge-surface hard-rule no-downgrade gate (three negative-control fixtures in the runner battery). The winevt-clearing case gd-20 stays a declared known_gap (TM-12), honestly counted as a miss in the ledger, never silently passed.",
+      "cases": [
+        "g7-q10",
+        "g7-r06",
+        "g7-r07",
+        "g7-r08",
+        "g7-s11",
+        "gd-17"
+      ]
+    },
+    {
+      "name": "Capability Escalation",
+      "status": "pending",
+      "rules": [],
+      "w_points": [
+        "W6 — least-agency guard records capability growth per session/step (rate, steps, parallelism counters; observation only, no kill-switch in Phase 0)",
+        "W4 — capability vocabulary migrates from the shipped 11-word set toward the nine data-action classes, making escalation diffs machine-readable"
+      ],
+      "note": "Sudoers writes and world-writable masquerade runs are caught as primitives; the escalation-as-trajectory semantics (capability growth over time) awaits the least-agency slice.",
+      "cases": [],
+      "primitive_cases": [
+        "g7-c07",
+        "g7-q08",
+        "g7-q09",
+        "g7-s07",
+        "g7-s10",
+        "gd-10",
+        "gd-15",
+        "gd-16"
+      ]
+    },
+    {
+      "name": "Data Exfiltration",
+      "status": "pending",
+      "rules": [],
+      "w_points": [
+        "W4 — data-boundary engine: READ-allowed never implies EXPORT-allowed; EXPORT is an independently re-adjudicated action class",
+        "W7 — evidence export envelope (manifest + hashes) keeps exfiltration observations themselves complete and tamper-evident"
+      ],
+      "note": "Credential-store reads (the typical exfiltration source step) are caught as primitives; payload-crossing-boundary semantics need the data-action vocabulary.",
+      "cases": [],
+      "primitive_cases": [
+        "g7-b09",
+        "g7-l07",
+        "g7-q03",
+        "g7-q04",
+        "g7-s01",
+        "g7-s02",
+        "g7-s03",
+        "g7-s04",
+        "g7-s12",
+        "g7-x07",
+        "gd-01",
+        "gd-02",
+        "gd-03",
+        "gd-04",
+        "gd-05",
+        "gd-09",
+        "gd-18"
+      ]
+    },
+    {
+      "name": "Network Exfiltration",
+      "status": "pending",
+      "rules": [],
+      "w_points": [
+        "W4 — trust-domain mapping for net.outbound: egress intent events grade against the nine-class action vocabulary (EXPORT/SHARE)",
+        "W10 — external-intelligence contract (zero-wired by default) could later enrich destination reputation without ever gating the deterministic core"
+      ],
+      "note": "Outbound network intent is flagged as a class today (all four network-shaped dangers detected 4/4) but as generic egress visibility, not as confirmed data leaving with a payload; the egress semantics arrive with the boundary slice.",
+      "cases": [],
+      "primitive_cases": [
+        "g7-s08",
+        "g7-x09",
+        "gd-11",
+        "gd-12"
+      ]
+    },
+    {
+      "name": "Child Process Pivot",
+      "status": "covered",
+      "rules": [
+        "agent.masquerade"
+      ],
+      "primitive_cases": [],
+      "w_points": [],
+      "note": "Covered shape = relabel/masquerade execution from world-writable directories (TM-07, incl. the miner-disguised-as-agent variant) plus proc.spawn capability tagging on piped-exec rules. Full parent-child chain re-adjudication (pivot-through-children as trajectory) is graded later with the behavior-chain upgrade.",
+      "cases": [
+        "g7-c07",
+        "g7-q09",
+        "g7-s07",
+        "gd-10"
+      ]
+    }
+  ],
+  "normal_classes": [
+    {
+      "name": "Coding",
+      "count": 5,
+      "cases": [
+        "g7-c01",
+        "g7-f01",
+        "g7-f04",
+        "g7-p05",
+        "g7-u02"
+      ],
+      "note": ""
+    },
+    {
+      "name": "Research",
+      "count": 3,
+      "cases": [
+        "g7-c06",
+        "g7-f07",
+        "g7-q02"
+      ],
+      "note": ""
+    },
+    {
+      "name": "Browsing",
+      "count": 2,
+      "cases": [
+        "g7-u07",
+        "g7-x02"
+      ],
+      "note": ""
+    },
+    {
+      "name": "Git",
+      "count": 3,
+      "cases": [
+        "g7-f03",
+        "g7-u05",
+        "g7-x04"
+      ],
+      "note": ""
+    },
+    {
+      "name": "NPM",
+      "count": 3,
+      "cases": [
+        "g7-b02",
+        "g7-l04",
+        "g7-u04"
+      ],
+      "note": "Package and dependency operations; pip/brew/apt package installs are recorded under this class (same task shape, the spec names the ecosystem flagship)."
+    },
+    {
+      "name": "Docker",
+      "count": 1,
+      "cases": [
+        "g7-f05"
+      ],
+      "note": ""
+    },
+    {
+      "name": "Database",
+      "count": 0,
+      "cases": [],
+      "note": "Honest zero: the shipped normal-side corpus (dogfood harvest + expanded benign work vocabulary) carries no database-task event shape today. Forcing one would fabricate coverage; the fill path is the dogfood collector harvest plus W-series collection expansion, not synthetic invention."
+    },
+    {
+      "name": "Deployment",
+      "count": 1,
+      "cases": [
+        "g7-u01"
+      ],
+      "note": "Local dev-server bring-up shape; the docker compose stack start is recorded under Docker (its named tool)."
+    },
+    {
+      "name": "Automation",
+      "count": 5,
+      "cases": [
+        "g7-b01",
+        "g7-b07",
+        "g7-c03",
+        "g7-q01",
+        "g7-x01"
+      ],
+      "note": ""
+    },
+    {
+      "name": "File Management",
+      "count": 12,
+      "cases": [
+        "g7-c02",
+        "g7-c05",
+        "g7-l01",
+        "g7-l02",
+        "g7-l03",
+        "g7-l05",
+        "g7-r04",
+        "g7-u03",
+        "g7-u06",
+        "g7-u08",
+        "g7-u09",
+        "g7-x03"
+      ],
+      "note": ""
+    },
+    {
+      "name": "Testing",
+      "count": 2,
+      "cases": [
+        "g7-b05",
+        "g7-f02"
+      ],
+      "note": ""
+    },
+    {
+      "name": "Multi-Step Tasks",
+      "count": 3,
+      "cases": [
+        "g7-b03",
+        "g7-b06",
+        "g7-b08"
+      ],
+      "note": "Delegated-step shapes (step cache, summary output, delegated subtask session)."
+    }
+  ],
+  "observation_infrastructure": {
+    "name": "Observation infrastructure (residual bucket, not a task class)",
+    "count": 32,
+    "cases": [
+      "g7-b04",
+      "g7-c04",
+      "g7-f06",
+      "g7-p01",
+      "g7-p02",
+      "g7-p03",
+      "g7-p04",
+      "g7-p06",
+      "g7-r01",
+      "g7-r02",
+      "g7-r03",
+      "g7-x05",
+      "gn-01",
+      "gn-02",
+      "gn-03",
+      "gn-04",
+      "gn-05",
+      "gn-06",
+      "gn-07",
+      "gn-08",
+      "gn-09",
+      "gn-10",
+      "gn-11",
+      "gn-12",
+      "gn-13",
+      "gn-14",
+      "gn-15",
+      "gn-16",
+      "gn-17",
+      "gn-18",
+      "gn-19",
+      "gn-20"
+    ],
+    "note": "Dogfood-harvested collector lifecycle and discovery lines (startup, scan cycles, detected agents, session/turn markers). They belong to the product's own observation surface, not to an agent task category; kept as an explicit bucket so the twelve task classes never absorb them silently."
+  }
+}
