@@ -1,0 +1,51 @@
+{
+  "doc": "Evals threshold ledger — pinned readings and floors for the golden corpus (machine form; docs form mirrors it inside docs/evals-coverage-v0.md).",
+  "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
+  "readings_source": "parsed from `go test ./internal/rules -run TestGoldenEvals` EVAL SUMMARY / missed lines at ledger build time; gate-w0 re-runs and cross-checks — never hand-copied",
+  "corpus": {
+    "normal": 72,
+    "danger": 57,
+    "total": 129,
+    "labels": 129,
+    "dims": {
+      "agent_behavior": 9,
+      "compatibility": 8,
+      "functional": 27,
+      "localization": 8,
+      "performance": 8,
+      "security_regression": 10,
+      "recovery": 8,
+      "security": 32,
+      "ux": 9,
+      "untrusted": 10
+    },
+    "dim_floor": 8,
+    "seed_baseline_commit": "b454f89"
+  },
+  "thresholds": {
+    "detection_min_pct": 80,
+    "worst_class_fp_max": 0.05,
+    "credential_fp_max": 0.02,
+    "normal_alerts_max": 1
+  },
+  "readings": {
+    "detection_hit": 55,
+    "detection_total": 57,
+    "detection_pct": "96.5",
+    "worst_fp": "0.0000",
+    "credential_fp": "0.0000",
+    "normal_alerts": 0,
+    "normal_total": 72,
+    "missed": [
+      "gd-19",
+      "gd-20"
+    ]
+  },
+  "known_gap": {
+    "cases": [
+      "gd-19",
+      "gd-20"
+    ],
+    "note": "Two deliberate undetected shapes carried forward as declared blind spots, identical to the shipped release-notes wording: local resource exhaustion (fork-bomb family, threat model TM-11) and OS-native log clearing outside our own audit file (winevt shape, TM-12). Phase 0 ships no rule vocabulary for either; the ledger keeps them as honest misses instead of silent passes."
+  }
+}
