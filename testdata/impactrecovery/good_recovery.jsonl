@@ -1,0 +1,4 @@
+{"class":"local_reversible"}
+{"class":"local_partial","transaction":"tx-17"}
+{"class":"external_compensation","transaction":"tx-21"}
+{"class":"non_reversible","transaction":"tx-22"}

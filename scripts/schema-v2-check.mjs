@@ -22,8 +22,8 @@ const EXPECTED_SLOTS = {
   decision: { status: 'complete', slice: null },
   intent: { status: 'complete', slice: null },
   authority: { status: 'complete', slice: null },
-  impact: { status: 'pending', slice: 'W2.3' },
-  recovery: { status: 'pending', slice: 'W2.3' },
+  impact: { status: 'complete', slice: null },
+  recovery: { status: 'complete', slice: null },
   evidence: { status: 'pending', slice: 'W2.4' },
   profile: { status: 'pending', slice: 'W2.4' },
 };
@@ -167,7 +167,7 @@ function check(ok, label) {
   }
 }
 
-check(slotCensusProblems(v).length === 0, 'slot census: 7 slots, decision/intent/authority complete, four pending with pointers');
+check(slotCensusProblems(v).length === 0, 'slot census: 7 slots, decision/intent/authority/impact/recovery complete, two pending with pointers');
 if (slotCensusProblems(v).length) console.log('  ' + slotCensusProblems(v).join('\n  '));
 check(templateCensusProblems(v).length === 0, 'template census: four elements with concrete requires lines');
 
@@ -205,7 +205,11 @@ if (ep.length) console.log('  ' + ep.join('\n  '));
 // Intent + authority contract checks (slice W2.2). Pure predicates so
 // the selftest exercises the shipped logic.
 const goSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'intentauthority.go'), 'utf8');
+const irSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'impactrecovery.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
+// Recovery anchor rule is one step wider: spaces AND hyphens collapse
+// to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
+const snakeH = (s) => s.toLowerCase().replace(/[ -]+/g, '_');
 
 function intentProblems(text, goText) {
   const bad = [];
@@ -243,16 +247,109 @@ function authorityProblems(text, goText) {
   return bad;
 }
 
+function impactProblems(text, goText) {
+  const bad = [];
+  const vocab = findKey(text, 'impact_field_vocabulary');
+  const count = findKey(text, 'impact_field_count');
+  const absent = findKey(text, 'impact_absent_semantics');
+  const scopeVocab = findKey(text, 'blast_radius_scope_vocabulary');
+  const scopeCount = findKey(text, 'blast_radius_scope_count');
+  const plane = findKey(text, 'impact_enforcement_plane');
+  if (!vocab || !count || !absent || !scopeVocab || !scopeCount || !plane) return ['impact contract keys missing or duplicated'];
+  const toks = vocab.split(', ');
+  if (toks.length !== 7 || new Set(toks).size !== 7) bad.push('impact vocabulary not seven unique tokens');
+  if (count !== '7' || toks.length !== Number(count)) bad.push('impact count line drifts from vocabulary length');
+  if (absent !== 'not-estimated-known-gap') bad.push('impact absent-field semantics drifted');
+  if (plane !== 'none-in-observation-phase' || !goText.includes('ImpactEnforcementPlane = "none-in-observation-phase"')) bad.push('impact enforcement plane drifted off none');
+  const anchorHits = text.match(/```impact-spec-anchor\n([\s\S]*?)```/g) || [];
+  if (anchorHits.length !== 1) return bad.concat(['impact anchor block must appear exactly once']);
+  const lines = anchorHits[0].replace('```impact-spec-anchor\n', '').replace('```', '').trim().split('\n').map((s) => s.trim()).filter(Boolean);
+  if (lines.length !== 7) bad.push('impact anchor line census ' + lines.length + ', want 7');
+  else lines.forEach((s, i) => { if (snake(s) !== toks[i]) bad.push('impact anchor back-check broke at line ' + (i + 1) + ': ' + s); });
+  const varblk = (goText.match(/var impactFieldWireNames = \[\]string\{([\s\S]*?)\}/) || [, ''])[1];
+  const goList = (varblk.match(/"[^"]+"/g) || []).map((s) => s.slice(1, -1));
+  if (goList.join(', ') !== vocab) bad.push('impact vocabulary docs <-> Go drift');
+  const stoks = scopeVocab.split(', ');
+  if (stoks.length !== 8 || new Set(stoks).size !== 8) bad.push('blast scope vocabulary not eight unique tokens');
+  if (scopeCount !== '8' || stoks.length !== Number(scopeCount)) bad.push('blast scope count line drifts');
+  const sb = (goText.match(/var blastScopeWireNames = \[\]string\{([\s\S]*?)\}/) || [, ''])[1];
+  const sgo = (sb.match(/"[^"]+"/g) || []).map((s) => s.slice(1, -1));
+  if (sgo.join(', ') !== scopeVocab) bad.push('blast scope vocabulary docs <-> Go drift');
+  const rowRe = /^\| `([a-z_]+_scope)` \|[^|\n]+\| line (\d+) \|$/gm;
+  const rows = [];
+  let rm;
+  while ((rm = rowRe.exec(text)) !== null) rows.push([rm[1], rm[2]]);
+  if (rows.length !== 8) bad.push('scope table row census ' + rows.length + ', want 8');
+  else rows.forEach(([tok, n], i) => {
+    if (tok !== stoks[i]) bad.push('scope row-order pin broke at row ' + (i + 1) + ': ' + tok);
+    if (Number(n) !== i + 1) bad.push('scope bullet pointer off at row ' + (i + 1));
+  });
+  return bad;
+}
+
+function recoveryProblems(text, goText) {
+  const bad = [];
+  const vocab = findKey(text, 'recovery_class_vocabulary');
+  const count = findKey(text, 'recovery_class_count');
+  const unclassified = findKey(text, 'recovery_unclassified_semantics');
+  const execPlane = findKey(text, 'recovery_execution_plane');
+  const truthful = findKey(text, 'recovery_truthfulness_rule');
+  if (!vocab || !count || !unclassified || !execPlane || !truthful) return ['recovery contract keys missing or duplicated'];
+  const toks = vocab.split(', ');
+  if (toks.length !== 4 || new Set(toks).size !== 4) bad.push('recovery vocabulary not four unique classes');
+  if (count !== '4' || toks.length !== Number(count)) bad.push('recovery count line drifts from vocabulary length');
+  if (unclassified !== 'absent-record-means-unknown-never-imply-reversible') bad.push('unclassified semantics drifted');
+  if (execPlane !== 'none-in-observation-phase' || !goText.includes('RecoveryExecutionPlane = "none-in-observation-phase"')) bad.push('recovery execution plane drifted off none');
+  if (truthful !== 'never-claim-fully-reversible' || !goText.includes('RecoveryTruthfulnessRule = "never-claim-fully-reversible"')) bad.push('truthfulness rule drifted');
+  const anchorHits = text.match(/```recovery-spec-anchor\n([\s\S]*?)```/g) || [];
+  if (anchorHits.length !== 1) return bad.concat(['recovery anchor block must appear exactly once']);
+  const lines = anchorHits[0].replace('```recovery-spec-anchor\n', '').replace('```', '').trim().split('\n').map((s) => s.trim()).filter(Boolean);
+  if (lines.length !== 4) bad.push('recovery anchor line census ' + lines.length + ', want 4');
+  else lines.forEach((s, i) => { if (snakeH(s) !== toks[i]) bad.push('recovery anchor back-check broke at line ' + (i + 1) + ': ' + s); });
+  const goClasses = [...goText.matchAll(/RecoveryClass = "([^"]+)"/g)].map((m) => m[1]);
+  if (goClasses.join(', ') !== vocab) bad.push('recovery class vocabulary docs <-> Go drift');
+  return bad;
+}
+
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
-  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames/;
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames/;
   for (const d of PLANE_DIRS) {
     const dir = path.join(root, 'internal', d);
     let entries;
     try { entries = fs.readdirSync(dir); } catch { continue; }
     for (const f of entries.filter((x) => x.endsWith('.go') && !x.endsWith('_test.go'))) {
       if (needle.test(fs.readFileSync(path.join(dir, f), 'utf8'))) bad.push(d + '/' + f + ' references the new record symbols');
+    }
+  }
+  return bad;
+}
+
+// Recovery-execution red-shape gate (slice W2.3): no rollback-family
+// execution vocabulary may appear in decision-plane files or anywhere
+// in the command tree while the execution plane is contracted as none.
+// Baseline is zero hits; any hit is a deliberate contract event that
+// must retire the plane line in the same change.
+const EXEC_VERB_RE = /rollback|revert|undo|compensat/i;
+function execVerbFiles(dir) {
+  const out = [];
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return out; }
+  for (const e of entries) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) out.push(...execVerbFiles(p));
+    else if (e.name.endsWith('.go') && !e.name.endsWith('_test.go')) out.push(p);
+  }
+  return out;
+}
+function execVerbProblems() {
+  const bad = [];
+  const dirs = PLANE_DIRS.map((d) => path.join(root, 'internal', d)).concat([path.join(root, 'cmd')]);
+  for (const d of dirs) {
+    for (const f of execVerbFiles(d)) {
+      const text = fs.readFileSync(f, 'utf8');
+      if (EXEC_VERB_RE.test(text)) bad.push(path.relative(root, f) + ' carries recovery-execution vocabulary');
     }
   }
   return bad;
@@ -265,8 +362,18 @@ const ap2 = authorityProblems(v, goSrc);
 check(ap2.length === 0, 'authority: five-origin vocabulary, sticky propagation rule and none-enforcement plane mirrored to Go');
 if (ap2.length) console.log('  ' + ap2.join('\n  '));
 const leak = planeLeakProblems();
-check(leak.length === 0, 'decision-plane directories: zero references to intent/authority record symbols');
+check(leak.length === 0, 'decision-plane directories: zero references to wave record symbols');
 if (leak.length) console.log('  ' + leak.join('\n  '));
+
+const imp = impactProblems(v, irSrc);
+check(imp.length === 0, 'impact: seven-field vocabulary, anchor back-check, eight-scope row-order pin, Go mirrors, none-plane');
+if (imp.length) console.log('  ' + imp.join('\n  '));
+const rec = recoveryProblems(v, irSrc);
+check(rec.length === 0, 'recovery: four-class closed vocabulary, hyphen-aware anchor, truthfulness and execution-plane strings mirrored to Go');
+if (rec.length) console.log('  ' + rec.join('\n  '));
+const exv = execVerbProblems();
+check(exv.length === 0, 'execution-vocabulary red-shape grep: no rollback/revert/undo/compensate in decision planes or command tree');
+if (exv.length) console.log('  ' + exv.join('\n  '));
 
 console.log(problems.length === 0 ? 'SCHEMA-V2: ALL GREEN' : 'SCHEMA-V2: ' + problems.length + ' PROBLEM(S)');
 if (problems.length) process.exit(1);
@@ -283,6 +390,10 @@ if (process.argv.includes('--selftest')) {
     ['intent count line drifts', (t) => t.replace('intent_field_count: 10', 'intent_field_count: 9'), (t) => intentProblems(t, goSrc)],
     ['origin token drifts', (t) => t.replace('agent_provided, ui_generated', 'agent_assumed, ui_generated'), (t) => authorityProblems(t, goSrc)],
     ['enforcement plane pre-borrowed', (t) => t.replace('authority_enforcement_plane: none-in-observation-phase', 'authority_enforcement_plane: enforce-now'), (t) => authorityProblems(t, goSrc)],
+    ['recovery anchor line respelled', (t) => t.replace('\nEXTERNAL COMPENSATION\n', '\nEXTERNAL REWARD\n'), (t) => recoveryProblems(t, irSrc)],
+    ['recovery execution plane pre-borrowed', (t) => t.replace('recovery_execution_plane: none-in-observation-phase', 'recovery_execution_plane: rollback-armed'), (t) => recoveryProblems(t, irSrc)],
+    ['blast scope token drifts from Go', (t) => t.replace('credential_scope, device_scope', 'secret_scope, device_scope'), (t) => impactProblems(t, irSrc)],
+    ['impact count line drifts', (t) => t.replace('impact_field_count: 7', 'impact_field_count: 6'), (t) => impactProblems(t, irSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
@@ -296,7 +407,8 @@ if (process.argv.includes('--selftest')) {
   }
   // sanity: predicates stay silent on the shipped file
   for (const pred of [slotCensusProblems, templateCensusProblems, elementProblems,
-    (t) => intentProblems(t, goSrc), (t) => authorityProblems(t, goSrc)]) {
+    (t) => intentProblems(t, goSrc), (t) => authorityProblems(t, goSrc),
+    (t) => impactProblems(t, irSrc), (t) => recoveryProblems(t, irSrc), () => execVerbProblems()]) {
     if (pred(v).length) {
       console.log('SELFTEST FAIL: predicate fired on clean file');
       process.exit(1);

@@ -10,7 +10,7 @@ Scope of the wave: seven record schemas - `decision`, `intent`,
 `authority`, `impact`, `recovery`, `evidence`, `profile`. The Event
 envelope and its vocabularies already live as the frozen external
 contract in `docs/api-v0.md`; this file adds the stability layer on top:
-one template, three fully instantiated schemas, four honestly pending
+one template, five fully instantiated schemas, two honestly pending
 slots.
 
 Non-goal (observation-phase red line): nothing in this wave changes
@@ -62,7 +62,7 @@ state and no silent gap.
 ## 2. Wave slot map (seven schemas, zero silent gaps)
 
 Each slot is declared exactly once in a `schemav2` block. `complete`
-slots carry the full contract in section 3, 4, or 5 of this file;
+slots carry the full contract in sections 3 through 7 of this file;
 `pending` slots carry a pointer to the build slice that will fill them.
 
 ```schemav2
@@ -82,14 +82,12 @@ status: complete
 
 ```schemav2
 schema: impact
-status: pending
-planned_slice: W2.3
+status: complete
 ```
 
 ```schemav2
 schema: recovery
-status: pending
-planned_slice: W2.3
+status: complete
 ```
 
 ```schemav2
@@ -446,9 +444,324 @@ file - the material stays with its owner.
   set `{allow, would_block}` and every emission path are byte-identical
   through this slice.
 
-## 6. Pending slots
+## 6. Impact schema - complete contract
 
-The four `pending` slots above are not placeholders in prose: each is a
+An impact record is the estimation surface for one important action:
+the specification's impact-analysis section requires the system to
+estimate, as well as it can, the seven dimensions below - a surface
+change to one file does not mean only one file is affected. Like the
+intent and authority schemas this is a record contract only: in the
+observation phase nothing emits it and nothing in a decision path
+consumes it. The "as well as it can" wording is honored by the honest
+absent semantics below, never by fabricated estimates.
+
+Machine-readable core (mirrored by both checkers against the Go
+declarations and the fixture set):
+
+```schemav2
+impact_field_vocabulary: direct_impact, indirect_impact, propagation_impact, blast_radius, reversibility, dependency_impact, production_impact
+impact_field_count: 7
+impact_absent_semantics: not-estimated-known-gap
+impact_spec_anchor: impact-spec-anchor
+blast_radius_scope_vocabulary: file_scope, project_scope, network_scope, process_scope, database_scope, credential_scope, device_scope, subagent_scope
+blast_radius_scope_count: 8
+impact_enforcement_plane: none-in-observation-phase
+```
+
+Verbatim anchor (the seven dimension names exactly as the specification
+lists them, one per line, in normative order):
+
+```impact-spec-anchor
+Direct Impact
+Indirect Impact
+Propagation Impact
+Blast Radius
+Reversibility
+Dependency Impact
+Production Impact
+```
+
+Back-check rule: each anchor line, lower-cased with spaces replaced by
+single underscores, must equal the corresponding wire token of
+`impact_field_vocabulary`, in order - seven mechanical comparisons, no
+hand-counting. The Node structural checker and the Go sync tests both
+recompute the full mapping and the field count on every run.
+
+Field table (wire token, JSON type, honest absent default, anchor
+pointer):
+
+| wire token | JSON type | absent means | anchor line |
+|---|---|---|---|
+| `direct_impact` | string | not estimated - known gap | line 1 `Direct Impact` |
+| `indirect_impact` | string | not estimated - known gap | line 2 `Indirect Impact` |
+| `propagation_impact` | string | not estimated - known gap | line 3 `Propagation Impact` |
+| `blast_radius` | scope estimate object (table below) | not estimated - known gap | line 4 `Blast Radius` |
+| `reversibility` | recovery class (section 7) | not estimated - known gap | line 5 `Reversibility` |
+| `dependency_impact` | string | not estimated - known gap | line 6 `Dependency Impact` |
+| `production_impact` | string | not estimated - known gap | line 7 `Production Impact` |
+
+Blast-radius scope table (wire token, meaning, spec source row). The
+specification lists its eight scope dimensions as Chinese bullet lines
+in its blast-radius-control section; the source lines carry no ASCII
+tokens to anchor against, so the back-check degrades honestly here to
+a row-order pin plus the count key `blast_radius_scope_count: 8` - the
+eight rows below stand in the specification's declared order, the wire
+tokens are in-repo naming assigned by this slice, and both checkers
+recount the rows against the vocabulary line and the Go list:
+
+| wire token | meaning | spec bullet |
+|---|---|---|
+| `file_scope` | file reach | line 1 |
+| `project_scope` | whole-project reach | line 2 |
+| `network_scope` | network reach | line 3 |
+| `process_scope` | process reach | line 4 |
+| `database_scope` | database reach | line 5 |
+| `credential_scope` | credential reach | line 6 |
+| `device_scope` | device reach | line 7 |
+| `subagent_scope` | sub-agent reach | line 8 |
+
+Semantics (frozen): every field is optional and absence carries exactly
+one meaning - not estimated, a known gap. `blast_radius.scopes` is a
+subset of the closed eight scope tokens (an unknown token is malformed,
+not "absent"), and `extent` is free-form recorded prose. The
+`reversibility` value is constrained to the closed four-class recovery
+vocabulary of section 7: one token set across the wave, never a forked
+synonym set. That field is the recorded front-end for two named future
+consumers - the behavior-chain reversibility-reduction dimension
+(slice W5.2) and the harm side of the product's north-star metric
+definition - and in this slice no consumer exists. No impact field is
+an input to any decision in the observation phase; the wave structural
+checker greps the decision-plane directories for the Go symbols and
+greps those directories and the command tree for recovery-execution
+vocabulary (rollback, revert, undo, compensate), both with a zero-hit
+baseline machine-asserted on every run.
+
+#### Version
+
+- Listing authority: `AllImpactFields()` in
+  `internal/schema/impactrecovery.go` declares the seven wire tokens in
+  normative order and `AllBlastScopes()` declares the eight scope
+  tokens; the vocabulary lines above, the anchor block, the scope
+  table, and the Go lists are compared as joined strings,
+  order-sensitive. Set equality alone is not enough.
+- The impact record has no wire generation yet (zero emitters): Version
+  here names contract generation one of a not-yet-shipped record; the
+  first slice that emits impact records inherits these vocabularies
+  unchanged or evolves them through the rules below.
+- A new impact field is a vocabulary change that must land in the spec
+  anchor, this section, and the Go list in the same change; adding an
+  eighth dimension token while the anchor stays at seven lines is
+  banned. `ImpactEnforcementPlane` is a versioned contract string,
+  mirrored byte-identically between Go and the machine line above.
+
+#### Compatibility
+
+- Additive and nullable by construction: the record attaches to nothing
+  that ships, so every existing event line, the golden fixtures, and
+  the corpus under `testdata` keep validating byte-identically inside
+  every gate run before and after this contract.
+- Absent-key semantics: every field of `ImpactRecord` is `omitempty`
+  with the single honest default "not estimated"; there is no legacy
+  record shape to reinterpret and no filler value - "estimate as well
+  as you can" never becomes "invent a number".
+- Banned by this contract: renaming a wire token while its anchor line
+  stays put, adding a ninth blast scope while the specification still
+  lists eight, treating an absent estimate as zero blast (or as full
+  blast), consuming any impact field as an input to a decision in the
+  observation phase, and spelling `reversibility` with any value
+  outside the closed four-class set - execution-verb coinages such as
+  `auto_rollback` are outside the set by construction and rejected
+  before any bytes exist.
+
+#### Migration
+
+- Existing records: none owed. No `impact` record has ever been
+  written, so there is nothing to migrate; the obligation transfers to
+  the first emitting slice, which must satisfy this contract from its
+  first line.
+- Reserved-plane gate: enabling any consumer of the `reversibility`
+  observation (W5.2 is the named future one) is a later-slice change
+  through these rules - the vocabulary and the four-class constraint
+  are already written here in full, so no record migration is owed
+  when a consumer ships.
+- A future major bump of `ImpactRecord` requires a migration
+  subsection with three entity lines (old-to-new field mapping, reader
+  compatibility window, re-validation assertion) before any emitter
+  ships. None exists today because none is owed.
+
+#### Validation
+
+- Go authority: `AllImpactFields()`, `AllBlastScopes()`,
+  `BlastScope.Valid()`, `ImpactRecord.Validate()`,
+  `ParseImpactRecord()` (rejects any field name outside the closed
+  seven-token vocabulary before trusting a value, nil record on error),
+  and `EncodeImpactChecked()` (validate before serialize; rejected
+  records produce no bytes at all) in
+  `internal/schema/impactrecovery.go`.
+- Independent Node source: `scripts/schema-v2-check.mjs` parses this
+  file's anchor block, vocabulary lines, and scope table, recomputes
+  the seven mechanical snake-case comparisons and the eight-row order
+  pin, cross-checks both Go declarations by reading its source text,
+  and carries mutation self-tests for each of these checks.
+- Fixtures: `testdata/impactrecovery/good_impact.jsonl` (three
+  round-trip records: full seven-field shape, sparse honest-absent
+  shape, multi-scope non-reversible shape) and
+  `testdata/impactrecovery/wild.jsonl` (seven rejected shapes shared
+  with section 7, including the execution-verb `reversibility`
+  pairing and the bare-noun scope token) - counts asserted
+  programmatically, never by hand.
+- Structural: the decision plane stays a zero-consumption surface - no
+  policy, rule-engine, bus, or audit-writer file references these
+  symbols, and no recovery-execution vocabulary appears in those
+  directories or in the command tree; both greps run inside
+  `scripts/schema-v2-check.mjs` on every gate run, and the d1..d7 +
+  wave gates re-run green with byte-identity on every old fixture.
+
+## 7. Recovery schema - complete contract
+
+A recovery record is the honest classification of how far one recorded
+change can be walked back. The specification's recovery-truthfulness
+section requires exactly four classes and forbids the product from
+advertising that every action can be undone: network sends, third-party
+API submissions, external messages, and some payments or third-party
+state changes may well be `non_reversible` or need
+`external_compensation`. This section contracts the classification
+plane only. Recovery execution - code that actually undoes, partially
+restores, or compensates - is a later-phase surface (Phase 2), and no
+such plane exists behind these records today.
+
+Machine-readable core:
+
+```schemav2
+recovery_class_vocabulary: local_reversible, local_partial, external_compensation, non_reversible
+recovery_class_count: 4
+recovery_spec_anchor: recovery-spec-anchor
+recovery_unclassified_semantics: absent-record-means-unknown-never-imply-reversible
+recovery_execution_plane: none-in-observation-phase
+recovery_truthfulness_rule: never-claim-fully-reversible
+```
+
+Verbatim anchor (the four classes exactly as the specification states
+them, one per line, in normative order):
+
+```recovery-spec-anchor
+LOCAL REVERSIBLE
+LOCAL PARTIAL
+EXTERNAL COMPENSATION
+NON-REVERSIBLE
+```
+
+Back-check rule: each anchor line, lower-cased with spaces and hyphens
+replaced by single underscores, must equal the corresponding wire token
+of `recovery_class_vocabulary`, in order - four mechanical comparisons.
+This rule is one step wider than the intent and impact rules (hyphens
+as well as spaces) precisely because the specification spells the last
+class `NON-REVERSIBLE`; the display spelling is never a wire token, and
+both checkers recompute the mapping on every run.
+
+Class table (wire token, meaning, spec guidance):
+
+| wire token | meaning | spec guidance |
+|---|---|---|
+| `local_reversible` | this product can walk the change back locally, alone | line 1 `LOCAL REVERSIBLE` |
+| `local_partial` | local walk-back covers only part of the change | line 2 `LOCAL PARTIAL` |
+| `external_compensation` | undoing needs a compensating action outside this product | line 3 `EXTERNAL COMPENSATION` |
+| `non_reversible` | the change cannot be walked back | line 4 `NON-REVERSIBLE` |
+
+Semantics (frozen): `class` is required - a recovery record without a
+class is malformed, not "unknown". Honest absence lives at the record
+level: no record written means not classified, a known gap that must
+never be read back as reversible. The `transaction` field correlates
+the record to the group of changes one task produced; it is a record
+bit only - associating a task's changes for later whole-task recovery
+is a later-phase obligation, not an execution promise of this
+contract. `recovery_execution_plane` names `none`, and
+`recovery_truthfulness_rule` is the recorded advertising ban: no
+user-facing claim that all actions are reversible, and no wording that
+packages after-the-fact recording as before-the-fact prevention.
+Nothing in this section acts, executes, or enforces.
+
+#### Version
+
+- Listing authority: `AllRecoveryClasses()` in
+  `internal/schema/impactrecovery.go` declares the four class tokens
+  in normative declaration order; this file's vocabulary line, anchor
+  block, class table, and the Go list are compared as joined strings,
+  order-sensitive.
+- `RecoveryClass.Valid()` is the closed-set predicate behind every
+  check site; the four-value census is machine-recomputed on every run
+  and pinned to `recovery_class_count`.
+- `RecoveryExecutionPlane`, `RecoveryTruthfulnessRule`, and
+  `ImpactEnforcementPlane` are versioned contract strings: the Go
+  constants and the machine lines above must stay byte-identical,
+  asserted in the sync tests. A fifth class is a vocabulary change
+  landing in all sources in the same change; changing what a class
+  means at runtime (for example shipping an execution plane) is a
+  major change requiring a new contract generation, never a silent
+  redefinition.
+
+#### Compatibility
+
+- Fully additive: no existing record, event field, or validator rule
+  references a recovery class yet; old JSONL keeps validating
+  byte-identically because this schema touches no carrier in the
+  stream. The `reversibility` observation of section 6 reuses this
+  vocabulary rather than forking a synonym set - one closed set,
+  checked twice.
+- Absent-record semantics: `recovery_unclassified_semantics` is the
+  single interpretation - absent means unknown, never reversible and
+  never denied. There is no implicit default and no legacy shape.
+- Banned by this contract: inventing class tokens outside the closed
+  four (including the spec display spellings leaking to the wire),
+  defaulting an absent classification to `local_reversible`, writing
+  recovery claims such as "fully undoable" into product copy, and
+  executing or scheduling any rollback or compensation from a class
+  value during the observation phase.
+
+#### Migration
+
+- Existing records: none owed; nothing has emitted a `RecoveryRecord`.
+  The first emitting slice (and the W5.2 chain dimension that consumes
+  the `reversibility` observation) inherits this contract whole or
+  evolves it through the Version rules.
+- Reserved-plane gate: `recovery_execution_plane` names `none` while
+  in observation phase; any later phase that ships recovery execution
+  must retire this line deliberately in the same change - machine
+  block, this section, and the Go constant together. A half-applied
+  enablement is the failure mode this gate exists to catch.
+- A future major bump requires three entity lines (mapping, reader
+  window, re-validation assertion) before shipping; none owed today.
+
+#### Validation
+
+- Go authority: `RecoveryClass.Valid()`, `RecoveryRecord.Validate()`
+  (closed set plus the required-class rule - the empty token is
+  rejected), `ParseRecoveryRecord()` (unknown field names rejected
+  before any value is trusted), and `EncodeRecoveryChecked()` (zero
+  bytes on every rejection) in `internal/schema/impactrecovery.go`.
+- Independent Node source: `scripts/schema-v2-check.mjs` mirrors the
+  class vocabulary, the hyphen-aware anchor back-check, and the three
+  contract strings against the Go source text; it also runs the
+  execution-vocabulary grep (rollback, revert, undo, compensate) over
+  the decision-plane directories and the command tree - the red-shape
+  assertion promised by this contract - and carries mutation
+  self-tests (class drift, execution-plane pre-borrow).
+- Fixtures: `testdata/impactrecovery/good_recovery.jsonl` (four
+  records, one per class - the discrimination control proving each
+  member is accepted and each non-member rejected) and the shared
+  `testdata/impactrecovery/wild.jsonl` (spec-spelling class,
+  execution-verb class coinages, cleared required class, type wild) -
+  counts asserted programmatically.
+- Structural: `recovery_execution_plane: none-in-observation-phase` is
+  machine-pinned from both sides (Node checker and Go sync test, each
+  asserting docs key equals Go constant equals the none value), and
+  the execution-vocabulary grep runs on every gate; the closed set
+  `{allow, would_block}` and every emission path are byte-identical
+  through this slice.
+
+## 8. Pending slots
+
+The two `pending` slots above are not placeholders in prose: each is a
 named build-slice obligation, and the wave closes only when all seven
 slots read `status: complete` with four substantive element sections each.
 Until then this file is honest about what it does not yet contract.

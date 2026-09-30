@@ -1,0 +1,7 @@
+{"class":"NON-REVERSIBLE"}
+{"class":"auto_rolled_back"}
+{"class":""}
+{"class":"local_partial","transaction":42}
+{"reversibility":"auto_rollback_armed"}
+{"blast_radius":{"scopes":["network"]}}
+{"Direct Impact":"everything"}
