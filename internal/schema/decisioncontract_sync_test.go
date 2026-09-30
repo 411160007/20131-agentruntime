@@ -201,8 +201,8 @@ func TestSchemaV2SlotAndTemplateCensus(t *testing.T) {
 
 	want := map[string]struct{ status, slice string }{
 		"decision":  {"complete", ""},
-		"intent":    {"pending", "W2.2"},
-		"authority": {"pending", "W2.2"},
+		"intent":    {"complete", ""},
+		"authority": {"complete", ""},
 		"impact":    {"pending", "W2.3"},
 		"recovery":  {"pending", "W2.3"},
 		"evidence":  {"pending", "W2.4"},
@@ -242,44 +242,58 @@ func TestSchemaV2SlotAndTemplateCensus(t *testing.T) {
 	}
 }
 
-// TestSchemaV2ElementsSubstantive machine-judges that the four element
-// sections of the decision contract carry entity lines, not slogans:
+// TestSchemaV2ElementsSubstantive machine-judges that every complete
+// slot's four element sections carry entity lines, not slogans:
 // >=3 lines, >=1 list item, >=2 inline code spans, >=120 non-space
-// characters (identical thresholds to the Node checker by contract).
+// characters (identical thresholds to the Node checker by contract),
+// scoped per "## N. <name> schema - complete contract" section.
 func TestSchemaV2ElementsSubstantive(t *testing.T) {
 	raw, err := os.ReadFile(filepathJoinDotDot("docs", "schema-v2.md"))
 	if err != nil {
 		t.Skipf("schema-v2 doc not visible: %v", err)
 	}
 	doc := string(raw)
-	for _, name := range []string{"Version", "Compatibility", "Migration", "Validation"} {
-		head := "#### " + name + "\n"
-		i := strings.Index(doc, head)
-		if i < 0 {
-			t.Errorf("element section %s missing", name)
-			continue
+	heads := regexp.MustCompile("(?m)^## \\d+\\. ([A-Za-z]+) schema - complete contract").FindAllStringSubmatchIndex(doc, -1)
+	if len(heads) < 3 {
+		t.Fatalf("complete-contract sections found %d, want at least 3", len(heads))
+	}
+	for _, h := range heads {
+		name := strings.ToLower(doc[h[2]:h[3]])
+		start := h[1]
+		end := len(doc)
+		if j := regexp.MustCompile("(?m)^## ").FindStringIndex(doc[start:]); j != nil {
+			end = start + j[0]
 		}
-		rest := doc[i+len(head):]
-		if m := regexp.MustCompile("(?m)^#{2,4} ").FindStringIndex(rest); m != nil {
-			rest = rest[:m[0]]
-		}
-		body := doc[i : i+len(head)+len(rest)]
-		lines := 0
-		listItem := false
-		for _, l := range strings.Split(body, "\n") {
-			if strings.TrimSpace(l) == "" {
+		body := doc[start:end]
+		for _, el := range []string{"Version", "Compatibility", "Migration", "Validation"} {
+			head := "#### " + el + "\n"
+			k := strings.Index(body, head)
+			if k < 0 {
+				t.Errorf("slot %s: element section %s missing", name, el)
 				continue
 			}
-			lines++
-			if strings.HasPrefix(strings.TrimSpace(l), "- ") {
-				listItem = true
+			rest := body[k+len(head):]
+			if m := regexp.MustCompile("(?m)^#{2,4} ").FindStringIndex(rest); m != nil {
+				rest = rest[:m[0]]
 			}
-		}
-		spans := regexp.MustCompile("`[^`\n]+`").FindAllString(body, -1)
-		nonSpace := len(strings.Join(strings.Fields(body), ""))
-		if lines < 3 || !listItem || len(spans) < 2 || nonSpace < 120 {
-			t.Errorf("element %s not substantive: lines=%d list=%v spans=%d chars=%d",
-				name, lines, listItem, len(spans), nonSpace)
+			sec := body[k : k+len(head)+len(rest)]
+			lines := 0
+			listItem := false
+			for _, l := range strings.Split(sec, "\n") {
+				if strings.TrimSpace(l) == "" {
+					continue
+				}
+				lines++
+				if strings.HasPrefix(strings.TrimSpace(l), "- ") {
+					listItem = true
+				}
+			}
+			spans := regexp.MustCompile("`[^`\n]+`").FindAllString(sec, -1)
+			nonSpace := len(strings.Join(strings.Fields(sec), ""))
+			if lines < 3 || !listItem || len(spans) < 2 || nonSpace < 120 {
+				t.Errorf("slot %s element %s not substantive: lines=%d list=%v spans=%d chars=%d",
+					name, el, lines, listItem, len(spans), nonSpace)
+			}
 		}
 	}
 }

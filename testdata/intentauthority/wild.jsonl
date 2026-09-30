@@ -1,0 +1,7 @@
+{"goal":"x","expeced_outcome":"typo field name is outside the closed set"}
+{"Expected Outcome":"spec spelling is not a wire token"}
+{"goal":"x","authority":{"links":[{"origin":"system"}]}}
+{"goal":"x","authority":{"links":[{"origin":"User_Direct"}]}}
+{"goal":"x","authority":{"links":[{"origin":"agent_provided","untrusted":true}],"untrusted":false}}
+{"goal":"x","authority":{"links":[{"origin":"agent_proved"}]}}
+{"duration":42}
