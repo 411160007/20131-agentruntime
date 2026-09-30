@@ -1,0 +1,3 @@
+{"goal":"ship the nightly docs slice","scope":"repository docs only","expected_actions":["edit docs","open merge request"]}
+{"goal":"read the service config","allowed_resources":["/etc/app.conf"],"authority":{"links":[{"origin":"user_direct"}]}}
+{"goal":"summarize the opened issue","forbidden_scope":"no credential files","authority":{"links":[{"origin":"agent_provided"},{"origin":"runtime_inferred","untrusted":true}],"untrusted":true},"duration":"until the summary is delivered","constraints":["no network egress"]}

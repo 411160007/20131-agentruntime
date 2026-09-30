@@ -20,8 +20,8 @@ const api = fs.readFileSync(path.join(root, 'docs', 'api-v0.md'), 'utf8');
 
 const EXPECTED_SLOTS = {
   decision: { status: 'complete', slice: null },
-  intent: { status: 'pending', slice: 'W2.2' },
-  authority: { status: 'pending', slice: 'W2.2' },
+  intent: { status: 'complete', slice: null },
+  authority: { status: 'complete', slice: null },
   impact: { status: 'pending', slice: 'W2.3' },
   recovery: { status: 'pending', slice: 'W2.3' },
   evidence: { status: 'pending', slice: 'W2.4' },
@@ -129,11 +129,32 @@ function substantive(body) {
 
 function elementProblems(text) {
   const bad = [];
-  for (const name of ELEMENTS) {
-    const p = substantive(elementBody(text, name));
-    if (p) bad.push('element ' + name + ': ' + p);
+  const heads = [];
+  const re = /^## \d+\. ([A-Za-z]+) schema - complete contract$/gm;
+  let m;
+  while ((m = re.exec(text)) !== null) heads.push({ name: m[1].toLowerCase(), start: m.index });
+  for (let i = 0; i < heads.length; i++) {
+    const end = i + 1 < heads.length ? findNextSection(text, heads[i].start + 1) : findNextSection(text, heads[i].start + 1);
+    const body = text.slice(heads[i].start, end);
+    for (const el of ELEMENTS) {
+      const p = substantive(elementBody(body, el));
+      if (p) bad.push(heads[i].name + '/' + el + ': ' + p);
+    }
+  }
+  for (const [name, exp] of Object.entries(EXPECTED_SLOTS)) {
+    if (exp.status === 'complete' && !heads.some((h) => h.name === name)) {
+      bad.push(name + ': complete slot without a contract section');
+    }
   }
   return bad;
+}
+
+function findNextSection(text, from) {
+  const m = /(?=^## )/m;
+  // scan forward for the next level-2 header after `from`
+  const rest = text.slice(from);
+  const idx = rest.search(/^## /m);
+  return idx < 0 ? text.length : from + idx;
 }
 
 // Main check pipeline.
@@ -146,7 +167,7 @@ function check(ok, label) {
   }
 }
 
-check(slotCensusProblems(v).length === 0, 'slot census: 7 slots, decision complete, six pending with pointers');
+check(slotCensusProblems(v).length === 0, 'slot census: 7 slots, decision/intent/authority complete, four pending with pointers');
 if (slotCensusProblems(v).length) console.log('  ' + slotCensusProblems(v).join('\n  '));
 check(templateCensusProblems(v).length === 0, 'template census: four elements with concrete requires lines');
 
@@ -178,8 +199,74 @@ check(pairs.length === 3 && pairs.every((p, i) => p === expectMap[i]),
   'effect-to-decision mapping is verbatim identity over the three effects');
 
 const ep = elementProblems(v);
-check(ep.length === 0, 'four element sections substantive (>=3 lines, list item, >=2 code spans, >=120 chars)');
+check(ep.length === 0, 'every complete slot carries four substantive element sections (>=3 lines, list item, >=2 code spans, >=120 chars)');
 if (ep.length) console.log('  ' + ep.join('\n  '));
+
+// Intent + authority contract checks (slice W2.2). Pure predicates so
+// the selftest exercises the shipped logic.
+const goSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'intentauthority.go'), 'utf8');
+const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
+
+function intentProblems(text, goText) {
+  const bad = [];
+  const vocab = findKey(text, 'intent_field_vocabulary');
+  const count = findKey(text, 'intent_field_count');
+  const absent = findKey(text, 'intent_absent_semantics');
+  if (!vocab || !count || !absent) return ['intent contract keys missing or duplicated'];
+  const toks = vocab.split(', ');
+  if (toks.length !== 10 || new Set(toks).size !== 10) bad.push('intent vocabulary not ten unique tokens');
+  if (count !== '10' || toks.length !== Number(count)) bad.push('intent count line drifts from vocabulary length');
+  if (absent !== 'known-gap-never-fabricated') bad.push('absent-field semantics drifted');
+  const anchorHits = text.match(/```intent-spec-anchor\n([\s\S]*?)```/g) || [];
+  if (anchorHits.length !== 1) return bad.concat(['anchor block must appear exactly once']);
+  const lines = anchorHits[0].replace('```intent-spec-anchor\n', '').replace('```', '').trim().split('\n').map((s) => s.trim()).filter(Boolean);
+  if (lines.length !== 10) bad.push('anchor line census ' + lines.length + ', want 10');
+  else lines.forEach((s, i) => { if (snake(s) !== toks[i]) bad.push('anchor back-check broke at line ' + (i + 1) + ': ' + s); });
+  const varblk = (goText.match(/var intentFieldWireNames = \[\]string\{([\s\S]*?)\}/) || [, ''])[1];
+  const goList = (varblk.match(/"[^"]+"/g) || []).map((s) => s.slice(1, -1));
+  if (goList.join(', ') !== vocab) bad.push('intent vocabulary docs <-> Go drift');
+  return bad;
+}
+
+function authorityProblems(text, goText) {
+  const bad = [];
+  const vocab = findKey(text, 'authority_origin_vocabulary');
+  const carrier = findKey(text, 'authority_untrusted_carrier');
+  const rule = findKey(text, 'authority_propagation_rule');
+  const plane = findKey(text, 'authority_enforcement_plane');
+  if (!vocab || !carrier || !rule || !plane) return ['authority contract keys missing or duplicated'];
+  const goOrigins = [...goText.matchAll(/GrantOrigin = "([^"]+)"/g)].map((m) => m[1]);
+  if (vocab.split(', ').length !== 5 || goOrigins.length !== 5 || goOrigins.join(', ') !== vocab) bad.push('origin vocabulary docs <-> Go drift');
+  if (rule !== 'untrusted-sticky-never-auto-escalate' || !goText.includes('AuthorityPropagationRule = "untrusted-sticky-never-auto-escalate"')) bad.push('propagation rule drifted');
+  if (plane !== 'none-in-observation-phase' || !goText.includes('AuthorityEnforcementPlane = "none-in-observation-phase"')) bad.push('enforcement plane drifted off none');
+  if (carrier !== 'untrusted' || !goText.includes('json:"untrusted,omitempty"')) bad.push('untrusted carrier shape drifted');
+  return bad;
+}
+
+const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
+function planeLeakProblems() {
+  const bad = [];
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames/;
+  for (const d of PLANE_DIRS) {
+    const dir = path.join(root, 'internal', d);
+    let entries;
+    try { entries = fs.readdirSync(dir); } catch { continue; }
+    for (const f of entries.filter((x) => x.endsWith('.go') && !x.endsWith('_test.go'))) {
+      if (needle.test(fs.readFileSync(path.join(dir, f), 'utf8'))) bad.push(d + '/' + f + ' references the new record symbols');
+    }
+  }
+  return bad;
+}
+
+const ip = intentProblems(v, goSrc);
+check(ip.length === 0, 'intent: ten-field vocabulary, programmatic count, verbatim anchor back-check, Go mirror');
+if (ip.length) console.log('  ' + ip.join('\n  '));
+const ap2 = authorityProblems(v, goSrc);
+check(ap2.length === 0, 'authority: five-origin vocabulary, sticky propagation rule and none-enforcement plane mirrored to Go');
+if (ap2.length) console.log('  ' + ap2.join('\n  '));
+const leak = planeLeakProblems();
+check(leak.length === 0, 'decision-plane directories: zero references to intent/authority record symbols');
+if (leak.length) console.log('  ' + leak.join('\n  '));
 
 console.log(problems.length === 0 ? 'SCHEMA-V2: ALL GREEN' : 'SCHEMA-V2: ' + problems.length + ' PROBLEM(S)');
 if (problems.length) process.exit(1);
@@ -192,6 +279,10 @@ if (process.argv.includes('--selftest')) {
     ['complete slot gains a stray pointer', (t) => t.replace('schema: decision\nstatus: complete', 'schema: decision\nstatus: complete\nplanned_slice: W9.9'), (t) => slotCensusProblems(t)],
     ['vocabulary loses a token', (t) => t.replace('decision_vocabulary: allow, ask, would_block', 'decision_vocabulary: allow, ask'), (t) => (findKey(t, 'decision_vocabulary') !== 'allow, ask, would_block' ? ['drift'] : [])],
     ['element body gutted to a slogan', (t) => t.replace(/#### Migration\n[\s\S]*?#### Validation/, '#### Migration\nnone owed\n#### Validation'), (t) => elementProblems(t)],
+    ['intent anchor line renamed', (t) => t.replace('\nExpected Outcome\n', '\nExpected Result\n'), (t) => intentProblems(t, goSrc)],
+    ['intent count line drifts', (t) => t.replace('intent_field_count: 10', 'intent_field_count: 9'), (t) => intentProblems(t, goSrc)],
+    ['origin token drifts', (t) => t.replace('agent_provided, ui_generated', 'agent_assumed, ui_generated'), (t) => authorityProblems(t, goSrc)],
+    ['enforcement plane pre-borrowed', (t) => t.replace('authority_enforcement_plane: none-in-observation-phase', 'authority_enforcement_plane: enforce-now'), (t) => authorityProblems(t, goSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
@@ -204,7 +295,8 @@ if (process.argv.includes('--selftest')) {
     }
   }
   // sanity: predicates stay silent on the shipped file
-  for (const pred of [slotCensusProblems, templateCensusProblems, elementProblems]) {
+  for (const pred of [slotCensusProblems, templateCensusProblems, elementProblems,
+    (t) => intentProblems(t, goSrc), (t) => authorityProblems(t, goSrc)]) {
     if (pred(v).length) {
       console.log('SELFTEST FAIL: predicate fired on clean file');
       process.exit(1);
