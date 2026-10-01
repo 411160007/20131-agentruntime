@@ -189,7 +189,7 @@ func TestDecisionEffectMappingContract(t *testing.T) {
 
 // TestSchemaV2SlotAndTemplateCensus independently re-implements the slot
 // lifecycle machine-check (second implementation, same rules as the Node
-// checker): seven slots, five complete, two pending with pointers, and a
+// checker): seven slots, all seven complete with zero pointers, and a
 // substantive four-element template census.
 func TestSchemaV2SlotAndTemplateCensus(t *testing.T) {
 	raw, err := os.ReadFile(filepathJoinDotDot("docs", "schema-v2.md"))
@@ -205,8 +205,8 @@ func TestSchemaV2SlotAndTemplateCensus(t *testing.T) {
 		"authority": {"complete", ""},
 		"impact":    {"complete", ""},
 		"recovery":  {"complete", ""},
-		"evidence":  {"pending", "W2.4"},
-		"profile":   {"pending", "W2.4"},
+		"evidence":  {"complete", ""},
+		"profile":   {"complete", ""},
 	}
 	seen := map[string]map[string]string{}
 	tmpl := 0

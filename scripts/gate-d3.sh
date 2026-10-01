@@ -215,10 +215,16 @@ fi
 ! grep -rnE '"(net|net/http|crypto/tls)"' --include='*.go' . | grep -v '_test\.go'
 
 step '13 Phase 0 semantics greps (observation without enforcement)'
-# no enforcement vocabulary anywhere on an emission path
-if grep -rniE '\bharddeny\b|\bhard_deny\b|"action": ?"block"' --include='*.go' internal/ cmd/ | grep -v _test; then
-  echo 'RED: enforcement vocabulary in shipped code'; exit 1
+# no enforcement vocabulary anywhere on an emission path (the schema
+# recorder may carry spec-verbatim tokens as record fields only, same
+# quarantine doctrine as the ask check below; decision-plane directories
+# plus cmd stay fully scanned, and planeLeak pins zero consumption of
+# recorder symbols - planted-token teeth control verified at W2.4).
+if grep -rniE '\bharddeny\b|\bhard_deny\b|"action": ?"block"' --include='*.go' internal/ cmd/ --exclude-dir=schema | grep -v _test; then
+  echo 'RED: enforcement vocabulary in judgement-plane shipped code'; exit 1
 fi
+rp=$(grep -rniE '\bharddeny\b|\bhard_deny\b' --include='*.go' internal/schema --exclude='*_test.go' | wc -l)
+echo "RECORDING PLANE CARRIES $rp SPEC-VERBATIM TOKEN LINE(S) - carried, never consumed"
 # the ask decision literal may exist ONLY inside schema (reserved
 # vocabulary) and the demo's documented coercion site; both are
 # whitelisted here so any growth elsewhere fails the gate.

@@ -220,9 +220,21 @@ step '09 Phase 0 semantics on the judgement surface (inherited shape)'
 if grep -rnE '"decision": ?"(block|denied|deny)"' --include='*.go' cmd/ internal/ | grep -v _test; then
   echo 'RED: real-blocking decision vocabulary in shipped code'; exit 1
 fi
-if grep -rniE '\bharddeny\b|\bhard_deny\b|\bdeny\b' --include='*.go' cmd/ internal/ | grep -v _test; then
-  echo 'RED: enforcement vocabulary in shipped code (Phase 0 records only)'; exit 1
+# Scope note (W2.4 evolution, same-PR as the recording fields it admits):
+# the schema recorder (internal/schema) may carry spec-verbatim vocabulary as
+# record fields only - hard_deny is a personal-profile line of the owner spec
+# (section 255) and appears nowhere else in shipped code. The judgement plane
+# (cmd/ plus every internal package except the recorder) stays fully scanned
+# and red on any occurrence, the blocking-decision-value grep above still
+# covers the whole tree including the recorder, and zero consumption of
+# recorder symbols by the decision plane is machine-pinned by the planeLeak
+# check (policy/rules/bus/auditlog zero references, schema-v2-check gate).
+# Teeth control: a planted hard_deny in any judgement package fires this grep.
+if grep -rniE '\bharddeny\b|\bhard_deny\b|\bdeny\b' --include='*.go' cmd/ internal/ --exclude-dir=schema | grep -v _test; then
+  echo 'RED: enforcement vocabulary in judgement-plane shipped code (Phase 0 records only)'; exit 1
 fi
+rp=$(grep -rniE '\bharddeny\b|\bhard_deny\b|\bdeny\b' --include='*.go' internal/schema --exclude='*_test.go' | wc -l)
+echo "RECORDING PLANE CARRIES $rp SPEC-VERBATIM TOKEN LINE(S) - carried, never consumed (planeLeak-pinned)"
 go test -count=1 ./internal/rules -run 'TestDecisionEvent' -v > "$TMPDIR/gate-d7-guard.out" 2>&1 || { cat "$TMPDIR/gate-d7-guard.out"; exit 1; }
 grep -q '^--- PASS: TestDecisionEvent' "$TMPDIR/gate-d7-guard.out"
 nwb=$(node -e 'const s=require("node:fs").readFileSync("internal/rules/rules.go","utf8");console.log((s.match(/"effect": "would_block"/g)||[]).length)')

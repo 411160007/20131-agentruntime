@@ -1,0 +1,3 @@
+{"timestamp":"2026-10-01T22:55:00Z","source":"collector:process-monitor","integrity_hash":"sha256:1a2b3c","policy_version":"v1","decision_id":"d-0001","event_correlation_id":"e-0001","actor_agent_identity":"agent:local-shell"}
+{"timestamp":"2026-10-01T22:55:01Z","source":"collector:file-watcher","integrity_hash":"sha256:9f8e7d","policy_version":"v1","decision_id":"d-0002","event_correlation_id":"e-0002","actor_agent_identity":"agent:indexer"}
+{"timestamp":"2026-10-01T22:55:02Z","source":"export:audit-bundle-7","integrity_hash":"sha256:aaaa00","policy_version":"v2","decision_id":"d-0003","event_correlation_id":"e-0003","actor_agent_identity":"human:operator"}

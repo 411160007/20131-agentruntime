@@ -24,8 +24,8 @@ const EXPECTED_SLOTS = {
   authority: { status: 'complete', slice: null },
   impact: { status: 'complete', slice: null },
   recovery: { status: 'complete', slice: null },
-  evidence: { status: 'pending', slice: 'W2.4' },
-  profile: { status: 'pending', slice: 'W2.4' },
+  evidence: { status: 'complete', slice: null },
+  profile: { status: 'complete', slice: null },
 };
 const ELEMENTS = ['Version', 'Compatibility', 'Migration', 'Validation'];
 
@@ -167,7 +167,7 @@ function check(ok, label) {
   }
 }
 
-check(slotCensusProblems(v).length === 0, 'slot census: 7 slots, decision/intent/authority/impact/recovery complete, two pending with pointers');
+check(slotCensusProblems(v).length === 0, 'slot census: 7 slots, all seven schemas complete with zero pointers');
 if (slotCensusProblems(v).length) console.log('  ' + slotCensusProblems(v).join('\n  '));
 check(templateCensusProblems(v).length === 0, 'template census: four elements with concrete requires lines');
 
@@ -206,10 +206,14 @@ if (ep.length) console.log('  ' + ep.join('\n  '));
 // the selftest exercises the shipped logic.
 const goSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'intentauthority.go'), 'utf8');
 const irSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'impactrecovery.go'), 'utf8');
+const epSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'evidenceprofile.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
 const snakeH = (s) => s.toLowerCase().replace(/[ -]+/g, '_');
+// Evidence anchor rule is wider once more: spaces AND slashes collapse
+// (the spec spells "Actor / Agent Identity" with a slash).
+const snakeS = (s) => s.toLowerCase().replace(/[ \/]+/g, '_');
 
 function intentProblems(text, goText) {
   const bad = [];
@@ -311,10 +315,84 @@ function recoveryProblems(text, goText) {
   return bad;
 }
 
+function evidenceProblems(text, goText) {
+  const bad = [];
+  const vocab = findKey(text, 'evidence_field_vocabulary');
+  const count = findKey(text, 'evidence_field_count');
+  const required = findKey(text, 'evidence_required_semantics');
+  const plane = findKey(text, 'evidence_enforcement_plane');
+  const retain = findKey(text, 'evidence_context_retention_rule');
+  const sigPhase = findKey(text, 'evidence_signature_envelope_phase');
+  if (!vocab || !count || !required || !plane || !retain || !sigPhase) return ['evidence contract keys missing or duplicated'];
+  const toks = vocab.split(', ');
+  if (toks.length !== 7 || new Set(toks).size !== 7) bad.push('evidence vocabulary not seven unique tokens');
+  if (count !== '7' || toks.length !== Number(count)) bad.push('evidence count line drifts from vocabulary length');
+  if (required !== 'all-seven-required-for-key-evidence') bad.push('evidence requiredness semantics drifted');
+  if (plane !== 'none-in-observation-phase' || !goText.includes('EvidenceEnforcementPlane = "none-in-observation-phase"')) bad.push('evidence enforcement plane drifted off none');
+  if (retain !== 'must-not-drop-key-context-for-export' || !goText.includes('EvidenceContextRetentionRule = "must-not-drop-key-context-for-export"')) bad.push('context-retention rule drifted');
+  if (sigPhase !== 'deferred-later-phase' || !goText.includes('EvidenceSignatureEnvelope = "deferred-later-phase"')) bad.push('signature-envelope phasing note drifted');
+  const anchorHits = text.match(/```evidence-spec-anchor\n([\s\S]*?)```/g) || [];
+  if (anchorHits.length !== 1) return bad.concat(['evidence anchor block must appear exactly once']);
+  const lines = anchorHits[0].replace('```evidence-spec-anchor\n', '').replace('```', '').trim().split('\n').map((s) => s.trim()).filter(Boolean);
+  if (lines.length !== 7) bad.push('evidence anchor line census ' + lines.length + ', want 7');
+  else lines.forEach((s, i) => { if (snakeS(s) !== toks[i]) bad.push('evidence anchor back-check broke at line ' + (i + 1) + ': ' + s); });
+  const varblk = (goText.match(/var evidenceFieldWireNames = \[\]string\{([\s\S]*?)\}/) || [, ''])[1];
+  const goList = (varblk.match(/"[^"]+"/g) || []).map((s) => s.slice(1, -1));
+  if (goList.join(', ') !== vocab) bad.push('evidence vocabulary docs <-> Go drift');
+  return bad;
+}
+
+function profileProblems(text, goText) {
+  const bad = [];
+  const scope = findKey(text, 'profile_scope_vocabulary');
+  const scopeCount = findKey(text, 'profile_scope_count');
+  const pvocab = findKey(text, 'profile_personal_field_vocabulary');
+  const pcount = findKey(text, 'profile_personal_field_count');
+  const avocab = findKey(text, 'profile_agent_field_vocabulary');
+  const acount = findKey(text, 'profile_agent_field_count');
+  const absent = findKey(text, 'profile_absent_semantics');
+  const numberSem = findKey(text, 'profile_number_semantics');
+  const plane = findKey(text, 'profile_enforcement_plane');
+  const hard = findKey(text, 'profile_hard_boundary_rule');
+  if (!scope || !scopeCount || !pvocab || !pcount || !avocab || !acount || !absent || !numberSem || !plane || !hard) return ['profile contract keys missing or duplicated'];
+  const stoks = scope.split(', ');
+  if (stoks.length !== 2 || stoks.join(', ') !== 'personal, agent') bad.push('profile scope vocabulary drifted');
+  if (scopeCount !== '2') bad.push('profile scope count drifts');
+  const sgo = [...goText.matchAll(/ProfileScope\w+\s+ProfileScope = "([^"]+)"/g)].map((m) => m[1]);
+  if (sgo.join(', ') !== scope) bad.push('profile scope docs <-> Go drift');
+  const ptoks = pvocab.split(', '); const atoks = avocab.split(', ');
+  if (ptoks.length !== 12 || new Set(ptoks).size !== 12) bad.push('personal vocabulary not twelve unique tokens');
+  if (atoks.length !== 11 || new Set(atoks).size !== 11) bad.push('agent vocabulary not eleven unique tokens');
+  if (pcount !== '12' || ptoks.length !== Number(pcount)) bad.push('personal count line drifts');
+  if (acount !== '11' || atoks.length !== Number(acount)) bad.push('agent count line drifts');
+  if (absent !== 'not-yet-observed-known-gap' || !goText.includes('ProfileAbsentSemantics = "not-yet-observed-known-gap"')) bad.push('profile absent semantics drifted');
+  if (numberSem !== 'recorded-text-no-numeric-score') bad.push('profile number semantics drifted');
+  if (plane !== 'none-in-observation-phase' || !goText.includes('ProfileEnforcementPlane = "none-in-observation-phase"')) bad.push('profile enforcement plane drifted off none');
+  if (hard !== 'never-replaces-hard-security-boundaries' || !goText.includes('ProfileHardBoundaryRule = "never-replaces-hard-security-boundaries"')) bad.push('hard-boundary rule drifted');
+  const anchor = (name, toks, conv) => {
+    const hits = text.match(new RegExp('```' + name + '\n([\\s\\S]*?)```', 'g')) || [];
+    if (hits.length !== 1) { bad.push(name + ' must appear exactly once'); return; }
+    const lines = hits[0].replace('```' + name + '\n', '').replace('```', '').trim().split('\n').map((s) => s.trim()).filter(Boolean);
+    if (lines.length !== toks.length) bad.push(name + ' line census ' + lines.length + ', want ' + toks.length);
+    else lines.forEach((s, i) => { if (conv(s) !== toks[i]) bad.push(name + ' back-check broke at line ' + (i + 1) + ': ' + s); });
+  };
+  anchor('profile-personal-spec-anchor', ptoks, snake);
+  anchor('profile-agent-spec-anchor', atoks, snake);
+  const gv = (name) => {
+    const blk = (goText.match(new RegExp('var ' + name + ' = \"?\\[\\]string\\{([^\\]\\}]*?)\\}')) || [, ''])[1];
+    return (blk.match(/"[^"]+"/g) || []).map((s) => s.slice(1, -1));
+  };
+  if (gv('profilePersonalFieldWireNames').join(', ') !== pvocab) bad.push('personal vocabulary docs <-> Go drift');
+  if (gv('profileAgentFieldWireNames').join(', ') !== avocab) bad.push('agent vocabulary docs <-> Go drift');
+  // shared-token discipline: common_tools is one token in both scopes
+  if (!ptoks.includes('common_tools') || !atoks.includes('common_tools')) bad.push('shared tools token forked');
+  return bad;
+}
+
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
-  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames/;
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope/;
   for (const d of PLANE_DIRS) {
     const dir = path.join(root, 'internal', d);
     let entries;
@@ -374,6 +452,12 @@ if (rec.length) console.log('  ' + rec.join('\n  '));
 const exv = execVerbProblems();
 check(exv.length === 0, 'execution-vocabulary red-shape grep: no rollback/revert/undo/compensate in decision planes or command tree');
 if (exv.length) console.log('  ' + exv.join('\n  '));
+const evd = evidenceProblems(v, epSrc);
+check(evd.length === 0, 'evidence: seven required fields, slash-aware anchor back-check, Go mirrors, none-plane, retention and signature-phasing strings');
+if (evd.length) console.log('  ' + evd.join('\n  '));
+const prf = profileProblems(v, epSrc);
+check(prf.length === 0, 'profile: scope/personal/agent vocabularies 2+12+11, dual anchors, shared tools token, hard-boundary and none-plane mirrored to Go');
+if (prf.length) console.log('  ' + prf.join('\n  '));
 
 console.log(problems.length === 0 ? 'SCHEMA-V2: ALL GREEN' : 'SCHEMA-V2: ' + problems.length + ' PROBLEM(S)');
 if (problems.length) process.exit(1);
@@ -382,7 +466,7 @@ if (process.argv.includes('--selftest')) {
   // Negative control: shipped file passes everything (proven by rc above).
   // Positive controls: the shipped predicates must catch each mutation.
   const cases = [
-    ['pending slot loses its pointer', (t) => t.replace('planned_slice: W2.4', 'shadow_slice: W2.4'), (t) => slotCensusProblems(t)],
+    ['pending slot loses its pointer', (t) => t.replace('schema: evidence\nstatus: complete', 'schema: evidence\nstatus: pending'), (t) => slotCensusProblems(t)],
     ['complete slot gains a stray pointer', (t) => t.replace('schema: decision\nstatus: complete', 'schema: decision\nstatus: complete\nplanned_slice: W9.9'), (t) => slotCensusProblems(t)],
     ['vocabulary loses a token', (t) => t.replace('decision_vocabulary: allow, ask, would_block', 'decision_vocabulary: allow, ask'), (t) => (findKey(t, 'decision_vocabulary') !== 'allow, ask, would_block' ? ['drift'] : [])],
     ['element body gutted to a slogan', (t) => t.replace(/#### Migration\n[\s\S]*?#### Validation/, '#### Migration\nnone owed\n#### Validation'), (t) => elementProblems(t)],
@@ -394,6 +478,11 @@ if (process.argv.includes('--selftest')) {
     ['recovery execution plane pre-borrowed', (t) => t.replace('recovery_execution_plane: none-in-observation-phase', 'recovery_execution_plane: rollback-armed'), (t) => recoveryProblems(t, irSrc)],
     ['blast scope token drifts from Go', (t) => t.replace('credential_scope, device_scope', 'secret_scope, device_scope'), (t) => impactProblems(t, irSrc)],
     ['impact count line drifts', (t) => t.replace('impact_field_count: 7', 'impact_field_count: 6'), (t) => impactProblems(t, irSrc)],
+    ['evidence anchor line respelled', (t) => t.replace('\nIntegrity Hash\n', '\nIntegrity Checksum\n'), (t) => evidenceProblems(t, epSrc)],
+    ['evidence requiredness pre-borrowed', (t) => t.replace('evidence_required_semantics: all-seven-required-for-key-evidence', 'evidence_required_semantics: optional-observations'), (t) => evidenceProblems(t, epSrc)],
+    ['profile personal count drifts', (t) => t.replace('profile_personal_field_count: 12', 'profile_personal_field_count: 11'), (t) => profileProblems(t, epSrc)],
+    ['profile hard boundary pre-borrowed', (t) => t.replace('profile_hard_boundary_rule: never-replaces-hard-security-boundaries', 'profile_hard_boundary_rule: may-override-boundaries-on-high-trust'), (t) => profileProblems(t, epSrc)],
+    ['profile agent anchor line dropped', (t) => t.replace('\nTrust Decay\n', '\n'), (t) => profileProblems(t, epSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
@@ -408,7 +497,8 @@ if (process.argv.includes('--selftest')) {
   // sanity: predicates stay silent on the shipped file
   for (const pred of [slotCensusProblems, templateCensusProblems, elementProblems,
     (t) => intentProblems(t, goSrc), (t) => authorityProblems(t, goSrc),
-    (t) => impactProblems(t, irSrc), (t) => recoveryProblems(t, irSrc), () => execVerbProblems()]) {
+    (t) => impactProblems(t, irSrc), (t) => recoveryProblems(t, irSrc), () => execVerbProblems(),
+    (t) => evidenceProblems(t, epSrc), (t) => profileProblems(t, epSrc)]) {
     if (pred(v).length) {
       console.log('SELFTEST FAIL: predicate fired on clean file');
       process.exit(1);
