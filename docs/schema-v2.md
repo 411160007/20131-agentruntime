@@ -1281,3 +1281,97 @@ The slot lifecycle of section 1 keeps its meaning here: a cell is green
 only while its element section stays substantive under the shared
 thresholds, so later waves that gut a section break this table before
 they break any consumer.
+
+## 12. Intent alignment record contract (slice W3.2)
+
+Owner spec section 232 defines the intent alignment engine: a
+continuous comparison of User Intent against Agent Plan against Actual
+Action, with every action classified into a closed four-token set and
+two honesty equations stated alongside - UNCERTAIN is not MALICIOUS,
+UNRELATED is not MALICIOUS - plus a closing escalation precondition
+(unrelated or uncertain combined with high impact, high sensitivity,
+or irreversibility must raise the control level).
+
+This section contracts the RECORD shape of that classification for the
+observation phase only. It is deliberately not a four-element wave
+slot: the fifteen schema names of section 289 enumerate the wave
+census, and the action classification vocabulary is not among them, so
+section 11 and its twenty-eight cells stay untouched and this section
+adds no master_cell block (the census doctrine forbids private rows
+beside the table). The classification itself is a record bit carried
+by slice code; consuming it to move a control level is the enforcement
+plane, contracted as none below, and the escalation precondition
+travels as a recorded string, never as wired behavior.
+
+### 12.1 Closed class vocabulary
+
+The spec spells the four classes in upper case; the wire tokens are
+derived mechanically (lower case) and the anchor back-check below
+recomputes the mapping on every run - nobody recounts or retypes it.
+
+```alignment-spec-anchor
+DIRECT
+INFERRED
+UNCERTAIN
+UNRELATED
+```
+
+```schemav2
+alignment_class_vocabulary: direct, inferred, uncertain, unrelated
+alignment_class_count: 4
+alignment_absent_semantics: no-record-means-never-compared-never-implied-direct
+alignment_malicious_rule: uncertain-is-not-malicious-unrelated-is-not-malicious
+alignment_escalation_precondition: recorded-not-enforced
+alignment_enforcement_plane: none-in-observation-phase
+```
+
+Every line of the anchor block maps to the same-position wire token
+via the lower-case rule; the joined vocabulary string, the Go list in
+`AllActionClasses`, and the block above must agree verbatim and in
+order, mirrored again by `scripts/schema-v2-check.mjs`. The absent
+semantics line is the single honest reading of a missing record: the
+action was never compared (a known gap) - never an implicit direct
+classification, because silently upgrading every unexamined action to
+"on plan" would be the exact fabrication this wave forbids.
+
+The two honesty equations are structural, not editorial: `malicious`
+and any malice-flavoured coinage are outside the closed set, so a
+suspicion-shaped value in the class field is a rejection before bytes,
+not a stored judgement. The class field answers "does this action
+correspond to the recorded intent or plan", and nothing else.
+
+### 12.2 Record shape and field census
+
+`AlignmentRecord` in `internal/schema/actionalignment.go` carries
+exactly these five wire fields, pinned by row order and count against
+the Go list `AllAlignmentRecordFields`:
+
+| field | required | meaning |
+| --- | --- | --- |
+| `class` | yes | one of the four closed alignment tokens |
+| `action_ref` | no | correlation handle to the classified action record |
+| `intent_ref` | no | correlation handle to the user intent record compared |
+| `plan_ref` | no | correlation handle to the agent plan record compared |
+| `basis` | no | human-readable comparison rationale line, record bit only |
+
+Class is required because an alignment record without a class is
+malformed rather than "unknown": honest absence lives at the record
+level (no record written means never compared), never at the class
+level. A record failing any gate - unknown field name, wild class,
+missing class - is rejected by `ParseAlignmentRecord` with a nil
+result and produces no encoded bytes through `EncodeAlignmentChecked`.
+
+### 12.3 Zero-consumption discipline
+
+The record symbols (`ActionClass`, `AlignmentRecord`,
+`alignmentClassWireNames`, `alignmentRecordFieldWireNames`) join the
+planeLeak needle set in `scripts/schema-v2-check.mjs` in this same
+PR: no policy, rules, bus, or auditlog file may reference them while
+the enforcement plane reads none-in-observation-phase. Decision values
+stay inside the Phase 0 closed pair `{allow, would_block}` unchanged
+by this slice; the four alignment classes are not decision inputs, and
+the reserved token `ask` stays where section 3 put it. This is the
+carried-never-consumed promise of section 232's "continuous
+comparison" reduced to record form: comparison outcomes are recorded
+as data, and the control-level consequence the spec asks for waits in
+the open enforcement ruling like every other enforcement surface.
