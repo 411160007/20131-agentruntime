@@ -1036,3 +1036,248 @@ refuses to carry.
 None. The wave slot map above reads `status: complete` for all seven
 schemas; the slot lifecycle in section 1 forbids a third state, and
 this section exists so the census stays explicit rather than implied.
+
+## 11. Wave master table - seven schemas x four elements
+
+The stability demand of owner spec section 289 enumerates schema names and
+requires Version, Compatibility, Migration, and Validation for each. This
+section is the census for the seven schemas instantiated by the W2 wave:
+seven times four, twenty-eight cells, one machine-readable block per
+cell, zero blanks and zero slogans. Each cell carries exactly one state
+from a closed set of three:
+
+- `preexisting` - the cell substance shipped before this wave and lives
+  on the frozen external contract surface; its evidence line must name
+  `docs/api-v0.md` as the carrying contract.
+- `this_wave` - the cell was written inside the W2 wave; its evidence
+  line names the creating slice (`W2.1` through `W2.4`), and the element
+  section it points at must pass the shared sufficiency predicate of
+  section 1 on every re-run.
+- `planned_build` - the cell is honestly unwritten; its evidence line
+  must name the owing build slice in `W<n>.<m>` form. A slot whose census
+  status reads `complete` may never carry this state; the state exists so
+  future waves can extend the census without silent gaps.
+
+Two independent implementations re-derive the whole table on every run:
+the Node structural check `scripts/schema-v2-check.mjs` (cell census,
+closed states, evidence rules, per-cell pointer resolution into
+substantive element sections) and the Go second implementation
+`internal/schema/schemamaster_sync_test.go` (same thresholds, plus a
+creator-slice map that fails if the docs and the wave history disagree).
+A docs-only rewrite cannot satisfy both by accident.
+
+### 11.1 Coverage against the fifteen schema names of section 289
+
+Section 289 lists fifteen names as the stability-contract scope. The
+seven wave schemas are covered cell by cell in section 11.2. The
+remaining eight, stated honestly, none dropped:
+
+- `Event` - preexisting. The frozen line format, its `schema_version`
+  additive-evolution rules, and its validation sites are contracted in
+  `docs/api-v0.md`; duplicating them here would create a second writer,
+  which the drift doctrine forbids.
+- `Identity` - shipped as code enums and the agent tri-state since the
+  core-completion slice; no four-element stability contract is written
+  yet. Owing hook: the W5.3 delegation observation surface owes
+  parent/child identity lines and must first write this census form for
+  the identity record shape.
+- `Capability` - shipped vocabulary since the core-completion slice.
+  Owing hook: W4.1 lands the nine-action data vocabulary additively on
+  this surface and must carry the four-element contract in the same PR.
+- `Policy` - shipped rule engine and policy enums since the first
+  slice. Owing hook: the W9 policy-simulator series must formalize the
+  four elements before any rule-shape change ships.
+- `Risk` - not built. Risk surfaces only as contract prohibitions (the
+  W10.3 chain from analysis to risk to policy to core) and as the W11.1
+  blast-radius estimation record; the four-element contract owes those
+  slices, and the fail-open posture stays a pending owner ruling.
+- `Agent Control API` - the minimum read-only surface (`status`,
+  `audit-tail`, `timeline`) is contracted in `docs/api-v0.md` as the
+  preexisting observation plane; pause, lock, and grant control verbs
+  belong to Phase 1 and must not receive a contract before their
+  enforcement ruling.
+- `Platform Adapter API` - observation inflow exists (hook and MCP proxy
+  event sources); the adapter API contract itself is the deferred
+  adapter slice of the build order, registered there rather than
+  silently omitted.
+- `External Intelligence API` - zero integration by design in the
+  observation phase (local-core iron rule); W10.1 through W10.3 are pure
+  contract slices and will instantiate the four elements there.
+
+No name above is dropped: each is either contracted, or has a named owing
+slice. The census stays explicit rather than implied.
+
+### 11.2 The twenty-eight cells
+
+```schemav2
+master_cell: decision/version
+state: this_wave
+evidence: created by W2.1
+```
+
+```schemav2
+master_cell: decision/compatibility
+state: this_wave
+evidence: created by W2.1
+```
+
+```schemav2
+master_cell: decision/migration
+state: this_wave
+evidence: created by W2.1
+```
+
+```schemav2
+master_cell: decision/validation
+state: this_wave
+evidence: created by W2.1
+```
+
+```schemav2
+master_cell: intent/version
+state: this_wave
+evidence: created by W2.2
+```
+
+```schemav2
+master_cell: intent/compatibility
+state: this_wave
+evidence: created by W2.2
+```
+
+```schemav2
+master_cell: intent/migration
+state: this_wave
+evidence: created by W2.2
+```
+
+```schemav2
+master_cell: intent/validation
+state: this_wave
+evidence: created by W2.2
+```
+
+```schemav2
+master_cell: authority/version
+state: this_wave
+evidence: created by W2.2
+```
+
+```schemav2
+master_cell: authority/compatibility
+state: this_wave
+evidence: created by W2.2
+```
+
+```schemav2
+master_cell: authority/migration
+state: this_wave
+evidence: created by W2.2
+```
+
+```schemav2
+master_cell: authority/validation
+state: this_wave
+evidence: created by W2.2
+```
+
+```schemav2
+master_cell: impact/version
+state: this_wave
+evidence: created by W2.3
+```
+
+```schemav2
+master_cell: impact/compatibility
+state: this_wave
+evidence: created by W2.3
+```
+
+```schemav2
+master_cell: impact/migration
+state: this_wave
+evidence: created by W2.3
+```
+
+```schemav2
+master_cell: impact/validation
+state: this_wave
+evidence: created by W2.3
+```
+
+```schemav2
+master_cell: recovery/version
+state: this_wave
+evidence: created by W2.3
+```
+
+```schemav2
+master_cell: recovery/compatibility
+state: this_wave
+evidence: created by W2.3
+```
+
+```schemav2
+master_cell: recovery/migration
+state: this_wave
+evidence: created by W2.3
+```
+
+```schemav2
+master_cell: recovery/validation
+state: this_wave
+evidence: created by W2.3
+```
+
+```schemav2
+master_cell: evidence/version
+state: this_wave
+evidence: created by W2.4
+```
+
+```schemav2
+master_cell: evidence/compatibility
+state: this_wave
+evidence: created by W2.4
+```
+
+```schemav2
+master_cell: evidence/migration
+state: this_wave
+evidence: created by W2.4
+```
+
+```schemav2
+master_cell: evidence/validation
+state: this_wave
+evidence: created by W2.4
+```
+
+```schemav2
+master_cell: profile/version
+state: this_wave
+evidence: created by W2.4
+```
+
+```schemav2
+master_cell: profile/compatibility
+state: this_wave
+evidence: created by W2.4
+```
+
+```schemav2
+master_cell: profile/migration
+state: this_wave
+evidence: created by W2.4
+```
+
+```schemav2
+master_cell: profile/validation
+state: this_wave
+evidence: created by W2.4
+```
+
+The slot lifecycle of section 1 keeps its meaning here: a cell is green
+only while its element section stays substantive under the shared
+thresholds, so later waves that gut a section break this table before
+they break any consumer.
