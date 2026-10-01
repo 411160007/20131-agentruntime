@@ -95,6 +95,25 @@ function templateCensusProblems(text) {
   return bad;
 }
 
+function consumeProblems(text, goText) {
+  const bad = [];
+  const pins = [
+    ['untrusted_consume_rule', 'UntrustedConsumeRule', 'untrusted-source-modifications-are-recorded-marked-never-auto-escalate'],
+    ['authority_preservation_rule', 'AuthorityPreservationRule', 'original-chain-links-preserved-identical'],
+    ['origin_forge_rule', 'OriginForgeRule', 'untrusted-source-never-claims-user_direct'],
+    ['sticky_clearance_rule', 'StickyClearanceRule', 'consumption-never-clears-an-existing-untrusted-mark'],
+    ['consume_enforcement_plane', 'ConsumeEnforcementPlane', 'none-in-observation-phase'],
+  ];
+  for (const [key, ident, val] of pins) {
+    const got = findKey(text, key);
+    if (got === null) return ['consume contract keys missing or duplicated'];
+    if (got !== val) bad.push('consume rule line drifted: ' + key);
+    if (!goText.includes(ident + ' = "' + val + '"')) bad.push('consume rule Go mirror drifted: ' + ident);
+  }
+  if (text.indexOf('## 13. UNTRUSTED consumption contract') < 0) bad.push('section 13 header missing');
+  return bad;
+}
+
 function findKey(text, k) {
   let blocks;
   try {
@@ -262,6 +281,7 @@ const goSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'intentautho
 const irSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'impactrecovery.go'), 'utf8');
 const epSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'evidenceprofile.go'), 'utf8');
 const aaSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'actionalignment.go'), 'utf8');
+const ucSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'untrustedconsume.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -481,7 +501,7 @@ function alignmentProblems(text, goText) {
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
-  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule/;
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane/;
   for (const d of PLANE_DIRS) {
     const dir = path.join(root, 'internal', d);
     let entries;
@@ -552,6 +572,10 @@ const aln = alignmentProblems(v, aaSrc);
 check(aln.length === 0, 'alignment: four-class closed vocabulary, lower-case anchor back-check, malicious-equation and escalation strings, none-plane, field table row-order pin, Go mirrors');
 if (aln.length) console.log('  ' + aln.join('\n  '));
 
+const con = consumeProblems(v, ucSrc);
+check(con.length === 0, 'untrusted consumption: five rule lines mirrored docs<->Go, forge and preservation and stickiness and none-plane pinned, section 13 present');
+if (con.length) console.log('  ' + con.join('\n  '));
+
 const mtp = masterTableProblems(v);
 check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
 if (mtp.length) console.log('  ' + mtp.join('\n  '));
@@ -589,6 +613,9 @@ if (process.argv.includes('--selftest')) {
     ['alignment anchor line respelled', (t) => t.replace('\nUNCERTAIN\n', '\nDOUBTFUL\n'), (t) => alignmentProblems(t, aaSrc)],
     ['alignment malicious equation pre-borrowed', (t) => t.replace('alignment_malicious_rule: uncertain-is-not-malicious-unrelated-is-not-malicious', 'alignment_malicious_rule: uncertain-means-malicious'), (t) => alignmentProblems(t, aaSrc)],
     ['alignment escalation precondition wired', (t) => t.replace('alignment_escalation_precondition: recorded-not-enforced', 'alignment_escalation_precondition: enforce-now'), (t) => alignmentProblems(t, aaSrc)],
+    ['consume forge rule pre-borrowed', (t) => t.replace('origin_forge_rule: untrusted-source-never-claims-user_direct', 'origin_forge_rule: untrusted-may-claim-user-direct-on-high-trust'), (t) => consumeProblems(t, ucSrc)],
+    ['consume enforcement plane pre-borrowed', (t) => t.replace('consume_enforcement_plane: none-in-observation-phase', 'consume_enforcement_plane: enforce-now'), (t) => consumeProblems(t, ucSrc)],
+    ['consume stickiness rule flipped', (t) => t.replace('sticky_clearance_rule: consumption-never-clears-an-existing-untrusted-mark', 'sticky_clearance_rule: consumption-clears-marks-on-trusted-write'), (t) => consumeProblems(t, ucSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {

@@ -1375,3 +1375,82 @@ carried-never-consumed promise of section 232's "continuous
 comparison" reduced to record form: comparison outcomes are recorded
 as data, and the control-level consequence the spec asks for waits in
 the open enforcement ruling like every other enforcement surface.
+
+---
+
+## 13. UNTRUSTED consumption contract (slice W3.3)
+
+Owner spec section 230 closes with one normative sentence: intent
+modifications arriving from untrusted content must be treated as
+UNTRUSTED and must never auto-raise user authority. Section 5
+(W2.2) contracted the RECORD shape of the mark - the sticky chain
+propagation that an untrusted link forces the chain mark. This
+section contracts the RECORD-FORM CONSUMER of that mark: a pure
+in-package function that folds one intent modification into one
+intent record under five machine-pinned rules.
+
+Like section 12 this is deliberately not a four-element wave slot:
+the fifteen schema names of section 289 do not enumerate a
+"modification" schema, so section 11 and its twenty-eight cells
+stay untouched and this section adds no master_cell block (the
+census doctrine forbids private rows beside the table). The
+consumption here is record-time only; no runtime path calls it in
+the observation phase, and wiring it into a decision or transport
+path - including the open fail-versus-closed posture question that
+the pending decision sheet leaves unresolved - is a later-phase
+
+### 13.1 The five consumption rules
+
+```schemav2
+untrusted_consume_rule: untrusted-source-modifications-are-recorded-marked-never-auto-escalate
+authority_preservation_rule: original-chain-links-preserved-identical
+origin_forge_rule: untrusted-source-never-claims-user_direct
+sticky_clearance_rule: consumption-never-clears-an-existing-untrusted-mark
+consume_enforcement_plane: none-in-observation-phase
+```
+
+Each line is pinned verbatim against its Go constant in
+`internal/schema/untrustedconsume.go` (`UntrustedConsumeRule`,
+`AuthorityPreservationRule`, `OriginForgeRule`,
+`StickyClearanceRule`, `ConsumeEnforcementPlane`) by the sync test
+in that package and by the Node checker predicate; drift in either
+direction is a red build.
+
+The five rules read as one story. A modification names exactly one
+of the ten closed intent wire tokens and carries the grant-origin
+label plus the trust bit of the channel that produced it. A
+modification naming `authority` is rejected outright: grants travel
+as chain links appended in time order and there is no field-
+overwrite path to audit, which is what "the original authority
+value is preserved, not overwritten" means structurally. An
+untrusted-source modification claiming `user_direct` origin is the
+forgery shape and is rejected before any value is applied - the
+spec's "never auto-raise user authority" reduced to a red fixture.
+Everything else is applied to a fresh copy of the record (scalar
+fields replaced, list fields appended behind fresh allocations,
+the base record never mutated) while the pre-existing chain links
+are copied through byte-identically in their original order and
+positions: a lower layer never alone moves the user's boundary,
+and the only link the consumption path can add is one that carries
+its own origin label and, if untrusted, its own mark. The chain-
+level mark is set by an untrusted source and is never cleared by a
+trusted one - a later clean write does not launder an earlier
+untrusted one; clearing is a user-side action outside this path.
+
+### 13.2 Plane discipline
+
+`ApplyIntentModification`, `IntentModification`, and the five rule
+constants join the planeLeak needle set in
+`scripts/schema-v2-check.mjs` in this same PR: no policy, rules,
+bus, or auditlog file may reference them while
+`consume_enforcement_plane` reads none-in-observation-phase, and
+the command tree is scanned for the same symbols by
+`scripts/gate-w3.sh` with a planted-shape control (planting a
+reference must fire, removing it must clear - the gate proves its
+own teeth before believing any green). Decision values stay inside
+the Phase 0 closed pair `{allow, would_block}` unchanged by this
+slice; the consumption point is a record function over record
+types, called by tests and by nothing else. This is section 230's
+closing sentence reduced from prose to a callable contract that
+observes the same carried-never-consumed promise every earlier
+record in this file keeps.
