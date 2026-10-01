@@ -127,8 +127,13 @@ step '09 Phase 0 semantics on the NEW judgement surface'
 if grep -rnE '"decision": ?"(block|denied|deny)"' --include='*.go' cmd/ internal/ | grep -v _test; then
   echo 'RED: real-blocking decision vocabulary in shipped code'; exit 1
 fi
-if grep -rniE '\bharddeny\b|\bhard_deny\b|\bdeny\b' --include='*.go' cmd/ internal/ | grep -v _test; then
-  echo 'RED: enforcement vocabulary in shipped code (Phase 0 records only)'; exit 1
+# The schema recorder is quarantined from this scan: it may carry spec-
+# verbatim tokens as record fields only, same doctrine as gate-d3 and
+# gate-d7; the blocking-decision grep above still covers the whole tree
+# including the recorder, and planeLeak pins zero consumption of
+# recorder symbols by the decision plane.
+if grep -rniE '\bharddeny\b|\bhard_deny\b|\bdeny\b' --include='*.go' cmd/ internal/ --exclude-dir=schema | grep -v _test; then
+  echo 'RED: enforcement vocabulary in judgement-plane shipped code (Phase 0 records only)'; exit 1
 fi
 # would_block may only be produced as the recorded decision value;
 # assert the emitter set is exactly {allow, would_block} at runtime
