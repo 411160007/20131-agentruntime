@@ -1,0 +1,3 @@
+{"direct_impact":"rewrites the package manifest","indirect_impact":"lockfile churn for every installer","propagation_impact":"rebuild of downstream images","blast_radius":{"scopes":["file_scope","project_scope"],"extent":"one repository, two branches"},"reversibility":"local_reversible","dependency_impact":"adds one module","production_impact":"none recorded"}
+{"direct_impact":"sends one outbound message","blast_radius":{"scopes":["network_scope"]}}
+{"indirect_impact":"third-party queue state changes","blast_radius":{"scopes":["network_scope","credential_scope","subagent_scope"],"extent":"two providers, one delegated agent"},"reversibility":"non_reversible","production_impact":"the external provider keeps the send"}

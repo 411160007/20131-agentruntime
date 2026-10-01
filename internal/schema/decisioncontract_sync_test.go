@@ -189,7 +189,7 @@ func TestDecisionEffectMappingContract(t *testing.T) {
 
 // TestSchemaV2SlotAndTemplateCensus independently re-implements the slot
 // lifecycle machine-check (second implementation, same rules as the Node
-// checker): seven slots, one complete, six pending with pointers, and a
+// checker): seven slots, five complete, two pending with pointers, and a
 // substantive four-element template census.
 func TestSchemaV2SlotAndTemplateCensus(t *testing.T) {
 	raw, err := os.ReadFile(filepathJoinDotDot("docs", "schema-v2.md"))
@@ -203,8 +203,8 @@ func TestSchemaV2SlotAndTemplateCensus(t *testing.T) {
 		"decision":  {"complete", ""},
 		"intent":    {"complete", ""},
 		"authority": {"complete", ""},
-		"impact":    {"pending", "W2.3"},
-		"recovery":  {"pending", "W2.3"},
+		"impact":    {"complete", ""},
+		"recovery":  {"complete", ""},
 		"evidence":  {"pending", "W2.4"},
 		"profile":   {"pending", "W2.4"},
 	}
@@ -254,8 +254,8 @@ func TestSchemaV2ElementsSubstantive(t *testing.T) {
 	}
 	doc := string(raw)
 	heads := regexp.MustCompile("(?m)^## \\d+\\. ([A-Za-z]+) schema - complete contract").FindAllStringSubmatchIndex(doc, -1)
-	if len(heads) < 3 {
-		t.Fatalf("complete-contract sections found %d, want at least 3", len(heads))
+	if len(heads) < 5 {
+		t.Fatalf("complete-contract sections found %d, want at least 5", len(heads))
 	}
 	for _, h := range heads {
 		name := strings.ToLower(doc[h[2]:h[3]])
