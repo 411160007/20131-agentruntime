@@ -1,0 +1,4 @@
+{"class":"direct","action_ref":"evt-0001","intent_ref":"intent-0001","plan_ref":"plan-0001","basis":"action is a stated step of the recorded intent"}
+{"class":"inferred","action_ref":"evt-0002","intent_ref":"intent-0001","plan_ref":"plan-0001","basis":"no stated step; correspondence established from plan context"}
+{"class":"uncertain","action_ref":"evt-0003","intent_ref":"intent-0001","basis":"recorded data supports neither correspondence nor distance"}
+{"class":"unrelated","action_ref":"evt-0004","intent_ref":"intent-0001","basis":"no correspondence to intent or plan found in recorded data"}

@@ -261,6 +261,7 @@ if (ep.length) console.log('  ' + ep.join('\n  '));
 const goSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'intentauthority.go'), 'utf8');
 const irSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'impactrecovery.go'), 'utf8');
 const epSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'evidenceprofile.go'), 'utf8');
+const aaSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'actionalignment.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -443,10 +444,44 @@ function profileProblems(text, goText) {
   return bad;
 }
 
+function alignmentProblems(text, goText) {
+  const bad = [];
+  const vocab = findKey(text, 'alignment_class_vocabulary');
+  const count = findKey(text, 'alignment_class_count');
+  const absent = findKey(text, 'alignment_absent_semantics');
+  const malicious = findKey(text, 'alignment_malicious_rule');
+  const escalation = findKey(text, 'alignment_escalation_precondition');
+  const plane = findKey(text, 'alignment_enforcement_plane');
+  if (!vocab || !count || !absent || !malicious || !escalation || !plane) return ['alignment contract keys missing or duplicated'];
+  const toks = vocab.split(', ');
+  if (toks.length !== 4 || new Set(toks).size !== 4) bad.push('alignment vocabulary not four unique classes');
+  if (count !== '4' || toks.length !== Number(count)) bad.push('alignment count line drifts from vocabulary length');
+  if (absent !== 'no-record-means-never-compared-never-implied-direct' || !goText.includes('AlignmentAbsentSemantics = "no-record-means-never-compared-never-implied-direct"')) bad.push('alignment absent semantics drifted');
+  if (malicious !== 'uncertain-is-not-malicious-unrelated-is-not-malicious' || !goText.includes('AlignmentMaliciousRule = "uncertain-is-not-malicious-unrelated-is-not-malicious"')) bad.push('malicious-equation rule drifted');
+  if (escalation !== 'recorded-not-enforced' || !goText.includes('AlignmentEscalationPrecondition = "recorded-not-enforced"')) bad.push('escalation precondition drifted off recorded');
+  if (plane !== 'none-in-observation-phase' || !goText.includes('AlignmentEnforcementPlane = "none-in-observation-phase"')) bad.push('alignment enforcement plane drifted off none');
+  const anchorHits = text.match(/```alignment-spec-anchor\n([\s\S]*?)```/g) || [];
+  if (anchorHits.length !== 1) return bad.concat(['alignment anchor block must appear exactly once']);
+  const lines = anchorHits[0].replace('```alignment-spec-anchor\n', '').replace('```', '').trim().split('\n').map((s) => s.trim()).filter(Boolean);
+  if (lines.length !== 4) bad.push('alignment anchor line census ' + lines.length + ', want 4');
+  else lines.forEach((s, i) => { if (s.toLowerCase() !== toks[i]) bad.push('alignment anchor back-check broke at line ' + (i + 1) + ': ' + s); });
+  const goClasses = [...goText.matchAll(/ActionClass = "([^"]+)"/g)].map((m) => m[1]);
+  if (goClasses.join(', ') !== vocab) bad.push('alignment class vocabulary docs <-> Go drift');
+  const fb = (goText.match(/var alignmentRecordFieldWireNames = \[\]string\{([\s\S]*?)\}/) || [, ''])[1];
+  const flist = (fb.match(/"[^"]+"/g) || []).map((s) => s.slice(1, -1));
+  if (flist.join(', ') !== 'class, action_ref, intent_ref, plan_ref, basis') bad.push('alignment record field list drifted from Go');
+  const secAt = text.indexOf('## 12. Intent alignment record contract');
+  if (secAt < 0) return bad.concat(['alignment section header missing']);
+  const rows = [...text.slice(secAt).matchAll(/^\| `([a-z_]+)` \| (yes|no) \|[^|\n]*\|$/gm)];
+  if (rows.length !== 5) bad.push('alignment field table row census ' + rows.length + ', want 5');
+  else rows.forEach((rm, i) => { if (rm[1] !== flist[i]) bad.push('alignment field row-order pin broke at row ' + (i + 1) + ': ' + rm[1]); });
+  return bad;
+}
+
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
-  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope/;
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule/;
   for (const d of PLANE_DIRS) {
     const dir = path.join(root, 'internal', d);
     let entries;
@@ -513,6 +548,10 @@ const prf = profileProblems(v, epSrc);
 check(prf.length === 0, 'profile: scope/personal/agent vocabularies 2+12+11, dual anchors, shared tools token, hard-boundary and none-plane mirrored to Go');
 if (prf.length) console.log('  ' + prf.join('\n  '));
 
+const aln = alignmentProblems(v, aaSrc);
+check(aln.length === 0, 'alignment: four-class closed vocabulary, lower-case anchor back-check, malicious-equation and escalation strings, none-plane, field table row-order pin, Go mirrors');
+if (aln.length) console.log('  ' + aln.join('\n  '));
+
 const mtp = masterTableProblems(v);
 check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
 if (mtp.length) console.log('  ' + mtp.join('\n  '));
@@ -547,6 +586,9 @@ if (process.argv.includes('--selftest')) {
     ['this_wave cell loses creator token', (t) => t.replace('evidence: created by W2.1', 'evidence: created during the wave'), (t) => masterTableProblems(t)],
     ['planned cell loses W commitment', (t) => t.replace('master_cell: evidence/version\nstate: this_wave\nevidence: created by W2.4', 'master_cell: evidence/version\nstate: planned_build\nevidence: someday'), (t) => masterTableProblems(t)],
     ['master cell pointer hollowed', (t) => t.replace(/#### Version\n[\s\S]*?#### Compatibility/, '#### Version\nslogan only\n#### Compatibility'), (t) => masterTableProblems(t)],
+    ['alignment anchor line respelled', (t) => t.replace('\nUNCERTAIN\n', '\nDOUBTFUL\n'), (t) => alignmentProblems(t, aaSrc)],
+    ['alignment malicious equation pre-borrowed', (t) => t.replace('alignment_malicious_rule: uncertain-is-not-malicious-unrelated-is-not-malicious', 'alignment_malicious_rule: uncertain-means-malicious'), (t) => alignmentProblems(t, aaSrc)],
+    ['alignment escalation precondition wired', (t) => t.replace('alignment_escalation_precondition: recorded-not-enforced', 'alignment_escalation_precondition: enforce-now'), (t) => alignmentProblems(t, aaSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
@@ -563,6 +605,7 @@ if (process.argv.includes('--selftest')) {
     (t) => intentProblems(t, goSrc), (t) => authorityProblems(t, goSrc),
     (t) => impactProblems(t, irSrc), (t) => recoveryProblems(t, irSrc), () => execVerbProblems(),
     (t) => evidenceProblems(t, epSrc), (t) => profileProblems(t, epSrc),
+    (t) => alignmentProblems(t, aaSrc),
     (t) => masterTableProblems(t)]) {
     if (pred(v).length) {
       console.log('SELFTEST FAIL: predicate fired on clean file');
