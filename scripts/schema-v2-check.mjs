@@ -157,6 +157,60 @@ function findNextSection(text, from) {
   return idx < 0 ? text.length : from + idx;
 }
 
+// Master table (W2 closing slice): seven wave schemas x four elements,
+// 28 cells, each cell exactly one closed three-state value and a
+// machine-resolvable pointer. Pure predicates so the selftest exercises
+// the shipped logic.
+const MASTER_STATES = ['preexisting', 'this_wave', 'planned_build'];
+function contractSectionMap(text) {
+  const map = {};
+  const re = /^## \d+\. ([A-Za-z]+) schema - complete contract$/gm;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    map[m[1].toLowerCase()] = text.slice(m.index, findNextSection(text, m.index + 1));
+  }
+  return map;
+}
+function masterTableProblems(text) {
+  const bad = [];
+  const blocks = schemav2Blocks(text).filter((kv) => 'master_cell' in kv);
+  if (blocks.length !== 28) bad.push('master cell census ' + blocks.length + ', want 28');
+  const seen = new Set();
+  const sections = contractSectionMap(text);
+  for (const kv of blocks) {
+    const cell = String(kv.master_cell || '');
+    if (!/^[a-z]+\/[a-z]+$/.test(cell)) { bad.push('malformed master_cell: ' + cell); continue; }
+    const [schemaName, element] = cell.split('/');
+    if (!(schemaName in EXPECTED_SLOTS)) { bad.push('master_cell on off-wave schema: ' + cell); continue; }
+    const el = element[0].toUpperCase() + element.slice(1);
+    if (!ELEMENTS.includes(el)) { bad.push('master_cell with unknown element: ' + cell); continue; }
+    if (seen.has(cell)) { bad.push('duplicate master_cell: ' + cell); continue; }
+    seen.add(cell);
+    const st = kv.state;
+    if (!MASTER_STATES.includes(st)) { bad.push('wild master_cell state at ' + cell + ': ' + st); continue; }
+    const ev = String(kv.evidence || '');
+    if (!ev.trim()) { bad.push('master_cell without evidence: ' + cell); continue; }
+    if (st === 'planned_build') {
+      if (!/\bW\d+\.\d+\b/.test(ev)) bad.push('planned_build cell missing W commitment point: ' + cell);
+      continue;
+    }
+    if (st === 'this_wave' && !/\bW2\.[1-4]\b/.test(ev)) bad.push('this_wave cell missing creating W2 slice: ' + cell);
+    if (st === 'preexisting' && !ev.includes('api-v0')) bad.push('preexisting cell must point at the frozen api-v0 contract: ' + cell);
+    const sec = sections[schemaName];
+    if (!sec) bad.push('cell target section missing: ' + cell);
+    else {
+      const p = substantive(elementBody(sec, el));
+      if (p) bad.push('cell target section not substantive: ' + cell + ' - ' + p);
+    }
+  }
+  for (const s of Object.keys(EXPECTED_SLOTS)) {
+    for (const el of ELEMENTS) {
+      if (!seen.has(s + '/' + el.toLowerCase())) bad.push('missing master_cell: ' + s + '/' + el.toLowerCase());
+    }
+  }
+  return bad;
+}
+
 // Main check pipeline.
 const problems = [];
 function check(ok, label) {
@@ -459,6 +513,10 @@ const prf = profileProblems(v, epSrc);
 check(prf.length === 0, 'profile: scope/personal/agent vocabularies 2+12+11, dual anchors, shared tools token, hard-boundary and none-plane mirrored to Go');
 if (prf.length) console.log('  ' + prf.join('\n  '));
 
+const mtp = masterTableProblems(v);
+check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
+if (mtp.length) console.log('  ' + mtp.join('\n  '));
+
 console.log(problems.length === 0 ? 'SCHEMA-V2: ALL GREEN' : 'SCHEMA-V2: ' + problems.length + ' PROBLEM(S)');
 if (problems.length) process.exit(1);
 
@@ -483,6 +541,12 @@ if (process.argv.includes('--selftest')) {
     ['profile personal count drifts', (t) => t.replace('profile_personal_field_count: 12', 'profile_personal_field_count: 11'), (t) => profileProblems(t, epSrc)],
     ['profile hard boundary pre-borrowed', (t) => t.replace('profile_hard_boundary_rule: never-replaces-hard-security-boundaries', 'profile_hard_boundary_rule: may-override-boundaries-on-high-trust'), (t) => profileProblems(t, epSrc)],
     ['profile agent anchor line dropped', (t) => t.replace('\nTrust Decay\n', '\n'), (t) => profileProblems(t, epSrc)],
+    ['master cell dropped', (t) => t.replace('master_cell: decision/version\nstate: this_wave\nevidence: created by W2.1\n', ''), (t) => masterTableProblems(t)],
+    ['master cell duplicated', (t) => t.replace('master_cell: decision/compatibility', 'master_cell: decision/version'), (t) => masterTableProblems(t)],
+    ['master cell state wild', (t) => t.replace('state: this_wave\nevidence: created by W2.1', 'state: probably_done\nevidence: created by W2.1'), (t) => masterTableProblems(t)],
+    ['this_wave cell loses creator token', (t) => t.replace('evidence: created by W2.1', 'evidence: created during the wave'), (t) => masterTableProblems(t)],
+    ['planned cell loses W commitment', (t) => t.replace('master_cell: evidence/version\nstate: this_wave\nevidence: created by W2.4', 'master_cell: evidence/version\nstate: planned_build\nevidence: someday'), (t) => masterTableProblems(t)],
+    ['master cell pointer hollowed', (t) => t.replace(/#### Version\n[\s\S]*?#### Compatibility/, '#### Version\nslogan only\n#### Compatibility'), (t) => masterTableProblems(t)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
@@ -498,7 +562,8 @@ if (process.argv.includes('--selftest')) {
   for (const pred of [slotCensusProblems, templateCensusProblems, elementProblems,
     (t) => intentProblems(t, goSrc), (t) => authorityProblems(t, goSrc),
     (t) => impactProblems(t, irSrc), (t) => recoveryProblems(t, irSrc), () => execVerbProblems(),
-    (t) => evidenceProblems(t, epSrc), (t) => profileProblems(t, epSrc)]) {
+    (t) => evidenceProblems(t, epSrc), (t) => profileProblems(t, epSrc),
+    (t) => masterTableProblems(t)]) {
     if (pred(v).length) {
       console.log('SELFTEST FAIL: predicate fired on clean file');
       process.exit(1);
