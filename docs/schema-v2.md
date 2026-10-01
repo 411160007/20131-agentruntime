@@ -10,8 +10,7 @@ Scope of the wave: seven record schemas - `decision`, `intent`,
 `authority`, `impact`, `recovery`, `evidence`, `profile`. The Event
 envelope and its vocabularies already live as the frozen external
 contract in `docs/api-v0.md`; this file adds the stability layer on top:
-one template, five fully instantiated schemas, two honestly pending
-slots.
+one template, seven fully instantiated schemas, zero pending slots.
 
 Non-goal (observation-phase red line): nothing in this wave changes
 runtime decision semantics. The evaluator, the rule engine, the bus, and
@@ -92,14 +91,12 @@ status: complete
 
 ```schemav2
 schema: evidence
-status: pending
-planned_slice: W2.4
+status: complete
 ```
 
 ```schemav2
 schema: profile
-status: pending
-planned_slice: W2.4
+status: complete
 ```
 
 ## 3. Decision schema - complete contract
@@ -759,9 +756,283 @@ Nothing in this section acts, executes, or enforces.
   `{allow, would_block}` and every emission path are byte-identical
   through this slice.
 
-## 8. Pending slots
+## 8. Evidence schema - complete contract
 
-The two `pending` slots above are not placeholders in prose: each is a
-named build-slice obligation, and the wave closes only when all seven
-slots read `status: complete` with four substantive element sections each.
-Until then this file is honest about what it does not yet contract.
+An evidence record is the integrity surface for one key piece of
+evidence: the specification's evidence-integrity section says key
+evidence must carry seven named fields, and forbids deleting key
+context just to make exporting easier. This slice contracts that field
+set and its requiredness only. The conditional signature clause
+("establish signatures or verifiable evidence envelopes when needed")
+is recorded as an honest phasing note - no `signature` or `seal` field
+exists in this contract, and the envelope arrives with its own later
+slice, never as a silent extra key here.
+
+Machine-readable core (mirrored by both checkers against the Go
+declarations and the fixture set):
+
+```schemav2
+evidence_field_vocabulary: timestamp, source, integrity_hash, policy_version, decision_id, event_correlation_id, actor_agent_identity
+evidence_field_count: 7
+evidence_required_semantics: all-seven-required-for-key-evidence
+evidence_spec_anchor: evidence-spec-anchor
+evidence_enforcement_plane: none-in-observation-phase
+evidence_context_retention_rule: must-not-drop-key-context-for-export
+evidence_signature_envelope_phase: deferred-later-phase
+```
+
+Verbatim anchor (the seven requirements exactly as the specification
+lists them, one per line, in normative order):
+
+```evidence-spec-anchor
+Timestamp
+Source
+Integrity Hash
+Policy Version
+Decision ID
+Event Correlation ID
+Actor / Agent Identity
+```
+
+Back-check rule: each anchor line, lower-cased with runs of spaces and
+slashes collapsed to single underscores, must equal the corresponding
+wire token of `evidence_field_vocabulary`, in order - seven mechanical
+comparisons, no hand-counting. This rule is one step wider than the
+intent and impact rules (slashes as well as spaces) precisely because
+the specification spells the last requirement `Actor / Agent
+Identity`; both checkers recompute the full mapping and the field
+count on every run. The correlation field stays a per-event pointer;
+transaction-level grouping, when a later slice needs it, reuses the
+recovery contract's `transaction` token rather than forking a synonym
+here (one-vocabulary-per-wave, the recovery-slice precedent).
+
+Field table (wire token, JSON type, presence rule, anchor pointer):
+
+| wire token | JSON type | presence | anchor line |
+|---|---|---|---|
+| `timestamp` | string | required, non-empty | line 1 `Timestamp` |
+| `source` | string | required, non-empty | line 2 `Source` |
+| `integrity_hash` | string | required, non-empty | line 3 `Integrity Hash` |
+| `policy_version` | string | required, non-empty | line 4 `Policy Version` |
+| `decision_id` | string | required, non-empty | line 5 `Decision ID` |
+| `event_correlation_id` | string | required, non-empty | line 6 `Event Correlation ID` |
+| `actor_agent_identity` | string | required, non-empty | line 7 `Actor / Agent Identity` |
+
+Presence honesty: unlike the nullable wave records, every field here
+is required, because "key evidence must carry" leaves no honest
+partial form - a record missing one of the seven is malformed and
+produces no bytes, and a hash whose `source` is never named is exactly
+the fabricated-completeness shape the fixtures reject. Provenance
+verification of the hash itself is a later-phase surface; this slice
+requires the fields to exist, not to be trusted.
+
+#### Version
+
+- Schema version constant: contracts ride on `SchemaVersion = 1` audit
+  envelope discipline; this record shape itself is versioned by the
+  wave, first instantiation is slice W2.4.
+- Vocabulary listing authority: the `evidence-spec-anchor` block above
+  is the only normative source for the seven names; the wire tokens
+  are its mechanical derivation, mirrored in
+  `internal/schema/evidenceprofile.go` (`evidenceFieldWireNames`).
+- A versioned change is any addition, removal, or rename inside the
+  seven-token set, or any flip of the presence rule - each one needs
+  its own slice, contract edit, and both-checker green in the same
+  change; adding a `signature` field later is a versioned change of
+  exactly this kind.
+
+#### Compatibility
+
+- Additive evolution precedent: like every wave schema this contract
+  is additive - no existing audit line, fixture corpus, or golden file
+  gains or loses fields through it, and old readers keep reading
+  exactly what they read before.
+- Old-reader behavior: nothing in the runtime emits or consumes
+  evidence records yet (`evidence_enforcement_plane:
+  none-in-observation-phase`), so reader compatibility is vacuous by
+  construction until the first emitter slice (`ParseEvidenceRecord` is
+  today the only decoder in the tree).
+- Banned mutations: renaming a wire token, splitting `actor_agent_identity`
+  into display spellings, introducing an eighth "convenience" field, or
+  weakening the requiredness without retiring the spec anchor - all are
+  contract events, not edits.
+
+#### Migration
+
+- Obligation on existing records: none. No evidence records were ever
+  emitted under a previous shape, and the audit line's `v: 1` stream is
+  untouched; writing that sentence is the migration, honestly.
+- Phase gate for reserved values: the signature/seal envelope is the
+  one reserved surface named in the spec; it stays out of the closed
+  seven set until its own slice flips `evidence_signature_envelope_phase`.
+- Major-bump requirements: a required-to-optional flip or field removal
+  is a major change requiring retired-pointer notes in this file plus
+  migration lines here; no silent byte-level reshaping.
+
+#### Validation
+
+- Enforcement sites: `ParseEvidenceRecord` / `EncodeEvidenceChecked`
+  in `internal/schema/evidenceprofile.go` (unknown-field rejection
+  before value trust, non-empty requiredness, zero bytes on rejection),
+  the Node structural checker `scripts/schema-v2-check.mjs` (vocabulary,
+  count, anchor back-check with the slash rule, Go mirror, plane and
+  phasing strings), and the Go sync tests pinning docs to code verbatim.
+- Independent-source count: three (Go declarations, Node checker keys,
+  this contract file) recomputed on every gate run; the fixture pair set
+  in `testdata/evidenceprofile/` carries good and wild shapes so the
+  gates demonstrably have teeth.
+- Structural: the decision-plane directories stay free of the new
+  record symbols (planeLeak needle extended with this slice's symbols
+  in the same change), and the closed decision set `{allow,
+  would_block}` is byte-identical through this slice.
+
+## 9. Profile schema - complete contract
+
+A profile record is the accumulating observation plane the
+specification asks for in two sections: a user-level long-term
+security profile (twelve named areas) and a per-agent behavior profile
+(eleven named accumulators). The contract is a record-form minimal
+skeleton: field vocabularies, honest absence, and the
+specification's own hard limit - the profile may serve as risk and
+compatibility input but may never replace a hard security boundary -
+pinned as constants. No judgement, scoring arithmetic, or consumer
+lives behind these records in this slice, and the memory-security
+principle (Memory is never Authorization) is recorded here only as a
+boundary note for later consumers, with zero pre-borrowed semantics.
+
+Machine-readable core:
+
+```schemav2
+profile_scope_vocabulary: personal, agent
+profile_scope_count: 2
+profile_personal_field_vocabulary: common_agents, common_tools, common_mcps, common_skills, projects, servers, domains, normal_workflows, sensitive_assets, hard_deny, preferred_security_mode, compatibility_notes
+profile_personal_field_count: 12
+profile_agent_field_vocabulary: common_tasks, common_tools, common_processes, common_files, common_network, normal_sequences, known_deviations, compatibility_issues, validated_fixes, confidence, trust_decay
+profile_agent_field_count: 11
+profile_spec_anchors: profile-personal-spec-anchor, profile-agent-spec-anchor
+profile_absent_semantics: not-yet-observed-known-gap
+profile_number_semantics: recorded-text-no-numeric-score
+profile_enforcement_plane: none-in-observation-phase
+profile_hard_boundary_rule: never-replaces-hard-security-boundaries
+```
+
+Verbatim anchors (the field names exactly as the specification lists
+them - the personal set from its text block, the agent set from its
+bullet list - one per line, in normative order):
+
+```profile-personal-spec-anchor
+Common Agents
+Common Tools
+Common MCPs
+Common Skills
+Projects
+Servers
+Domains
+Normal Workflows
+Sensitive Assets
+Hard Deny
+Preferred Security Mode
+Compatibility Notes
+```
+
+```profile-agent-spec-anchor
+Common Tasks
+Common Tools
+Common Processes
+Common Files
+Common Network
+Normal Sequences
+Known Deviations
+Compatibility Issues
+Validated Fixes
+Confidence
+Trust Decay
+```
+
+Back-check rule: each anchor line, lower-cased with spaces collapsed
+to single underscores, must equal the corresponding wire token of its
+scope's vocabulary, in order - twelve plus eleven mechanical
+comparisons. `common_tools` is deliberately one token shared by both
+scopes: the wave forbids forking synonymous vocabularies.
+
+Scope table (row order pins the specification's section order; the
+two scope tokens are in-repo naming assigned by this slice, since the
+spec spells the kinds as section titles - the same honest degradation
+already recorded for the blast-radius scope table):
+
+| `personal` | user-level long-term security profile | spec personal-profile section, row 1 |
+|---|---|---|
+| `agent` | per-agent automatically accumulated behavior profile | spec agent-behavior section, row 2 |
+
+All fields are optional at the record level: a profile accumulates
+over time, so an absent field means not yet observed (a known gap),
+never guessed content and never an implicit permissive default.
+`confidence` and `trust_decay` stay free-form recorded text -
+numeric scoring would pre-borrow judgement semantics this wave
+refuses to carry.
+
+#### Version
+
+- Schema version constant: same wave discipline as the evidence
+  contract (`SchemaVersion = 1` envelope, first instantiation slice
+  W2.4); the two vocabularies are versioned together because one
+  record kind names both scopes.
+- Vocabulary listing authority: the two `profile-*-spec-anchor` blocks
+  above; wire tokens live in `internal/schema/evidenceprofile.go`
+  (`profilePersonalFieldWireNames`, `profileAgentFieldWireNames`,
+  `profileScopeWireNames`), mirrored mechanically.
+- A versioned change is any membership edit to the twelve, the eleven,
+  or the two scope tokens, or a flip of the optional/absent rules -
+  each needs its own slice with both checkers green in the same change.
+
+#### Compatibility
+
+- Additive evolution precedent: nothing existing changes shape; the
+  profile contracts are new keys on a new record kind, and the audit
+  stream, goldens, and corpus stay byte-identical.
+- Old-reader behavior: no emitter and no consumer exist yet
+  (`profile_enforcement_plane: none-in-observation-phase`), so old
+  readers are unaffected by construction; the first consumer slice
+  inherits the hard-boundary rule as a precondition, not as a surprise.
+- Banned mutations: promoting `hard_deny` or `trust_decay` into a
+  decision input in a docs edit, forking a second tools token per
+  scope, or turning the scalar observations into numeric fields
+  without retiring `profile_number_semantics` in the same change.
+
+#### Migration
+
+- Obligation on existing records: none - no profile records were
+  written under any prior shape (`ParsePersonalProfile` and
+  `ParseAgentProfile` are today's only profile decoders), and stating
+  that is the honest migration line; no silent backfilling of
+  "defaults".
+- Phase gate for reserved values: judgement-feeding use of any profile
+  field is reserved to a later phase and gated behind the
+  hard-boundary rule plus the memory-is-not-authorization principle;
+  neither is exercised by this slice.
+- Major-bump requirements: making any field required, or merging the
+  two scope vocabularies into one, is a major change requiring this
+  section's rewrite and the row-order pin retired with notes.
+
+#### Validation
+
+- Enforcement sites: `ParsePersonalProfile` / `ParseAgentProfile` /
+  the two checked encoders in `internal/schema/evidenceprofile.go`
+  (unknown-field rejection before value trust, zero bytes on
+  rejection), the Node structural checker (two vocabularies, counts,
+  anchor back-checks, scope mirror, plane/hard-boundary/absent/number
+  strings), and the Go sync tests pinning docs to code verbatim.
+- Independent-source count: three (Go declarations, Node checker keys,
+  this contract file) recomputed per run; `testdata/profile/` pairs
+  good and wild fixtures (display-spelling keys, unknown tokens,
+  wrong-type scalars) so the teeth are demonstrated, per the fixture
+  discipline inherited from the intent and impact slices.
+- Structural: this slice's symbols join the planeLeak needle set in
+  the same PR, keeping decision-plane directories at zero references,
+  and the closed set `{allow, would_block}` is byte-identical again.
+
+## 10. Pending slots
+
+None. The wave slot map above reads `status: complete` for all seven
+schemas; the slot lifecycle in section 1 forbids a third state, and
+this section exists so the census stays explicit rather than implied.

@@ -1,0 +1,3 @@
+{"confidence":"high","trust_decay":"none observed","known_deviations":[],"common_tools":["git"],"validated_fixes":["pin PATH before go runs"]}
+{"common_tasks":["build","test"],"common_processes":["go test ./..."],"common_files":["docs/schema-v2.md"],"common_network":["api.github.com"],"normal_sequences":["fetch then merge-check then push"]}
+{"compatibility_issues":["mac cross runner allocation flakiness"]}

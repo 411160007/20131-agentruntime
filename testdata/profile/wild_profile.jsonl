@@ -1,0 +1,5 @@
+{"confidence":"high","trust_decay":0.9}
+{"common_tools":["git"],"scope":"global"}
+{"hard_deny":"payment-execution","unknown_accumulator":["x"]}
+{"Common Tasks":["build"],"Trust Decay":"none observed"}
+{"projects":"not-a-list"}

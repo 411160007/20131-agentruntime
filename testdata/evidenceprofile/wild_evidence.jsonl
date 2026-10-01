@@ -1,0 +1,6 @@
+{"timestamp":"2026-10-01T22:55:00Z","integrity_hash":"sha256:deadbe","policy_version":"v1","decision_id":"d-0001","event_correlation_id":"e-0001","actor_agent_identity":"agent:x"}
+{"timestamp":"2026-10-01T22:55:00Z","source":"","integrity_hash":"sha256:beef00","policy_version":"v1","decision_id":"d-0002","event_correlation_id":"e-0002","actor_agent_identity":"agent:x"}
+{"timestamp":"2026-10-01T22:55:00Z","source":"collector:x","integrity_hash":"sha256:cafe01","policy_version":"v1","decision_id":"d-0003","event_correlation_id":"e-0003","actor_agent_identity":"agent:x","signature":"envelope:pre-borrowed"}
+{"Timestamp":"2026-10-01T22:55:00Z","Source":"collector:x","Integrity Hash":"sha256:cafe02","Policy Version":"v1","Decision ID":"d-0004","Event Correlation ID":"e-0004","Actor / Agent Identity":"agent:x"}
+{"timestamp":1759344900,"source":"collector:x","integrity_hash":"sha256:cafe03","policy_version":"v1","decision_id":"d-0005","event_correlation_id":"e-0005","actor_agent_identity":"agent:x"}
+{"source":"collector:x","integrity_hash":"sha256:cafe04","policy_version":"v1","decision_id":"d-0006","event_correlation_id":"e-0006","actor_agent_identity":"agent:x"}

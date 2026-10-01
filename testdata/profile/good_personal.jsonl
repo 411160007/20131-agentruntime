@@ -1,0 +1,3 @@
+{"common_agents":["claude-code","codex"],"common_tools":["git","rg"],"common_mcps":["filesystem"],"sensitive_assets":["ssh-keys"],"hard_deny":["payment-execution"],"preferred_security_mode":"balanced","compatibility_notes":["runner quirks on macos"]}
+{"domains":["internal.example"],"normal_workflows":["commit then CI"],"projects":["20131"],"servers":[],"common_skills":["go","node"]}
+{}
