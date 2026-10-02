@@ -164,6 +164,60 @@ function dataActionProblems(text, goText) {
   return bad;
 }
 
+function trustDomainProblems(text, goText) {
+  const bad = [];
+  const rulePins = [
+    ['trust_domain_crossing_rule', 'TrustDomainCrossingRule', 'cross-domain-data-movement-requires-data-boundary'],
+    ['trust_domain_absent_default', 'TrustDomainAbsentDefault', 'absent-means-unclassified-legacy-never-inferred'],
+    ['trust_domain_enforcement_plane', 'TrustDomainEnforcementPlane', 'none-in-observation-phase'],
+  ];
+  const levels = findKey(text, 'trust_level_vocabulary');
+  const domains = findKey(text, 'run_domain_vocabulary');
+  const projection = findKey(text, 'trust_domain_legacy_projection');
+  if (levels === null || domains === null || projection === null) {
+    return ['trust domain contract keys missing or duplicated'];
+  }
+  for (const tok of levels.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('trust level Go mirror missing: ' + tok);
+  }
+  for (const tok of domains.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('run domain Go mirror missing: ' + tok);
+  }
+  // Migration annotation pairs, pinned against the Go map literal.
+  // A projection line rewritten into the lift direction (low=s0...)
+  // is the planted red shape: pair keys must stay trust levels and
+  // pair values must stay legacy classes.
+  const goPairKey = {
+    s0_normal: 'LevelNormal', s1_private: 'LevelPrivate',
+    s2_sensitive: 'LevelSensitive', s3_credential: 'LevelCredential',
+    s4_security_boundary: 'LevelSecurityBoundary',
+  };
+  const goPairVal = { low: 'ResLow', medium: 'ResMedium', high: 'ResHigh' };
+  const seenLevels = new Set();
+  for (const pair of projection.split(',')) {
+    const kv = pair.split('=');
+    if (kv.length !== 2 || !(kv[0] in goPairKey) || !(kv[1] in goPairVal)) {
+      return ['trust domain projection line drifted off the five-pair table'];
+    }
+    seenLevels.add(kv[0]);
+    const pairRe = new RegExp(goPairKey[kv[0]] + '\\s*:\\s*' + goPairVal[kv[1]] + ',');
+    if (!pairRe.test(goText)) {
+      bad.push('trust domain projection Go mirror drifted: ' + pair);
+    }
+  }
+  if (seenLevels.size !== 5) bad.push('trust domain projection lost a level row');
+  for (const [key, ident, val] of rulePins) {
+    const got = findKey(text, key);
+    if (got === null) return ['trust domain contract keys missing or duplicated'];
+    if (got !== val) bad.push('trust domain line drifted: ' + key);
+    if (!goText.includes(ident + ' = "' + val + '"')) {
+      bad.push('trust domain rule Go mirror drifted: ' + ident);
+    }
+  }
+  if (text.indexOf('## 16. Trust domain mapping contract') < 0) bad.push('section 16 header missing');
+  return bad;
+}
+
 function findKey(text, k) {
   let blocks;
   try {
@@ -334,6 +388,7 @@ const aaSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'actionalign
 const ucSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'untrustedconsume.go'), 'utf8');
 const iiSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'intentinflow.go'), 'utf8');
 const daSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'dataaction.go'), 'utf8');
+const tdSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'trustdomain.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -553,7 +608,7 @@ function alignmentProblems(text, goText) {
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
-  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane/;
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane|TrustLevel|RunDomain|AllTrustLevels|AllRunDomains|LegacyClassOf|LiftCandidates|trustToLegacyClass|TrustDomainLegacyProjectionRule|TrustDomainCrossingRule|TrustDomainAbsentDefault|TrustDomainEnforcementPlane/;
   for (const d of PLANE_DIRS) {
     const dir = path.join(root, 'internal', d);
     let entries;
@@ -634,6 +689,10 @@ const da = dataActionProblems(v, daSrc);
 check(da.length === 0, 'data action: nine-word closed vocabulary mirrored docs<->Go<->api contract, nonequivalence and rejudgement and absent-default and none-plane pinned, section 15 present');
 if (inf.length) console.log('  ' + inf.join('\n  '));
 
+const td = trustDomainProblems(v, tdSrc);
+check(td.length === 0, 'trust domain: five levels and seven domains mirrored docs<->Go, projection table pinned pair by pair, lift-window and crossing and absent-default and none-plane rules pinned, section 16 present');
+if (td.length) console.log('  ' + td.join('\n  '));
+
 const mtp = masterTableProblems(v);
 check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
 if (mtp.length) console.log('  ' + mtp.join('\n  '));
@@ -680,6 +739,9 @@ if (process.argv.includes('--selftest')) {
     ['data action vocabulary drifts', (t) => t.replace('data_action_vocabulary: discover,read,write,modify,delete,execute,export,share,persist', 'data_action_vocabulary: read,write,export'), (t) => dataActionProblems(t, daSrc)],
     ['data action absent default pre-borrowed into a default class', (t) => t.replace('data_action_absent_default: absent-means-unclassified-legacy-never-inferred', 'data_action_absent_default: default-to-read-when-absent'), (t) => dataActionProblems(t, daSrc)],
     ['data action enforcement plane pre-borrowed', (t) => t.replace('data_action_enforcement_plane: none-in-observation-phase', 'data_action_enforcement_plane: enforce-now'), (t) => dataActionProblems(t, daSrc)],
+    ['trust domain projection rewritten into a lift rule', (t) => t.replace('trust_domain_legacy_projection: s0_normal=low,s1_private=medium,s2_sensitive=medium,s3_credential=high,s4_security_boundary=high', 'trust_domain_legacy_projection: low=s0_normal,medium=s1_private,high=s3_credential'), (t) => trustDomainProblems(t, tdSrc)],
+    ['trust domain absent default pre-borrowed into an upgrade', (t) => t.replace('trust_domain_absent_default: absent-means-unclassified-legacy-never-inferred', 'trust_domain_absent_default: default-to-s0-normal-when-absent'), (t) => trustDomainProblems(t, tdSrc)],
+    ['trust domain enforcement plane pre-borrowed', (t) => t.replace('trust_domain_enforcement_plane: none-in-observation-phase', 'trust_domain_enforcement_plane: enforce-now'), (t) => trustDomainProblems(t, tdSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {

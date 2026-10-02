@@ -46,11 +46,11 @@ echo 'V2-CHECK FULL RUN GREEN (master table predicate included)'
 step '02 selftest positive controls: every mutation caught, shipped file silent'
 node scripts/schema-v2-check.mjs --selftest > "$TMPDIR/gate-w2-selftest.out" 2>&1 \
   || { tail -20 "$TMPDIR/gate-w2-selftest.out"; echo RED: selftest; exit 1; }
-grep -q 'SELFTEST OK: all 35 mutations caught' "$TMPDIR/gate-w2-selftest.out" \
-  || { echo 'RED: selftest banner (want all 35 caught)'; tail -5 "$TMPDIR/gate-w2-selftest.out"; exit 1; }
+grep -q 'SELFTEST OK: all 38 mutations caught' "$TMPDIR/gate-w2-selftest.out" \
+  || { echo 'RED: selftest banner (want all 38 caught)'; tail -5 "$TMPDIR/gate-w2-selftest.out"; exit 1; }
 MISSES=$(grep -c 'SELFTEST MISS' "$TMPDIR/gate-w2-selftest.out" || true)
 [ "$MISSES" -eq 0 ] || { echo "RED: $MISSES selftest mutations missed"; exit 1; }
-echo 'SELFTEST 35/35 CAUGHT (shipped predicates have teeth)'
+echo 'SELFTEST 38/38 CAUGHT (shipped predicates have teeth)'
 
 step '03 Go second implementation: full schema package plus master battery'
 go test -count=1 ./internal/schema > "$TMPDIR/gate-w2-go.out" 2>&1 \

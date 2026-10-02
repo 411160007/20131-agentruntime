@@ -4,7 +4,7 @@
 # lines mirrored docs<->Go, yin-yang sticky-propagation tests, red
 # shapes rejected before bytes), the slice W3.2 alignment record
 # surface (inherited through gate-w2), the full v2-check battery with
-# its 32-mutation positive-control selftest, an escalation-path
+# its selftest positive-control fleet, an escalation-path
 # red-shape grep whose teeth are proven by a plant/remove control on
 # the command tree, and the complete inherited chain (gate-w2, which
 # re-runs gate-w1, gate-w0, gate-d7, and gate-d1..d6 serially) with
@@ -45,16 +45,18 @@ grep -q 'PASS inflow' "$TMPDIR/gate-w3-v2check.out" \
   || { echo 'RED: inflow predicate did not run'; exit 1; }
 grep -q 'PASS data action' "$TMPDIR/gate-w3-v2check.out" \
   || { echo 'RED: data action predicate did not run'; exit 1; }
-echo 'V2-CHECK FULL RUN GREEN (consume and inflow predicates included)'
+grep -q 'PASS trust domain' "$TMPDIR/gate-w3-v2check.out" \
+  || { echo 'RED: trust domain predicate did not run'; exit 1; }
+echo 'V2-CHECK FULL RUN GREEN (consume, inflow, data action, and trust domain predicates included)'
 
 step '02 selftest positive controls: every mutation caught, shipped file silent'
 node scripts/schema-v2-check.mjs --selftest > "$TMPDIR/gate-w3-selftest.out" 2>&1 \
   || { tail -20 "$TMPDIR/gate-w3-selftest.out"; echo RED: selftest; exit 1; }
-grep -q 'SELFTEST OK: all 35 mutations caught' "$TMPDIR/gate-w3-selftest.out" \
-  || { echo 'RED: selftest banner (want all 35 caught)'; tail -5 "$TMPDIR/gate-w3-selftest.out"; exit 1; }
+grep -q 'SELFTEST OK: all 38 mutations caught' "$TMPDIR/gate-w3-selftest.out" \
+  || { echo 'RED: selftest banner (want all 38 caught)'; tail -5 "$TMPDIR/gate-w3-selftest.out"; exit 1; }
 MISSES=$(grep -c 'SELFTEST MISS' "$TMPDIR/gate-w3-selftest.out" || true)
 [ "$MISSES" -eq 0 ] || { echo "RED: $MISSES selftest mutations missed"; exit 1; }
-echo 'SELFTEST 35/35 CAUGHT (shipped predicates have teeth)'
+echo 'SELFTEST 38/38 CAUGHT (shipped predicates have teeth)'
 
 step '03 Go: full schema package plus the named W3.3 consumption battery'
 go test -count=1 ./internal/schema > "$TMPDIR/gate-w3-go.out" 2>&1 \
