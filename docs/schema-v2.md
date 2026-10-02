@@ -1592,3 +1592,86 @@ before believing any green). Decision values stay inside the Phase 0
 closed pair `{allow, would_block}` untouched by this slice; the
 vocabulary is consumed by validators, docs, and tests and by nothing
 else.
+
+## 16. Trust domain mapping contract (slice W4.2)
+
+Section 239 of the owner spec defines five trust levels (S0 Normal,
+S1 Private, S2 Sensitive, S3 Credential, S4 Security Boundary) and
+seven run domains (User, Agent, Tool, Sandbox, Recovery, Security
+Core, External), and states that cross-domain data movement must
+pass through a Data Boundary. Slice W4.2 lands the mapping between
+the legacy three-tier resource sensitivity classes (`res_class`
+low / medium / high, the shipped legacy surface) and that five-level semantics,
+plus the run-domain vocabulary, as a record-only machine contract.
+This section is deliberately not one of the fifteen schema names of
+section 289: the wave enumerates no "trust domain" schema, so
+section 11 and its twenty-eight cells stay untouched and this
+section adds no master_cell block (the census doctrine forbids
+private rows beside the table).
+
+### 16.1 The six trust domain keys
+
+```schemav2
+trust_level_vocabulary: s0_normal,s1_private,s2_sensitive,s3_credential,s4_security_boundary
+run_domain_vocabulary: user,agent,tool,sandbox,recovery,security_core,external
+trust_domain_legacy_projection: s0_normal=low,s1_private=medium,s2_sensitive=medium,s3_credential=high,s4_security_boundary=high
+trust_domain_crossing_rule: cross-domain-data-movement-requires-data-boundary
+trust_domain_absent_default: absent-means-unclassified-legacy-never-inferred
+trust_domain_enforcement_plane: none-in-observation-phase
+```
+
+The first two lines are the closed vocabularies in normative order,
+pinned verbatim against `AllTrustLevels` and `AllRunDomains` in
+`internal/schema/trustdomain.go`; the third is the migration
+annotation table - the five pairs pinned against
+`trustToLegacyClass` pair by pair - and the last three are pinned
+verbatim against the rule constants (`TrustDomainCrossingRule`,
+`TrustDomainAbsentDefault`, `TrustDomainEnforcementPlane`; the
+projection rule constant `TrustDomainLegacyProjectionRule` carries
+the direction discipline of the table below). Drift in either
+direction is a red build, asserted twice: by the Node checker
+predicate and by the Go sync test in the same package.
+
+### 16.2 Migration direction: projection is a function, lift is a window
+
+The legacy three-tier to five-tier move is annotated, never automated:
+
+- **Five to three (projection) is total and exact.** Every trust
+  level names exactly one legacy class it collapses to: s0_normal to
+  low; s1_private and s2_sensitive each to medium; s3_credential and
+  s4_security_boundary each to high. `LegacyClassOf` is the only
+  direction the mapping runs as a function.
+- **Three to five (lift) is a window, never a point.** Low lifts to
+  the one-member window {s0_normal}; medium lifts to {s1_private,
+  s2_sensitive}; high lifts to {s3_credential, s4_security_boundary}.
+  Selecting one member of a window would fabricate which distinction
+  an old line "really" drew, so the shipped API returns the whole
+  candidate set (`LiftCandidates`) or nothing, and no single-valued
+  lift helper exists in the package at all. Consumers carry the
+  ambiguity forward or record an explicit trust level.
+- **Legacy lines keep their exact meaning.** No old low/medium/high
+  record is re-labelled into an S level by any tool in this wave;
+  the projection pairs above are the migration annotation lines,
+  present so a later boundary slice can interpret both vocabularies
+  side by side without inventing history.
+- **Absent means unclassified.** A record with no trust level and no
+  run domain is valid, unclassified legacy, and never inferred into
+  s0_normal or any default. Empty tokens have no projection and lift
+  to nothing.
+
+### 16.3 Plane discipline
+
+`TrustLevel`, `RunDomain`, `AllTrustLevels`, `AllRunDomains`,
+`LegacyClassOf`, `LiftCandidates`, `trustToLegacyClass`, and the
+rule constants join the planeLeak needle set in
+`scripts/schema-v2-check.mjs` in this same PR: no policy, rules,
+bus, or auditlog file may reference them while
+`trust_domain_enforcement_plane` reads none-in-observation-phase,
+and the command tree is scanned for the same symbols by the Go test
+with a planted-shape control (the positive control fires against
+this package's own shipped source, so the walk proves its own teeth
+before believing any green). The cross-domain obligation of section
+239 is a recording requirement for the later Data Boundary slices
+(W4.3 onward); nothing in the current phase enforces or judges on
+it. Decision values stay inside the Phase 0 closed pair `{allow,
+would_block}` untouched by this slice.
