@@ -1,0 +1,10 @@
+{"channel":"cli_file","payload":{"goalii":"unknown wire name"}}
+{"channel":"cli_file","payload":{"goal":"x","authority":{"links":[{"origin":"superuser_direct"}]}}}
+{"channel":"cli_file","payload":{"goal":"x","authority":{"links":[{"origin":"agent_provided","untrusted":true}]}}}
+{"channel":"cli_file","payload":["not an object"]}
+{"channel":"hook_task","payload":{"task":"x","authority":{"links":[{"origin":"user_direct"}]}}}
+{"channel":"hook_task","payload":{"task":"x","goal":"smuggled goal"}}
+{"channel":"hook_task","payload":{"task":42}}
+{"channel":"hook_task","payload":{"task":{"nested":"object claim"}}}
+{"channel":"hook_task","payload":"bare string"}
+{"channel":"carrier_lost","payload":{"task":"x"}}

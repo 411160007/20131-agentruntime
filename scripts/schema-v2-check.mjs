@@ -114,6 +114,31 @@ function consumeProblems(text, goText) {
   return bad;
 }
 
+function inflowProblems(text, goText) {
+  const bad = [];
+  const pins = [
+    ['inflow_channel_vocabulary', 'AllIntentInflowSources', 'cli_file,hook_task,absent_not_reported'],
+    ['hook_task_mapping_rule', 'HookTaskMappingRule', 'task-field-maps-to-goal-and-nothing-else'],
+    ['inflow_absent_default', 'InflowAbsentDefault', 'not-reported-is-known-gap-never-fabricated'],
+    ['inflow_forge_rule', 'InflowForgeRule', 'inflow-channel-never-escalates-authority'],
+    ['inflow_enforcement_plane', 'InflowEnforcementPlane', 'none-in-observation-phase'],
+  ];
+  for (const [key, ident, val] of pins) {
+    const got = findKey(text, key);
+    if (got === null) return ['inflow contract keys missing or duplicated'];
+    if (got !== val) bad.push('inflow line drifted: ' + key);
+    if (ident === 'AllIntentInflowSources') {
+      for (const tok of val.split(',')) {
+        if (!goText.includes('"' + tok + '"')) bad.push('inflow channel Go mirror missing: ' + tok);
+      }
+    } else if (!goText.includes(ident + ' = "' + val + '"')) {
+      bad.push('inflow rule Go mirror drifted: ' + ident);
+    }
+  }
+  if (text.indexOf('## 14. Intent inflow contract') < 0) bad.push('section 14 header missing');
+  return bad;
+}
+
 function findKey(text, k) {
   let blocks;
   try {
@@ -282,6 +307,7 @@ const irSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'impactrecov
 const epSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'evidenceprofile.go'), 'utf8');
 const aaSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'actionalignment.go'), 'utf8');
 const ucSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'untrustedconsume.go'), 'utf8');
+const iiSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'intentinflow.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -501,7 +527,7 @@ function alignmentProblems(text, goText) {
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
-  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane/;
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane/;
   for (const d of PLANE_DIRS) {
     const dir = path.join(root, 'internal', d);
     let entries;
@@ -576,6 +602,10 @@ const con = consumeProblems(v, ucSrc);
 check(con.length === 0, 'untrusted consumption: five rule lines mirrored docs<->Go, forge and preservation and stickiness and none-plane pinned, section 13 present');
 if (con.length) console.log('  ' + con.join('\n  '));
 
+const inf = inflowProblems(v, iiSrc);
+check(inf.length === 0, 'inflow: three-channel closed vocabulary mirrored docs<->Go, task mapping and known-gap default and forge rejection and none-plane pinned, section 14 present');
+if (inf.length) console.log('  ' + inf.join('\n  '));
+
 const mtp = masterTableProblems(v);
 check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
 if (mtp.length) console.log('  ' + mtp.join('\n  '));
@@ -616,6 +646,9 @@ if (process.argv.includes('--selftest')) {
     ['consume forge rule pre-borrowed', (t) => t.replace('origin_forge_rule: untrusted-source-never-claims-user_direct', 'origin_forge_rule: untrusted-may-claim-user-direct-on-high-trust'), (t) => consumeProblems(t, ucSrc)],
     ['consume enforcement plane pre-borrowed', (t) => t.replace('consume_enforcement_plane: none-in-observation-phase', 'consume_enforcement_plane: enforce-now'), (t) => consumeProblems(t, ucSrc)],
     ['consume stickiness rule flipped', (t) => t.replace('sticky_clearance_rule: consumption-never-clears-an-existing-untrusted-mark', 'sticky_clearance_rule: consumption-clears-marks-on-trusted-write'), (t) => consumeProblems(t, ucSrc)],
+    ['inflow channel vocabulary drifts', (t) => t.replace('inflow_channel_vocabulary: cli_file,hook_task,absent_not_reported', 'inflow_channel_vocabulary: cli_file,hook_task'), (t) => inflowProblems(t, iiSrc)],
+    ['inflow absent default pre-borrowed into fabrication', (t) => t.replace('inflow_absent_default: not-reported-is-known-gap-never-fabricated', 'inflow_absent_default: fill-in-a-plausible-default-when-missing'), (t) => inflowProblems(t, iiSrc)],
+    ['inflow enforcement plane pre-borrowed', (t) => t.replace('inflow_enforcement_plane: none-in-observation-phase', 'inflow_enforcement_plane: enforce-now'), (t) => inflowProblems(t, iiSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {

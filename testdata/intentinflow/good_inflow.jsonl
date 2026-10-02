@@ -1,0 +1,7 @@
+{"channel":"cli_file","payload":{"goal":"ship the quarterly report","scope":"docs tree only","expected_outcome":"report published","expected_actions":["build pdf","upload"],"allowed_resources":["/data/reports"],"sensitive_resources":["/data/payroll.csv"],"forbidden_scope":"billing","authority":{"links":[{"origin":"user_direct"}]},"duration":"1h","constraints":["no external posts"]}}
+{"channel":"cli_file","payload":{"goal":"minimal stated goal"}}
+{"channel":"cli_file","payload":{"goal":"untrusted stated channel","authority":{"links":[{"origin":"external_model_interpreted","untrusted":true}],"untrusted":true}}}
+{"channel":"cli_file","payload":{}}
+{"channel":"hook_task","payload":{"task":"summarize yesterday's threads"}}
+{"channel":"hook_task","payload":{}}
+{"channel":"hook_task","payload":{"task":""}}
