@@ -218,6 +218,34 @@ function trustDomainProblems(text, goText) {
   return bad;
 }
 
+function exportWrapProblems(text, goText) {
+  const bad = [];
+  const rulePins = [
+    ['export_packaging_sensitivity_rule', 'ExportPackagingSensitivityRule', 'packaging-never-lowers-sensitivity'],
+    ['export_rejudgement_independence_rule', 'ExportRejudgementIndependenceRule', 'read-allow-never-carries-to-export'],
+    ['export_rejudgement_absent_default', 'ExportRejudgementAbsentDefault', 'absent-means-no-packaging-observed-never-inferred'],
+    ['export_rejudgement_enforcement_plane', 'ExportRejudgementEnforcementPlane', 'none-in-observation-phase'],
+  ];
+  const words = findKey(text, 'export_packaging_word_vocabulary');
+  if (words === null) return ['export wrap contract keys missing or duplicated'];
+  if (words !== 'compress,encode,encrypt,archive,copy,upload,send,share') {
+    bad.push('export wrap vocabulary line drifted from the closed eight');
+  }
+  for (const tok of words.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('packaging word Go mirror missing: ' + tok);
+  }
+  for (const [key, ident, val] of rulePins) {
+    const got = findKey(text, key);
+    if (got === null) return ['export wrap contract keys missing or duplicated'];
+    if (got !== val) bad.push('export wrap line drifted: ' + key);
+    if (!goText.includes(ident + ' = "' + val + '"')) {
+      bad.push('export wrap rule Go mirror drifted: ' + ident);
+    }
+  }
+  if (text.indexOf('## 17. EXPORT re-judgement and packaging annotation contract') < 0) bad.push('section 17 header missing');
+  return bad;
+}
+
 function findKey(text, k) {
   let blocks;
   try {
@@ -389,6 +417,7 @@ const ucSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'untrustedco
 const iiSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'intentinflow.go'), 'utf8');
 const daSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'dataaction.go'), 'utf8');
 const tdSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'trustdomain.go'), 'utf8');
+const ewSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'exportwrap.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -608,7 +637,7 @@ function alignmentProblems(text, goText) {
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
-  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane|TrustLevel|RunDomain|AllTrustLevels|AllRunDomains|LegacyClassOf|LiftCandidates|trustToLegacyClass|TrustDomainLegacyProjectionRule|TrustDomainCrossingRule|TrustDomainAbsentDefault|TrustDomainEnforcementPlane/;
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane|TrustLevel|RunDomain|AllTrustLevels|AllRunDomains|LegacyClassOf|LiftCandidates|trustToLegacyClass|TrustDomainLegacyProjectionRule|TrustDomainCrossingRule|TrustDomainAbsentDefault|TrustDomainEnforcementPlane|PackagingWord|AllPackagingWords|ExportRejudgementRecord|BuildExportRejudgement|ExportPackagingSensitivityRule|ExportRejudgementIndependenceRule|ExportRejudgementAbsentDefault|ExportRejudgementEnforcementPlane/;
   for (const d of PLANE_DIRS) {
     const dir = path.join(root, 'internal', d);
     let entries;
@@ -692,6 +721,9 @@ if (inf.length) console.log('  ' + inf.join('\n  '));
 const td = trustDomainProblems(v, tdSrc);
 check(td.length === 0, 'trust domain: five levels and seven domains mirrored docs<->Go, projection table pinned pair by pair, lift-window and crossing and absent-default and none-plane rules pinned, section 16 present');
 if (td.length) console.log('  ' + td.join('\n  '));
+const ew = exportWrapProblems(v, ewSrc);
+check(ew.length === 0, 'export wrap: eight-word packaging family mirrored docs<->Go, sensitivity and independence and absent-default and none-plane rules pinned, section 17 present');
+if (ew.length) console.log('  ' + ew.join('\n  '));
 
 const mtp = masterTableProblems(v);
 check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
@@ -742,6 +774,9 @@ if (process.argv.includes('--selftest')) {
     ['trust domain projection rewritten into a lift rule', (t) => t.replace('trust_domain_legacy_projection: s0_normal=low,s1_private=medium,s2_sensitive=medium,s3_credential=high,s4_security_boundary=high', 'trust_domain_legacy_projection: low=s0_normal,medium=s1_private,high=s3_credential'), (t) => trustDomainProblems(t, tdSrc)],
     ['trust domain absent default pre-borrowed into an upgrade', (t) => t.replace('trust_domain_absent_default: absent-means-unclassified-legacy-never-inferred', 'trust_domain_absent_default: default-to-s0-normal-when-absent'), (t) => trustDomainProblems(t, tdSrc)],
     ['trust domain enforcement plane pre-borrowed', (t) => t.replace('trust_domain_enforcement_plane: none-in-observation-phase', 'trust_domain_enforcement_plane: enforce-now'), (t) => trustDomainProblems(t, tdSrc)],
+    ['export wrap vocabulary loses a word', (t) => t.replace('export_packaging_word_vocabulary: compress,encode,encrypt,archive,copy,upload,send,share', 'export_packaging_word_vocabulary: compress,encode,archive,copy,upload,send,share'), (t) => exportWrapProblems(t, ewSrc)],
+    ['export independence rule rewritten into carry-over', (t) => t.replace('export_rejudgement_independence_rule: read-allow-never-carries-to-export', 'export_rejudgement_independence_rule: read-allow-carries-to-export'), (t) => exportWrapProblems(t, ewSrc)],
+    ['export rejudgement enforcement plane pre-borrowed', (t) => t.replace('export_rejudgement_enforcement_plane: none-in-observation-phase', 'export_rejudgement_enforcement_plane: enforce-now'), (t) => exportWrapProblems(t, ewSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {

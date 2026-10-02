@@ -1675,3 +1675,75 @@ before believing any green). The cross-domain obligation of section
 (W4.3 onward); nothing in the current phase enforces or judges on
 it. Decision values stay inside the Phase 0 closed pair `{allow,
 would_block}` untouched by this slice.
+
+## 17. EXPORT re-judgement and packaging annotation contract (slice W4.3)
+
+Section 238 of the owner spec names the packaging word families -
+compress, encode, encrypt, archive, copy, upload, send, share - and
+attaches the rule that wrapping never lowers the sensitivity of what
+leaves, so EXPORT always requires an independent re-judgement. This
+section lands the record shape of that annotation next to the section
+15 vocabulary it serves: it names the closed eight, pins the rules as
+constants, and contracts one pure constructor that emits an
+observation row carrying no decision.
+
+Like sections 12 through 16 this contract is deliberately not one of
+the fifteen schema names of section 289: the wave enumerates no
+"export wrap" schema, so section 11 and its twenty-eight cells stay
+untouched and this section adds no master_cell block (the census
+doctrine forbids private rows beside the table).
+
+### 17.1 The five export re-judgement keys
+
+```schemav2
+export_packaging_word_vocabulary: compress,encode,encrypt,archive,copy,upload,send,share
+export_packaging_sensitivity_rule: packaging-never-lowers-sensitivity
+export_rejudgement_independence_rule: read-allow-never-carries-to-export
+export_rejudgement_absent_default: absent-means-no-packaging-observed-never-inferred
+export_rejudgement_enforcement_plane: none-in-observation-phase
+```
+
+The first line is the closed family in normative order, pinned
+verbatim against `AllPackagingWords` in
+`internal/schema/exportwrap.go`; the other four are pinned verbatim
+against the rule constants (`ExportPackagingSensitivityRule`,
+`ExportRejudgementIndependenceRule`, `ExportRejudgementAbsentDefault`,
+`ExportRejudgementEnforcementPlane`) by the sync predicate in
+`scripts/schema-v2-check.mjs` and the Go test in that package; drift
+in either direction is a red build.
+
+The keys read as one story. `share` is deliberately a member of both
+this family and the nine data actions of section 15: as a data
+action it classifies the movement itself, as a packaging word it
+annotates a wrapping operation the re-judgement must see - the two
+closed sets stay separate tables with separate meanings. The
+independence rule is the load-bearing content: an allow recorded
+beside a READ of a target is never an allow for an EXPORT of that
+target, and the golden shape of this contract is the two-row facet -
+same target, a read row and an export row recorded side by side,
+each a record, neither carrying a decision field of any shape (the
+Go test reflects over the struct to keep it that way). Packaging
+words annotate; they never exempt: an export row is flagged for
+independent re-judgement whether its packaging list is empty or
+full, and `SensitivityPreserved` is surfaced per row so a consumer
+reads the rule with the data instead of from folklore. Absent means
+no packaging observed: no wrapper is inferred into the hole and no
+absence of wrapping is ever read as a lowered sensitivity.
+
+### 17.2 Plane discipline
+
+`PackagingWord`, `AllPackagingWords`, `ExportRejudgementRecord`,
+`BuildExportRejudgement`, and the four rule constants join the
+planeLeak needle set in `scripts/schema-v2-check.mjs` in this same
+PR: no policy, rules, bus, or auditlog file may reference them while
+`export_rejudgement_enforcement_plane` reads none-in-observation-phase,
+and the command tree is scanned for the same symbols by the Go test
+with a planted-shape control (the positive control fires against
+this package's own shipped source, so the walk proves its own teeth
+before believing any green). Decision values stay inside the Phase 0
+closed pair `{allow, would_block}` untouched by this slice; the
+constructor is called by tests and by nothing else. The wire
+contract of docs/api-v0.md gains nothing here: no event field is
+added, the capability table stays byte-identical, and this is
+annotation material for the Data Boundary recording obligations of
+section 16 - not their enforcement.
