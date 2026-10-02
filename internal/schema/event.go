@@ -259,6 +259,9 @@ func (s Severity) Valid() bool { return s >= SevInfo && s <= SevCritical }
 //   - Tier: optional routing tier (L0-L3); absent = L1.
 //   - SourceClass: optional evidence-provenance class (see SourceClass);
 //     absent = unclassified legacy; observation-only, never decides.
+//   - DataAction: optional nine-class data action annotation (see
+//     DataAction); absent = unclassified legacy; record-only, never
+//     decides.
 //   - Summary: short human-readable text, no secrets.
 //   - Attrs: optional flat string map for details (paths, tool names...);
 //     the reserved keys "cap" and "res_class", when present, must be
@@ -275,6 +278,7 @@ type Event struct {
 	Summary     string            `json:"summary"`
 	Tier        Tier              `json:"tier,omitempty"`
 	SourceClass SourceClass       `json:"source_class,omitempty"`
+	DataAction  DataAction        `json:"data_action,omitempty"`
 	Attrs       map[string]string `json:"attrs,omitempty"`
 }
 
@@ -318,6 +322,9 @@ func (e *Event) Validate() error {
 	}
 	if !e.SourceClass.Valid() {
 		return fmt.Errorf("schema: event %s: unknown source_class %q", e.ID, string(e.SourceClass))
+	}
+	if !e.DataAction.Valid() {
+		return fmt.Errorf("schema: event %s: unknown data_action %q", e.ID, string(e.DataAction))
 	}
 	if v, ok := e.Attrs["cap"]; ok && !Capability(v).Valid() {
 		return fmt.Errorf("schema: event %s: attr cap %q not in vocabulary", e.ID, v)

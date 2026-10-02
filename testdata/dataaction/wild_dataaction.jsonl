@@ -1,0 +1,8 @@
+{"v":1,"ts":"2026-10-02T12:01:01Z","id":"evt-daw-001","agent_id":"agent-1","stage":"action","type":"tool.call","decision":"allow","severity":1,"summary":"uppercase form is not the vocabulary","data_action":"DISCOVER"}
+{"v":1,"ts":"2026-10-02T12:01:02Z","id":"evt-daw-002","agent_id":"agent-1","stage":"action","type":"network.intent","decision":"allow","severity":1,"summary":"synonym smuggled as export-adjacent verb","data_action":"exfiltrate"}
+{"v":1,"ts":"2026-10-02T12:01:03Z","id":"evt-daw-003","agent_id":"agent-1","stage":"action","type":"network.intent","decision":"allow","severity":1,"summary":"packaging word treated as its own class","data_action":"upload"}
+{"v":1,"ts":"2026-10-02T12:01:04Z","id":"evt-daw-004","agent_id":"agent-1","stage":"action","type":"file.access","decision":"allow","severity":1,"summary":"capability token pasted into the data action field","data_action":"net.outbound"}
+{"v":1,"ts":"2026-10-02T12:01:05Z","id":"evt-daw-005","agent_id":"agent-1","stage":"action","type":"file.access","decision":"allow","severity":1,"summary":"two classes fused into one string","data_action":"read,write"}
+{"v":1,"ts":"2026-10-02T12:01:06Z","id":"evt-daw-006","agent_id":"agent-1","stage":"action","type":"file.access","decision":"allow","severity":1,"summary":"fabricated tenth class","data_action":"transmute"}
+{"v":1,"ts":"2026-10-02T12:01:07Z","id":"evt-daw-007","agent_id":"agent-1","stage":"action","type":"file.access","decision":"allow","severity":1,"summary":"numeric payload","data_action":42}
+{"v":1,"ts":"2026-10-02T12:01:08Z","id":"evt-daw-008","agent_id":"agent-1","stage":"action","type":"file.access","decision":"allow","severity":1,"summary":"enforcement shape borrowed early","data_action":"block"}

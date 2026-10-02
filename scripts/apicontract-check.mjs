@@ -14,7 +14,7 @@ import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const KEYS = ['stages', 'types', 'decisions', 'tiers', 'caps', 'res_classes', 'source_classes', 'states'];
+const KEYS = ['stages', 'types', 'decisions', 'tiers', 'caps', 'res_classes', 'source_classes', 'data_actions', 'states'];
 
 function contractFromDoc(text) {
   const out = {};
@@ -49,6 +49,7 @@ function listsFromValidator(src) {
     caps: grab('CAPS'),
     res_classes: grab('RES_CLASSES'),
     source_classes: grab('SOURCE_CLASS'),
+    data_actions: grab('DATA_ACTIONS'),
   };
 }
 

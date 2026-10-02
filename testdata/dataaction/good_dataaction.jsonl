@@ -1,0 +1,10 @@
+{"v":1,"ts":"2026-10-02T12:00:01Z","id":"evt-da-001","agent_id":"agent-1","stage":"action","type":"tool.call","decision":"allow","severity":1,"summary":"indexed candidate resources","data_action":"discover"}
+{"v":1,"ts":"2026-10-02T12:00:02Z","id":"evt-da-002","agent_id":"agent-1","stage":"action","type":"file.access","decision":"allow","severity":1,"summary":"opened a report for viewing","data_action":"read"}
+{"v":1,"ts":"2026-10-02T12:00:03Z","id":"evt-da-003","agent_id":"agent-1","stage":"action","type":"file.access","decision":"would_block","severity":2,"summary":"stored bytes into a workspace file","data_action":"write"}
+{"v":1,"ts":"2026-10-02T12:00:04Z","id":"evt-da-004","agent_id":"agent-1","stage":"action","type":"file.access","decision":"allow","severity":2,"summary":"edited an existing document in place","data_action":"modify"}
+{"v":1,"ts":"2026-10-02T12:00:05Z","id":"evt-da-005","agent_id":"agent-1","stage":"action","type":"file.access","decision":"would_block","severity":3,"summary":"removed a tracked file","data_action":"delete"}
+{"v":1,"ts":"2026-10-02T12:00:06Z","id":"evt-da-006","agent_id":"agent-1","stage":"action","type":"command.proposed","decision":"allow","severity":2,"summary":"ran a build command","data_action":"execute"}
+{"v":1,"ts":"2026-10-02T12:00:07Z","id":"evt-da-007","agent_id":"agent-1","stage":"action","type":"network.intent","decision":"would_block","severity":4,"summary":"upload moved data outside the boundary","data_action":"export"}
+{"v":1,"ts":"2026-10-02T12:00:08Z","id":"evt-da-008","agent_id":"agent-1","stage":"action","type":"tool.call","decision":"would_block","severity":3,"summary":"granted a collaborator access to the dataset","data_action":"share"}
+{"v":1,"ts":"2026-10-02T12:00:09Z","id":"evt-da-009","agent_id":"agent-1","stage":"action","type":"file.access","decision":"allow","severity":2,"summary":"cached results under a long-lived path","data_action":"persist"}
+{"v":1,"ts":"2026-10-02T12:00:10Z","id":"evt-da-010","agent_id":"agent-1","stage":"action","type":"tool.call","decision":"allow","severity":1,"summary":"legacy line with no data_action key at all","attrs":{"tool":"search"}}

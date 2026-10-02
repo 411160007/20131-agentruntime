@@ -30,6 +30,14 @@ const SOURCE_CLASS = [
   'native_os', 'runtime', 'tool_mcp', 'agent_meta', 'agent_self',
   'llm_interpretation',
 ];
+// DATA_ACTIONS mirrors the Go schema DataAction enum
+// (internal/schema/dataaction.go, spec vNext section 237) in normative
+// order. Absent key = unclassified legacy; the field is record-only and
+// no judgement path here consumes it.
+const DATA_ACTIONS = [
+  'discover', 'read', 'write', 'modify', 'delete', 'execute', 'export',
+  'share', 'persist',
+];
 const CAPS = [
   'file.read', 'file.write', 'file.delete', 'net.outbound', 'net.listen',
   'proc.spawn', 'shell.exec', 'mcp.tool', 'credential.access', 'env.read',
@@ -56,6 +64,7 @@ function lineErrors(e) {
   if (!Number.isInteger(e.severity) || e.severity < 0 || e.severity > 4) errs.push(`severity=${JSON.stringify(e.severity)}`);
   if (e.tier !== undefined && !TIER.includes(e.tier)) errs.push(`tier=${JSON.stringify(e.tier)}`);
   if (e.source_class !== undefined && !SOURCE_CLASS.includes(e.source_class)) errs.push(`source_class=${JSON.stringify(e.source_class)}`);
+  if (e.data_action !== undefined && !DATA_ACTIONS.includes(e.data_action)) errs.push(`data_action=${JSON.stringify(e.data_action)}`);
   if (typeof e.summary !== 'string' || e.summary.length === 0 || Buffer.byteLength(e.summary) > 512) errs.push('summary invalid');
   if (e.attrs !== undefined) {
     if (typeof e.attrs !== 'object' || e.attrs === null || Array.isArray(e.attrs)) errs.push('attrs not a map');

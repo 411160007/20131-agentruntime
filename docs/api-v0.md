@@ -32,6 +32,7 @@ and grammar are fixed:
 | summary    | string 1..512B    | yes      | human text, redacted by producers |
 | tier       | enum              | no       | see `tiers`; ABSENT MEANS L1 (additive v1 extension) |
 | source_class | enum            | no       | see `source_classes`; ABSENT MEANS unclassified legacy (additive v1 extension, observation-only) |
+| data_action  | enum              | no       | see `data_actions`; ABSENT MEANS unclassified legacy (additive v1 extension, record-only) |
 | attrs      | map[string]string | no       | keys ≤64B, values ≤1024B; reserved keys below |
 
 Reserved attrs keys:
@@ -112,6 +113,29 @@ this field in the current phase; the decision-plane zero-consumption
 and recording-plane stamps-only state is machine-asserted structurally
 by gate-d7 (field-shaped trust-order judgement upgrades land with the
 runner merge slice).
+
+```contract
+data_actions: discover, read, write, modify, delete, execute, export, share, persist
+```
+
+Data-action semantics (additive field, data boundary classification):
+the nine values name WHAT KIND of data-facing effect an event records,
+following the non-equivalences that give the classification meaning:
+`read` is not `export` and not `share` (looking at a resource
+never moves it), `write` is not `execute` (storing bytes never runs
+code), and `export` always requires an independent re-judgement: a
+decision that allowed a `read` or `write` of a target carries over to
+nothing, least of all to an `export` of that same target, and packaging
+(compressing, encoding, encrypting, archiving) never lowers the
+sensitivity of what leaves. This vocabulary is a classification
+dimension, NOT a capability token: the `caps` table below is untouched
+and every legacy line referencing `net.outbound` keeps its exact
+meaning. Absent means unclassified legacy and is never inferred into a
+default class. RECORD-ONLY: no judgement, rule, or decision path
+consumes this field in the current phase (contract pinned by
+`docs/schema-v2.md` section 15; the planeLeak scan in
+`scripts/schema-v2-check.mjs` watches the decision planes for the
+vocabulary symbols on every gate run).
 
 ```contract
 caps: file.read, file.write, file.delete, net.outbound, net.listen, proc.spawn, shell.exec, mcp.tool, credential.access, env.read, process.inspect
