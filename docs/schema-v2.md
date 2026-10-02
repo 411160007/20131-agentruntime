@@ -1454,3 +1454,75 @@ types, called by tests and by nothing else. This is section 230's
 closing sentence reduced from prose to a callable contract that
 observes the same carried-never-consumed promise every earlier
 record in this file keeps.
+
+## 14. Intent inflow contract (slice W3.1)
+
+Owner spec section 231 states the two-sided shape of plan analysis:
+an exposed plan is analyzed against the stated intent, an unexposed
+one is inferred from observed behavior. The record side of "stated"
+needs one thing before either half exists: the channels through
+which a stated intent enters the record, and the single unambiguous
+meaning of "not stated". Section 5 (W2.2) contracted the record
+shape itself; this section contracts the inflow face that feeds it,
+and the inference half stays explicitly unbuilt here (building it
+would be the fabrication this slice exists to make impossible).
+
+Like sections 12 and 13 this is deliberately not a four-element
+wave slot: the fifteen schema names of section 289 do not enumerate
+an "inflow" schema, so section 11 and its twenty-eight cells stay
+untouched and this section adds no master_cell block (the census
+doctrine forbids private rows beside the table).
+
+### 14.1 The five inflow keys
+
+```schemav2
+inflow_channel_vocabulary: cli_file,hook_task,absent_not_reported
+hook_task_mapping_rule: task-field-maps-to-goal-and-nothing-else
+inflow_absent_default: not-reported-is-known-gap-never-fabricated
+inflow_forge_rule: inflow-channel-never-escalates-authority
+inflow_enforcement_plane: none-in-observation-phase
+```
+
+The first line is the closed channel vocabulary in normative order,
+pinned verbatim against `AllIntentInflowSources` in
+`internal/schema/intentinflow.go`; the other four are pinned
+verbatim against the rule constants (`HookTaskMappingRule`,
+`InflowAbsentDefault`, `InflowForgeRule`, `InflowEnforcementPlane`)
+by the sync test in that package and by the Node checker predicate;
+drift in either direction is a red build.
+
+The keys read as one story. The CLI/file channel is a thin pass-
+through to the existing parser: every rejection the parser already
+makes (unknown wire names, malformed chains, broken propagation) is
+this channel's rejection, and a rejection yields no record at all.
+The hook-payload channel is narrower by construction: its only
+accepted key is `task`, and the task string flows into the goal
+field and nothing else - there is no hook-channel write path to any
+other intent field, so the authority chain is not policed here but
+structurally unreachable. A payload smuggling `authority`, `goal`,
+or any other wire name through the hook channel is the escalation
+shape and is rejected before any value is applied. When neither
+channel reports, the result is a positive record of absence: the
+empty record, every field unreported, `known gap` as its only
+meaning. An agent that does not self-report is recorded as
+not-self-reported; no code path fills the hole with an invented
+plan, goal, or grant.
+
+### 14.2 Plane discipline
+
+`IntentInflow`, `IntentInflowSource`, `AllIntentInflowSources`,
+`BuildIntentFromFile`-shaped inflow constructors
+(`InflowFromFile`, `InflowFromHookPayload`), `AbsentIntentRecord`,
+and the four rule constants join the planeLeak needle set in
+`scripts/schema-v2-check.mjs` in this same PR: no policy, rules,
+bus, or auditlog file may reference them while
+`inflow_enforcement_plane` reads none-in-observation-phase, and the
+command tree is scanned for the same symbols by the Go sync test
+with a planted-shape control (the positive control fires against
+this package's own shipped source, so the walk proves its own teeth
+before believing any green). Decision values stay inside the
+Phase 0 closed pair `{allow, would_block}` untouched by this slice;
+the inflow face is a record function over record types, called by
+tests and by nothing else. The `network.intent` event type of the
+event schema is a different object (network-connection intent
+observation) and this contract neither consumes nor renames it.

@@ -4,7 +4,7 @@
 # lines mirrored docs<->Go, yin-yang sticky-propagation tests, red
 # shapes rejected before bytes), the slice W3.2 alignment record
 # surface (inherited through gate-w2), the full v2-check battery with
-# its 29-mutation positive-control selftest, an escalation-path
+# its 32-mutation positive-control selftest, an escalation-path
 # red-shape grep whose teeth are proven by a plant/remove control on
 # the command tree, and the complete inherited chain (gate-w2, which
 # re-runs gate-w1, gate-w0, gate-d7, and gate-d1..d6 serially) with
@@ -41,16 +41,18 @@ grep -q 'PASS untrusted consumption' "$TMPDIR/gate-w3-v2check.out" \
   || { echo 'RED: consume predicate did not run'; exit 1; }
 grep -q 'PASS alignment' "$TMPDIR/gate-w3-v2check.out" \
   || { echo 'RED: alignment predicate did not run'; exit 1; }
-echo 'V2-CHECK FULL RUN GREEN (consume predicate included)'
+grep -q 'PASS inflow' "$TMPDIR/gate-w3-v2check.out" \
+  || { echo 'RED: inflow predicate did not run'; exit 1; }
+echo 'V2-CHECK FULL RUN GREEN (consume and inflow predicates included)'
 
 step '02 selftest positive controls: every mutation caught, shipped file silent'
 node scripts/schema-v2-check.mjs --selftest > "$TMPDIR/gate-w3-selftest.out" 2>&1 \
   || { tail -20 "$TMPDIR/gate-w3-selftest.out"; echo RED: selftest; exit 1; }
-grep -q 'SELFTEST OK: all 29 mutations caught' "$TMPDIR/gate-w3-selftest.out" \
-  || { echo 'RED: selftest banner (want all 29 caught)'; tail -5 "$TMPDIR/gate-w3-selftest.out"; exit 1; }
+grep -q 'SELFTEST OK: all 32 mutations caught' "$TMPDIR/gate-w3-selftest.out" \
+  || { echo 'RED: selftest banner (want all 32 caught)'; tail -5 "$TMPDIR/gate-w3-selftest.out"; exit 1; }
 MISSES=$(grep -c 'SELFTEST MISS' "$TMPDIR/gate-w3-selftest.out" || true)
 [ "$MISSES" -eq 0 ] || { echo "RED: $MISSES selftest mutations missed"; exit 1; }
-echo 'SELFTEST 29/29 CAUGHT (shipped predicates have teeth)'
+echo 'SELFTEST 32/32 CAUGHT (shipped predicates have teeth)'
 
 step '03 Go: full schema package plus the named W3.3 consumption battery'
 go test -count=1 ./internal/schema > "$TMPDIR/gate-w3-go.out" 2>&1 \
@@ -61,6 +63,13 @@ for t in TestUntrustedConsumeYinYang TestUntrustedConsumeStickyNeverLaundered Te
   grep -q "^--- PASS: $t" "$TMPDIR/gate-w3-consume.out" || { echo "RED: $t did not pass"; exit 1; }
 done
 echo 'CONSUMPTION BATTERY GREEN (yin-yang sticky, red shapes zero-byte, docs sync pinned)'
+
+go test -count=1 ./internal/schema -run 'TestInflow' -v > "$TMPDIR/gate-w3-inflow.out" 2>&1 \
+  || { tail -30 "$TMPDIR/gate-w3-inflow.out"; echo RED: inflow battery; exit 1; }
+for t in TestInflowVocabularyAndRulesPin TestInflowGoodFixturesRoundTrip TestInflowWildFixturesRejected TestInflowHookChannelCannotReachAuthority TestInflowAbsentMeansKnownGap TestInflowSymbolsStayOffTheDecisionPlane TestInflowDocsSync; do
+  grep -q "^--- PASS: $t" "$TMPDIR/gate-w3-inflow.out" || { echo "RED: $t did not pass"; exit 1; }
+done
+echo 'INFLOW BATTERY GREEN (channel vocabulary pinned, hook task->goal only, absent means known gap, red shapes zero-record, docs sync pinned)'
 
 step '04 escalation-path red-shape grep: no decision or command file consumes the new symbols (plant/remove control)'
 LEAKRE='ApplyIntentModification|IntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane'
