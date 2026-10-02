@@ -28,6 +28,7 @@ func TestEnumsStayInSyncWithValidator(t *testing.T) {
 	caps := extractArray(t, src, "CAPS")
 	resClasses := extractArray(t, src, "RES_CLASSES")
 	sourceClasses := extractArray(t, src, "SOURCE_CLASS")
+	dataActions := extractArray(t, src, "DATA_ACTIONS")
 
 	if diff := symDiff(stages, AllStages()); len(diff) > 0 {
 		t.Errorf("validate-jsonl.mjs STAGES diverges from Go Stage enum: %v", diff)
@@ -50,6 +51,9 @@ func TestEnumsStayInSyncWithValidator(t *testing.T) {
 	if diff := symDiff(sourceClasses, AllSourceClasses()); len(diff) > 0 {
 		t.Errorf("validate-jsonl.mjs SOURCE_CLASS diverges from Go source-class vocabulary: %v", diff)
 	}
+	if diff := symDiff(dataActions, AllDataActions()); len(diff) > 0 {
+		t.Errorf("validate-jsonl.mjs DATA_ACTIONS diverges from Go data action vocabulary: %v", diff)
+	}
 }
 
 var arrayRE = map[string]*regexp.Regexp{
@@ -60,6 +64,7 @@ var arrayRE = map[string]*regexp.Regexp{
 	"CAPS":         regexp.MustCompile(`(?s)const CAPS = \[([\s\S]*?)\];`),
 	"RES_CLASSES":  regexp.MustCompile(`(?s)const RES_CLASSES = \[(.*?)\];`),
 	"SOURCE_CLASS": regexp.MustCompile(`(?s)const SOURCE_CLASS = \[([\s\S]*?)\];`),
+	"DATA_ACTIONS": regexp.MustCompile(`(?s)const DATA_ACTIONS = \[([\s\S]*?)\];`),
 }
 
 func extractArray(t *testing.T, src, name string) []string {

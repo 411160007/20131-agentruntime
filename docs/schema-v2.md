@@ -1526,3 +1526,69 @@ the inflow face is a record function over record types, called by
 tests and by nothing else. The `network.intent` event type of the
 event schema is a different object (network-connection intent
 observation) and this contract neither consumes nor renames it.
+
+## 15. Data action vocabulary contract (slice W4.1)
+
+Owner spec section 237 names nine data action classes - DISCOVER,
+READ, WRITE, MODIFY, DELETE, EXECUTE, EXPORT, SHARE, PERSIST - and
+attaches three non-equivalences that are the point of the
+classification: reading is not exporting, reading is not sharing,
+writing is not executing. Section 238 adds the packaging rule:
+wrapping data (compress, encode, encrypt, archive) never lowers the
+sensitivity of what leaves, so EXPORT always requires an independent
+re-judgement. This section contracts the RECORD shape of that
+vocabulary as an optional additive Event field; it is deliberately
+not a capability token and not a four-element wave slot.
+
+Like sections 12 through 14 this contract is deliberately not one of
+the fifteen schema names of section 289: the wave enumerates no "data
+action" schema, so section 11 and its twenty-eight cells stay
+untouched and this section adds no master_cell block (the census
+doctrine forbids private rows beside the table).
+
+### 15.1 The five data action keys
+
+```schemav2
+data_action_vocabulary: discover,read,write,modify,delete,execute,export,share,persist
+data_action_nonequivalence_rule: read-not-export-read-not-share-write-not-execute
+data_action_export_rejudgement_rule: export-requires-independent-rejudgement
+data_action_absent_default: absent-means-unclassified-legacy-never-inferred
+data_action_enforcement_plane: none-in-observation-phase
+```
+
+The first line is the closed vocabulary in normative order, pinned
+verbatim against `AllDataActions` in `internal/schema/dataaction.go`
+and against the `data_actions` contract line in docs/api-v0.md; the
+other four are pinned verbatim against the rule constants
+(`DataActionNonequivalenceRule`, `DataActionExportRejudgementRule`,
+`DataActionAbsentDefault`, `DataActionEnforcementPlane`) by the sync
+test in that package and by the Node checker predicate; drift in
+either direction is a red build.
+
+The keys read as one story. The nine words classify what kind of
+data-facing effect a line records, and the non-equivalence rule is
+the classification's load-bearing content: a consumer that collapses
+`read` into `export`, `share`, or `execute` has deleted the
+distinction this vocabulary exists to keep. `export` is judged on its
+own, every time, and the packaging word families of section 238 are
+annotation material for that re-judgement (landed with the next
+slice), never a shortcut around it. Absent means unclassified legacy:
+the field is optional, old lines carry no key, and no reader infers
+a class into the hole. The capability table stays byte-identical, so
+every legacy line referencing `net.outbound` keeps its exact meaning
+under `schema_version` 1 - the additivity is structural, not
+promised.
+
+### 15.2 Plane discipline
+
+`DataAction`, `AllDataActions`, and the four rule constants join the
+planeLeak needle set in `scripts/schema-v2-check.mjs` in this same
+PR: no policy, rules, bus, or auditlog file may reference them while
+`data_action_enforcement_plane` reads none-in-observation-phase, and
+the command tree is scanned for the same symbols by the Go sync test
+with a planted-shape control (the positive control fires against
+this package's own shipped source, so the walk proves its own teeth
+before believing any green). Decision values stay inside the Phase 0
+closed pair `{allow, would_block}` untouched by this slice; the
+vocabulary is consumed by validators, docs, and tests and by nothing
+else.
