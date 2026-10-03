@@ -1747,3 +1747,78 @@ contract of docs/api-v0.md gains nothing here: no event field is
 added, the capability table stays byte-identical, and this is
 annotation material for the Data Boundary recording obligations of
 section 16 - not their enforcement.
+
+## 18. Action necessity record contract (slice W5.1)
+
+Section 233 of the owner spec refuses a risk judgement that asks
+only whether an action is dangerous: the same command may be a
+perfectly reasonable step of the task the user named, or it may read
+a credential no part of that task ever asked for. The spec closes
+with a verbatim obligation - the system must record Action
+Necessity Evidence - and this section lands the record shape of that
+obligation: three closed questions (reasonable, necessary,
+replaceable), three closed answers, one evidence string per recorded
+answer, and one pure constructor emitting a row that carries no
+decision.
+
+Like sections 12 through 17 this contract is deliberately not one of
+the fifteen schema names of section 289: the wave enumerates no
+"action necessity" schema, so section 11 and its twenty-eight cells
+stay untouched and this section adds no master_cell block (the
+census doctrine forbids private rows beside the table).
+
+### 18.1 The six action necessity keys
+
+```schemav2
+action_necessity_question_vocabulary: reasonable_step,necessary_step,substitutable_step
+action_necessity_answer_vocabulary: supports,refutes,no_material
+action_necessity_danger_only_rule: danger-judgement-alone-never-suffices
+action_necessity_evidence_rule: every-recorded-answer-requires-nonempty-evidence
+action_necessity_absent_default: absent-means-unassessed-never-inferred
+action_necessity_enforcement_plane: none-in-observation-phase
+```
+
+The first two lines are the closed vocabularies in normative order,
+pinned verbatim against `AllNecessityQuestions` and
+`AllNecessityAnswers` in `internal/schema/actionnecessity.go`; the
+other four are pinned verbatim against the rule constants
+(`ActionNecessityDangerOnlyRule`, `ActionNecessityEvidenceRule`,
+`ActionNecessityAbsentDefault`, `ActionNecessityEnforcementPlane`)
+by the sync predicate in `scripts/schema-v2-check.mjs` and the Go
+test in that package; drift in either direction is a red build.
+
+The keys read as one story. The constructor never judges: answers
+and evidence arrive from the recorder, and the row stores what was
+judged, never a judge - the section 233 shape examples (a deploy
+chain answering "deploy the site" versus reading an unrelated SSH
+key for the same intent) exist as fixtures, not as rules. The
+evidence rule is load-bearing exactly as the spec words it: an
+answer with empty or whitespace evidence is refused before any value
+is applied, so a row without evidence cannot exist, and the
+`Assessed` and `RefutedPresent` fields are pure projections over the
+recorded entries - they restate the row, they add no finding.
+Absence is single-meaning: a row with no entries records that
+nothing was assessed, no answer is ever inferred into the hole, and
+the absence of a refutation flag on an unassessed row is never read
+as a necessity finding. `no_material` is an explicit looked-and-
+found-nothing answer, distinct from absence by construction.
+
+### 18.2 Plane discipline
+
+`NecessityQuestion`, `NecessityAnswer`, `AllNecessityQuestions`,
+`AllNecessityAnswers`, `ActionNecessityRecord`,
+`BuildActionNecessity`, and the four rule constants join the
+planeLeak needle set in `scripts/schema-v2-check.mjs` in this same
+PR: no policy, rules, bus, or auditlog file may reference them while
+`action_necessity_enforcement_plane` reads none-in-observation-phase,
+and the command tree is scanned for the same symbols by the Go test
+with a planted-shape control (the positive control fires against
+this package's own shipped source, so the walk proves its own teeth
+before believing any green). Decision values stay inside the Phase 0
+closed pair `{allow, would_block}` untouched by this slice; the
+constructor is called by tests and by nothing else. The wire
+contract of docs/api-v0.md gains nothing here: no event field is
+added, the nine data actions of section 15 and the trust domains of
+section 16 stay byte-identical, and this is recording material for
+the behavior-chain dimensions of section 242 - not their
+enforcement.
