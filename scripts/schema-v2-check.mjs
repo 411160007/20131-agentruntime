@@ -453,6 +453,7 @@ const tdSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'trustdomain
 const ewSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'exportwrap.go'), 'utf8');
 const anSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'actionnecessity.go'), 'utf8');
 const cdSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'chaindimensions.go'), 'utf8');
+const dlSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'delegationobservation.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -741,10 +742,80 @@ function chainDimensionProblems(text, goText) {
   return bad;
 }
 
+// Delegation observation contract checks (slice W5.3): the five
+// subject tokens and three revalidation states must mirror the Go
+// vocabularies, both spec anchor bullet blocks (section 283 eight
+// lines, section 236 five lines) must derive mechanically to the
+// record field order and the subject vocabulary, the four rule
+// constants must match Go verbatim, and the twelve-row field table
+// must pin row order against the Go wire list.
+function delegationProblems(text, goText) {
+  const bad = [];
+  const rules = [
+    ['delegation_no_auto_inheritance_rule', 'DelegationNoAutoInheritanceRule', 'parent-authority-never-auto-transfers-to-child'],
+    ['delegation_reevaluation_registry', 'DelegationReevaluationRegistry', 'identity,authority,capability,scope,data,risk,ttl'],
+    ['delegation_revalidation_obligation_rule', 'DelegationRevalidationObligationRule', 'every-child-must-revalidate-own-permissions'],
+    ['delegation_enforcement_plane', 'DelegationEnforcementPlane', 'none-in-observation-phase'],
+  ];
+  const subj = findKey(text, 'delegation_subject_vocabulary');
+  if (subj === null) return ['delegation subject vocabulary key missing or duplicated'];
+  const toks = subj.split(',');
+  if (toks.length !== 5 || new Set(toks).size !== 5) bad.push('delegation subject vocabulary not five unique tokens');
+  for (const t of toks) {
+    if (!goText.includes('"' + t + '"')) bad.push('delegation subject token Go mirror missing: ' + t);
+  }
+  const states = findKey(text, 'delegation_revalidation_states');
+  if (states === null) return bad.concat(['delegation revalidation states key missing or duplicated']);
+  if (states !== 'revalidated,not_revalidated,unrecorded') bad.push('delegation revalidation states line drifted');
+  for (const tok of states.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('delegation revalidation state Go mirror missing: ' + tok);
+  }
+  for (const [key, ident, val] of rules) {
+    const got = findKey(text, key);
+    if (got === null) return bad.concat(['delegation contract keys missing or duplicated']);
+    if (got !== val) bad.push('delegation line drifted: ' + key);
+    if (!goText.includes(ident + ' = "' + val + '"')) bad.push('delegation rule Go mirror drifted: ' + ident);
+  }
+  const secAt = text.indexOf('## 20. Delegation observation record contract');
+  if (secAt < 0) return bad.concat(['section 20 header missing']);
+  const nextSec = text.indexOf('\n## ', secAt + 5);
+  const sec = text.slice(secAt, nextSec < 0 ? text.length : nextSec);
+  // Section 283 anchor reverse-check: the eight must-record bullet
+  // lines derive to the first eight record field tokens, in order
+  // (lower case, spaces to single underscores).
+  const fieldList = (goText.match(/var DelegationRecordFieldWireNames = \[\]string\{([\s\S]*?)\n\}/) || ['', ''])[1];
+  const goFields = (fieldList.match(/"[a-z_]+"/g) || []).map((s) => s.slice(1, -1));
+  if (goFields.length !== 12) bad.push('Go record field wire list census ' + goFields.length + ', want 12');
+  const spec8 = [...sec.matchAll(/^\* ([A-Z][A-Za-z ]+)$/gm)].map((m) => m[1]).slice(0, 8);
+  if (spec8.length !== 8) bad.push('section 283 anchor bullets ' + spec8.length + ', want 8');
+  else spec8.forEach((b, i) => {
+    const d = b.toLowerCase().replace(/ +/g, '_');
+    if (goFields[i] !== d) bad.push('section 283 bullet ' + (i + 1) + ' derives to ' + d + ', Go field is ' + goFields[i]);
+  });
+  // Section 236 subject reverse-check: the five listing bullets
+  // derive to the subject vocabulary in order.
+  const at236 = sec.indexOf('### 20.2');
+  const sec236 = sec.slice(at236);
+  const subjBullets = [...sec236.matchAll(/^\* Skill$/gm)].length ? [...sec236.matchAll(/^\* ([A-Z][A-Za-z ]*)$/gm)].map((m) => m[1]).slice(8) : [];
+  if (subjBullets.length !== 5) bad.push('section 236 subject bullets ' + subjBullets.length + ', want 5');
+  else if (subjBullets.map((b) => b.toLowerCase().replace(/ +/g, '_')).join(',') !== subj) {
+    bad.push('section 236 subject bullets derive to a different vocabulary than the key line');
+  }
+  // Field table pin: twelve rows, row order against the Go list.
+  const rows = [...sec.matchAll(/^\| `([a-z_]+)` \| (recorder|constructor-pinned) \|[^|\n]*\|$/gm)];
+  if (rows.length !== 12) bad.push('delegation field table row census ' + rows.length + ', want 12');
+  else rows.forEach((rm, i) => {
+    if (rm[1] !== goFields[i]) bad.push('delegation field row-order pin broke at row ' + (i + 1) + ': ' + rm[1]);
+    const wantOwner = i < 10 ? 'recorder' : 'constructor-pinned';
+    if (rm[2] !== wantOwner) bad.push('delegation field ' + rm[1] + ' ownership drifted (want ' + wantOwner + ')');
+  });
+  return bad;
+}
+
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
-  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane|TrustLevel|RunDomain|AllTrustLevels|AllRunDomains|LegacyClassOf|LiftCandidates|trustToLegacyClass|TrustDomainLegacyProjectionRule|TrustDomainCrossingRule|TrustDomainAbsentDefault|TrustDomainEnforcementPlane|PackagingWord|AllPackagingWords|ExportRejudgementRecord|BuildExportRejudgement|ExportPackagingSensitivityRule|ExportRejudgementIndependenceRule|ExportRejudgementAbsentDefault|ExportRejudgementEnforcementPlane|NecessityQuestion|NecessityAnswer|AllNecessityQuestions|AllNecessityAnswers|ActionNecessityRecord|BuildActionNecessity|ActionNecessityDangerOnlyRule|ActionNecessityEvidenceRule|ActionNecessityAbsentDefault|ActionNecessityEnforcementPlane|ChainDimension|ChainStep|ChainObservationState|ChainStateObserved|ChainStateNotObserved|ChainStateUnclassified|BuildChainDimensions|ComputableChainDimensions|AllChainDimensionCoverage|ChainPhaseComputable|ChainPhaseAnchored|ChainPhasePending|ChainDimensionCoverageRule|ChainDimensionUnclassifiedRule|ChainDimensionReversibilitySourceRule|ChainDimensionEnforcementPlane/;
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane|TrustLevel|RunDomain|AllTrustLevels|AllRunDomains|LegacyClassOf|LiftCandidates|trustToLegacyClass|TrustDomainLegacyProjectionRule|TrustDomainCrossingRule|TrustDomainAbsentDefault|TrustDomainEnforcementPlane|PackagingWord|AllPackagingWords|ExportRejudgementRecord|BuildExportRejudgement|ExportPackagingSensitivityRule|ExportRejudgementIndependenceRule|ExportRejudgementAbsentDefault|ExportRejudgementEnforcementPlane|NecessityQuestion|NecessityAnswer|AllNecessityQuestions|AllNecessityAnswers|ActionNecessityRecord|BuildActionNecessity|ActionNecessityDangerOnlyRule|ActionNecessityEvidenceRule|ActionNecessityAbsentDefault|ActionNecessityEnforcementPlane|ChainDimension|ChainStep|ChainObservationState|ChainStateObserved|ChainStateNotObserved|ChainStateUnclassified|BuildChainDimensions|ComputableChainDimensions|AllChainDimensionCoverage|ChainPhaseComputable|ChainPhaseAnchored|ChainPhasePending|ChainDimensionCoverageRule|ChainDimensionUnclassifiedRule|ChainDimensionReversibilitySourceRule|ChainDimensionEnforcementPlane|DelegationSubject|DelegationRevalidationState|DelegationObservationInput|DelegationObservation|BuildDelegationObservation|AllDelegationSubjects|AllDelegationRevalidationStates|DelegationRecordFieldWireNames|DelegationNoAutoInheritanceRule|DelegationReevaluationRegistry|DelegationRevalidationObligationRule|DelegationEnforcementPlane/;
   for (const d of PLANE_DIRS) {
     const dir = path.join(root, 'internal', d);
     let entries;
@@ -837,6 +908,9 @@ if (an.length) console.log('  ' + an.join('\n  '));
 const cd = chainDimensionProblems(v, cdSrc);
 check(cd.length === 0, 'chain dimensions: eight-word vocabulary derived from section 242 anchor bullets, 8/8 coverage table pinned row by row against the Go registration, computable subset and unclassified and reversibility-source and none-plane rules mirrored, section 19 present');
 if (cd.length) console.log('  ' + cd.join('\n  '));
+const dl = delegationProblems(v, dlSrc);
+check(dl.length === 0, 'delegation observation: five-subject and three-state vocabularies mirrored docs<->Go, section 283 eight-bullet and section 236 five-bullet anchors derive mechanically, four rules and twelve-row field table pinned, none-plane, section 20 present');
+if (dl.length) console.log('  ' + dl.join('\n  '));
 
 const mtp = masterTableProblems(v);
 check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
@@ -896,6 +970,9 @@ if (process.argv.includes('--selftest')) {
     ['chain dimension vocabulary loses a dimension', (t) => t.replace('chain_dimension_vocabulary: intent_deviation,capability_escalation,data_sensitivity_escalation,trust_domain_crossing,reversibility_reduction,blast_radius_growth,destination_change,delegation_chain', 'chain_dimension_vocabulary: intent_deviation,capability_escalation,data_sensitivity_escalation,trust_domain_crossing,reversibility_reduction,blast_radius_growth,destination_change'), (t) => chainDimensionProblems(t, cdSrc)],
     ['chain coverage row upgraded into a false promise', (t) => t.replace('| `blast_radius_growth` | anchored | W11 |', '| `blast_radius_growth` | computable_v0 | - |'), (t) => chainDimensionProblems(t, cdSrc)],
     ['chain reversibility source rule rewritten to a rival scale', (t) => t.replace('chain_dimension_reversibility_source_rule: reversibility-reduction-reads-recovery-classes-only', 'chain_dimension_reversibility_source_rule: reversibility-reduction-reads-any-score'), (t) => chainDimensionProblems(t, cdSrc)],
+    ['delegation subject vocabulary loses a word', (t) => t.replace('delegation_subject_vocabulary: skill,mcp,tool,child_process,plugin', 'delegation_subject_vocabulary: skill,mcp,tool,plugin'), (t) => delegationProblems(t, dlSrc)],
+    ['delegation no-inheritance rule pre-borrowed into carry-over', (t) => t.replace('delegation_no_auto_inheritance_rule: parent-authority-never-auto-transfers-to-child', 'delegation_no_auto_inheritance_rule: parent-authority-carries-to-child'), (t) => delegationProblems(t, dlSrc)],
+    ['delegation enforcement plane pre-borrowed', (t) => t.replace('delegation_enforcement_plane: none-in-observation-phase', 'delegation_enforcement_plane: enforce-now'), (t) => delegationProblems(t, dlSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
@@ -914,6 +991,7 @@ if (process.argv.includes('--selftest')) {
     (t) => evidenceProblems(t, epSrc), (t) => profileProblems(t, epSrc),
     (t) => alignmentProblems(t, aaSrc),
     (t) => chainDimensionProblems(t, cdSrc),
+    (t) => delegationProblems(t, dlSrc),
     (t) => masterTableProblems(t)]) {
     if (pred(v).length) {
       console.log('SELFTEST FAIL: predicate fired on clean file');

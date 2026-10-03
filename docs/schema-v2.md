@@ -1930,3 +1930,131 @@ nothing else. The wire contract of docs/api-v0.md gains nothing
 here: no event field is added, the nine data actions of section 15,
 the trust domains of section 16, and the recovery classes of section
 12's W2.3 contract stay byte-identical - this slice only reads them.
+
+## 20. Delegation observation record contract (slice W5.3)
+
+Section 236 of the owner spec draws the delegation inequality -
+Agent A Capability is not Agent B Capability - and rules that A's
+authority never transfers automatically to B, extending the same
+discipline beyond agents to skills, MCP servers, tools, child
+processes, and plugins, with seven objects that must be
+re-evaluated whenever a delegation happens. Section 283 names the
+eight fields every delegation must record and closes with the
+requirement that any child agent must revalidate its own
+permissions. This slice lands the observation record both sections
+demand: a pure restatement, no enforcement borrowed from Phase 1.
+
+Like sections 12 through 19 this contract is deliberately not one
+of the fifteen schema names of section 289: the wave enumerates no
+"delegation" schema, so section 11 and its twenty-eight cells stay
+untouched and this section adds no master_cell block (the census
+doctrine forbids private rows beside the table).
+
+### 20.1 The six delegation keys
+
+```schemav2
+delegation_subject_vocabulary: skill,mcp,tool,child_process,plugin
+delegation_revalidation_states: revalidated,not_revalidated,unrecorded
+delegation_no_auto_inheritance_rule: parent-authority-never-auto-transfers-to-child
+delegation_reevaluation_registry: identity,authority,capability,scope,data,risk,ttl
+delegation_revalidation_obligation_rule: every-child-must-revalidate-own-permissions
+delegation_enforcement_plane: none-in-observation-phase
+```
+
+The first two lines are closed vocabularies in normative order,
+pinned verbatim against `AllDelegationSubjects` and
+`AllDelegationRevalidationStates` in
+`internal/schema/delegationobservation.go`; the last four are
+pinned against the rule constants
+(`DelegationNoAutoInheritanceRule`, `DelegationReevaluationRegistry`,
+`DelegationRevalidationObligationRule`, `DelegationEnforcementPlane`)
+by the sync predicate in `scripts/schema-v2-check.mjs` and the Go
+test in this package; drift in either direction is a red build.
+
+The record is deliberately not a checker. `delegated_capability`
+and `data_scope` are recorded as free text and never matched
+against live capability tables: matching would pre-borrow the
+Phase 1 enforcement posture the taskbook freezes ("enforcement not
+inherited = Phase 1"), and a record that quietly gains checking
+power would itself break the no-inheritance rule it exists to
+restate. Absence is single-meaning: the eight must-record fields
+never accept an empty or whitespace-only value (the whole record
+fails, no half record survives), and the revalidation obligation is
+only admissibly silent when the silence is itself stated as
+`unrecorded` - never defaulted to `revalidated`, because "nothing
+recorded" is not evidence that the child did revalidate.
+
+### 20.2 The section 283 and section 236 anchor bullets
+
+The eight bullet lines below mirror the owner specification's
+section 283 must-record list verbatim; the Node checker derives the
+first eight record field tokens mechanically (lower case, spaces to
+single underscores) and pins them, in order, against
+`DelegationRecordFieldWireNames`:
+
+* Parent Agent
+* Child Agent
+* Delegation Reason
+* Delegated Capability
+* Data Scope
+* Authority Source
+* TTL
+* Outcome
+
+The five subject bullets below mirror section 236's closing
+extension line (Skill, MCP, Tool, Child Process, Plugin) and derive
+mechanically to the subject vocabulary in the same order:
+
+* Skill
+* MCP
+* Tool
+* Child Process
+* Plugin
+
+The taskbook's seven-field shorthand for this slice
+(parent/child/reason/delegated-cap/scope/TTL/outcome) is the first
+seven lines above; the spec's own eighth line, Authority Source,
+completes the record and is exactly what section 236's Authority
+re-evaluation object records - the shorthand is not a subtraction.
+
+### 20.3 The twelve-field record census
+
+| `parent_agent` | recorder | section 283 line 1 |
+| `child_agent` | recorder | section 283 line 2 |
+| `delegation_reason` | recorder | section 283 line 3 |
+| `delegated_capability` | recorder | section 283 line 4, free text, never matched |
+| `data_scope` | recorder | section 283 line 5, free text, never matched |
+| `authority_source` | recorder | section 283 line 6, completes the section 236 Authority object |
+| `ttl` | recorder | section 283 line 7, recorded as stated, no expiry arithmetic |
+| `outcome` | recorder | section 283 line 8 |
+| `subject` | recorder | closed five of section 236 |
+| `child_revalidation` | recorder | closed three; silence only via explicit unrecorded |
+| `authority_not_inherited` | constructor-pinned | restates section 236 verbatim, uneditable |
+| `enforcement_plane` | constructor-pinned | restates the Phase 0 stance, uneditable |
+
+A thirteenth row, a reordered row, or a recorder field faking a
+pinned constant is a red build in both directions (Go reflection
+test and Node field table pin).
+
+### 20.4 Plane discipline
+
+`DelegationSubject`, `DelegationRevalidationState`,
+`DelegationObservation`, `DelegationObservationInput`,
+`BuildDelegationObservation`, `AllDelegationSubjects`,
+`AllDelegationRevalidationStates`, `DelegationRecordFieldWireNames`,
+and the four rule constants join the planeLeak needle set in
+`scripts/schema-v2-check.mjs` in this same PR: no policy, rules,
+bus, or auditlog file may reference them while
+`delegation_enforcement_plane` reads none-in-observation-phase, and
+the command tree is scanned for the same symbols by the Go test
+with a planted-shape positive control. Decision values stay inside
+the Phase 0 closed pair `{allow, would_block}` untouched by this
+slice: the record and its input carry no decision, score, or
+severity field (the reflective test pins the field sets at 12 and
+10), and the constructor is called by tests and by nothing else.
+The wire contract of docs/api-v0.md gains nothing here: no event
+field is added, and the section 19 delegation-chain coverage row
+stays anchored - this slice lands the record shape that the future
+chain computation will consume, it does not compute the dimension
+itself. Section 19's reversibility note keeps holding: the
+recovery classes stay W2.3's, untouched here.
