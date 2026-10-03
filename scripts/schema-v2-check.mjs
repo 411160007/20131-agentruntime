@@ -246,6 +246,39 @@ function exportWrapProblems(text, goText) {
   return bad;
 }
 
+function actionNecessityProblems(text, goText) {
+  const bad = [];
+  const rulePins = [
+    ['action_necessity_danger_only_rule', 'ActionNecessityDangerOnlyRule', 'danger-judgement-alone-never-suffices'],
+    ['action_necessity_evidence_rule', 'ActionNecessityEvidenceRule', 'every-recorded-answer-requires-nonempty-evidence'],
+    ['action_necessity_absent_default', 'ActionNecessityAbsentDefault', 'absent-means-unassessed-never-inferred'],
+    ['action_necessity_enforcement_plane', 'ActionNecessityEnforcementPlane', 'none-in-observation-phase'],
+  ];
+  const qs = findKey(text, 'action_necessity_question_vocabulary');
+  if (qs === null) return ['action necessity contract keys missing or duplicated'];
+  if (qs !== 'reasonable_step,necessary_step,substitutable_step') {
+    bad.push('action necessity question line drifted from the closed three');
+  }
+  const as = findKey(text, 'action_necessity_answer_vocabulary');
+  if (as === null) return ['action necessity contract keys missing or duplicated'];
+  if (as !== 'supports,refutes,no_material') {
+    bad.push('action necessity answer line drifted from the closed three');
+  }
+  for (const tok of (qs + ',' + as).split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('action necessity token Go mirror missing: ' + tok);
+  }
+  for (const [key, ident, val] of rulePins) {
+    const got = findKey(text, key);
+    if (got === null) return ['action necessity contract keys missing or duplicated'];
+    if (got !== val) bad.push('action necessity line drifted: ' + key);
+    if (!goText.includes(ident + ' = "' + val + '"')) {
+      bad.push('action necessity rule Go mirror drifted: ' + ident);
+    }
+  }
+  if (text.indexOf('## 18. Action necessity record contract') < 0) bad.push('section 18 header missing');
+  return bad;
+}
+
 function findKey(text, k) {
   let blocks;
   try {
@@ -418,6 +451,7 @@ const iiSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'intentinflo
 const daSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'dataaction.go'), 'utf8');
 const tdSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'trustdomain.go'), 'utf8');
 const ewSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'exportwrap.go'), 'utf8');
+const anSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'actionnecessity.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -637,7 +671,7 @@ function alignmentProblems(text, goText) {
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
-  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane|TrustLevel|RunDomain|AllTrustLevels|AllRunDomains|LegacyClassOf|LiftCandidates|trustToLegacyClass|TrustDomainLegacyProjectionRule|TrustDomainCrossingRule|TrustDomainAbsentDefault|TrustDomainEnforcementPlane|PackagingWord|AllPackagingWords|ExportRejudgementRecord|BuildExportRejudgement|ExportPackagingSensitivityRule|ExportRejudgementIndependenceRule|ExportRejudgementAbsentDefault|ExportRejudgementEnforcementPlane/;
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane|TrustLevel|RunDomain|AllTrustLevels|AllRunDomains|LegacyClassOf|LiftCandidates|trustToLegacyClass|TrustDomainLegacyProjectionRule|TrustDomainCrossingRule|TrustDomainAbsentDefault|TrustDomainEnforcementPlane|PackagingWord|AllPackagingWords|ExportRejudgementRecord|BuildExportRejudgement|ExportPackagingSensitivityRule|ExportRejudgementIndependenceRule|ExportRejudgementAbsentDefault|ExportRejudgementEnforcementPlane|NecessityQuestion|NecessityAnswer|AllNecessityQuestions|AllNecessityAnswers|ActionNecessityRecord|BuildActionNecessity|ActionNecessityDangerOnlyRule|ActionNecessityEvidenceRule|ActionNecessityAbsentDefault|ActionNecessityEnforcementPlane/;
   for (const d of PLANE_DIRS) {
     const dir = path.join(root, 'internal', d);
     let entries;
@@ -724,6 +758,9 @@ if (td.length) console.log('  ' + td.join('\n  '));
 const ew = exportWrapProblems(v, ewSrc);
 check(ew.length === 0, 'export wrap: eight-word packaging family mirrored docs<->Go, sensitivity and independence and absent-default and none-plane rules pinned, section 17 present');
 if (ew.length) console.log('  ' + ew.join('\n  '));
+const an = actionNecessityProblems(v, anSrc);
+check(an.length === 0, 'action necessity: three-question and three-answer vocabularies mirrored docs<->Go, danger-only and evidence and absent-default and none-plane rules pinned, section 18 present');
+if (an.length) console.log('  ' + an.join('\n  '));
 
 const mtp = masterTableProblems(v);
 check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
@@ -777,6 +814,9 @@ if (process.argv.includes('--selftest')) {
     ['export wrap vocabulary loses a word', (t) => t.replace('export_packaging_word_vocabulary: compress,encode,encrypt,archive,copy,upload,send,share', 'export_packaging_word_vocabulary: compress,encode,archive,copy,upload,send,share'), (t) => exportWrapProblems(t, ewSrc)],
     ['export independence rule rewritten into carry-over', (t) => t.replace('export_rejudgement_independence_rule: read-allow-never-carries-to-export', 'export_rejudgement_independence_rule: read-allow-carries-to-export'), (t) => exportWrapProblems(t, ewSrc)],
     ['export rejudgement enforcement plane pre-borrowed', (t) => t.replace('export_rejudgement_enforcement_plane: none-in-observation-phase', 'export_rejudgement_enforcement_plane: enforce-now'), (t) => exportWrapProblems(t, ewSrc)],
+    ['action necessity question vocabulary loses a question', (t) => t.replace('action_necessity_question_vocabulary: reasonable_step,necessary_step,substitutable_step', 'action_necessity_question_vocabulary: reasonable_step,necessary_step'), (t) => actionNecessityProblems(t, anSrc)],
+    ['action necessity evidence rule pre-borrowed into optional answers', (t) => t.replace('action_necessity_evidence_rule: every-recorded-answer-requires-nonempty-evidence', 'action_necessity_evidence_rule: evidence-optional-for-plausible-answers'), (t) => actionNecessityProblems(t, anSrc)],
+    ['action necessity enforcement plane pre-borrowed', (t) => t.replace('action_necessity_enforcement_plane: none-in-observation-phase', 'action_necessity_enforcement_plane: enforce-now'), (t) => actionNecessityProblems(t, anSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {

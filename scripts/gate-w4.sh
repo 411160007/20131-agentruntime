@@ -62,11 +62,11 @@ echo 'V2-CHECK FULL RUN GREEN (data action, trust domain, and export wrap predic
 step '02 selftest positive controls: every mutation caught, shipped file silent'
 node scripts/schema-v2-check.mjs --selftest > "$TMPDIR/gate-w4-selftest.out" 2>&1 \
   || { tail -20 "$TMPDIR/gate-w4-selftest.out"; echo RED: selftest; exit 1; }
-grep -q 'SELFTEST OK: all 41 mutations caught' "$TMPDIR/gate-w4-selftest.out" \
-  || { echo 'RED: selftest banner (want all 41 caught)'; tail -5 "$TMPDIR/gate-w4-selftest.out"; exit 1; }
+grep -q 'SELFTEST OK: all 44 mutations caught' "$TMPDIR/gate-w4-selftest.out" \
+  || { echo 'RED: selftest banner (want all 44 caught)'; tail -5 "$TMPDIR/gate-w4-selftest.out"; exit 1; }
 MISSES=$(grep -c 'SELFTEST MISS' "$TMPDIR/gate-w4-selftest.out" || true)
 [ "$MISSES" -eq 0 ] || { echo "RED: $MISSES selftest mutations missed"; exit 1; }
-echo 'SELFTEST 41/41 CAUGHT (shipped predicates have teeth)'
+echo 'SELFTEST 44/44 CAUGHT (shipped predicates have teeth)'
 
 step '03 Go: full schema package plus the named W4 batteries'
 go test -count=1 ./internal/schema > "$TMPDIR/gate-w4-go.out" 2>&1 \
