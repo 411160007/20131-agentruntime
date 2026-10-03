@@ -1822,3 +1822,111 @@ added, the nine data actions of section 15 and the trust domains of
 section 16 stay byte-identical, and this is recording material for
 the behavior-chain dimensions of section 242 - not their
 enforcement.
+
+## 19. Behavior chain dimension record contract (slice W5.2)
+
+Section 242 of the owner spec refuses to let a behavior chain be
+judged step by step alone: it names eight dimensions the chain
+analysis must compute beyond sequence risk, and shows a sequence of
+individually plausible steps (read a credential, archive, encode,
+send out) that is dangerous as a whole. This section lands the
+honest first move: the closed eight-dimension vocabulary, an 8/8
+coverage registration in which every non-computable dimension names
+a real later-slice anchor or stands explicitly pending, and pure
+constructors computing the first three computable dimensions from
+recorded chain steps - Intent Deviation, Trust Domain Crossing, and
+Reversibility Reduction, the last consuming only the recovery
+classes of slice W2.3.
+
+Like sections 12 through 18 this contract is deliberately not one of
+the fifteen schema names of section 289: the wave enumerates no
+"chain dimension" schema, so section 11 and its twenty-eight cells
+stay untouched and this section adds no master_cell block (the
+census doctrine forbids private rows beside the table).
+
+### 19.1 The seven behavior chain keys
+
+```schemav2
+chain_dimension_vocabulary: intent_deviation,capability_escalation,data_sensitivity_escalation,trust_domain_crossing,reversibility_reduction,blast_radius_growth,destination_change,delegation_chain
+chain_dimension_computable_v0: intent_deviation,trust_domain_crossing,reversibility_reduction
+chain_dimension_observation_states: observed,not_observed,unclassified
+chain_dimension_coverage_rule: eight-of-eight-rows-registered-never-dangling
+chain_dimension_unclassified_rule: missing-step-data-yields-unclassified-never-not-observed
+chain_dimension_reversibility_source_rule: reversibility-reduction-reads-recovery-classes-only
+chain_dimension_enforcement_plane: none-in-observation-phase
+```
+
+The first three lines are closed vocabularies in normative order,
+pinned verbatim against `AllChainDimensions`,
+`ComputableChainDimensions`, and `AllChainObservationStates` in
+`internal/schema/chaindimensions.go`; the last four are pinned
+against the rule constants (`ChainDimensionCoverageRule`,
+`ChainDimensionUnclassifiedRule`,
+`ChainDimensionReversibilitySourceRule`,
+`ChainDimensionEnforcementPlane`) by the sync predicate in
+`scripts/schema-v2-check.mjs` and the Go test in this package;
+drift in either direction is a red build.
+
+The constructors never judge: a chain step records its position, one
+of the section 15 nine, and the optional intent text, trust level,
+and recovery class it claims, and the three observations restate
+what those records already say. Absence is single-meaning - a
+dimension whose backing data was never recorded reads
+`unclassified`, never `not_observed`, because "nothing recorded" is
+not evidence that nothing happened, and no reader may turn silence
+into either a finding or a clean bill of health.
+
+### 19.2 The section 242 anchor and the 8/8 coverage registration
+
+The eight bullet lines below mirror the owner specification's eight
+dimension names verbatim; the Node checker derives the wire tokens
+mechanically (lower case, spaces to single underscores) and pins
+them row by row, in order, against `AllChainDimensions`:
+
+* Intent Deviation
+* Capability Escalation
+* Data Sensitivity Escalation
+* Trust Domain Crossing
+* Reversibility Reduction
+* Blast Radius Growth
+* Destination Change
+* Delegation Chain
+
+The registration table gives every one of the eight a standing, so
+the computable subset is a declared stage of a complete map rather
+than a convenient slice:
+
+| `intent_deviation` | computable_v0 | - |
+| `capability_escalation` | anchored | W6 |
+| `data_sensitivity_escalation` | anchored | W6 |
+| `trust_domain_crossing` | computable_v0 | - |
+| `reversibility_reduction` | computable_v0 | - |
+| `blast_radius_growth` | anchored | W11 |
+| `destination_change` | pending | - |
+| `delegation_chain` | anchored | W5.3 |
+
+Anchored rows name the later slice that will compute them (W5.3
+lands the delegation observation fields, W6 the least-agency
+counting, W11 the blast-radius estimation); the pending row says
+out loud that destination change has no owner slice yet. A ninth
+row, a missing row, a reordered row, or a computable row faking an
+anchor is a red build in both directions.
+
+### 19.3 Plane discipline
+
+`ChainDimension`, `ChainStep`, `ChainObservationState`,
+`BuildChainDimensions`, `ComputableChainDimensions`,
+`AllChainDimensionCoverage`, and the four rule constants join the
+planeLeak needle set in `scripts/schema-v2-check.mjs` in this same
+PR: no policy, rules, bus, or auditlog file may reference them while
+`chain_dimension_enforcement_plane` reads none-in-observation-phase,
+and the command tree is scanned for the same symbols by the Go test
+with a planted-shape positive control. Decision values stay inside
+the Phase 0 closed pair `{allow, would_block}` untouched by this
+slice: the record, the step, and the observation carry no decision,
+score, or severity field (the reflective test pins the field sets
+at 3, 5, and 3), and the constructors are called by tests and by
+nothing else. The wire contract of docs/api-v0.md gains nothing
+here: no event field is added, the nine data actions of section 15,
+the trust domains of section 16, and the recovery classes of section
+12's W2.3 contract stay byte-identical - this slice only reads them.
