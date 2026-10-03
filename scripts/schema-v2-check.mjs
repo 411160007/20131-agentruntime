@@ -454,6 +454,7 @@ const ewSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'exportwrap.
 const anSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'actionnecessity.go'), 'utf8');
 const cdSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'chaindimensions.go'), 'utf8');
 const dlSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'delegationobservation.go'), 'utf8');
+const agSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'agencyguard.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -812,6 +813,94 @@ function delegationProblems(text, goText) {
   return bad;
 }
 
+// Agency guard observation contract checks (slice W6.1): the ten
+// section 261 bound-field words, three counter words, two scope
+// words, and four limit-state words are closed vocabularies pinned
+// docs<->Go; the conservation, enum-gate, and plane rules mirror
+// the rule constants; the ten anchor bullets derive to the field
+// vocabulary mechanically; and the 10/10 coverage table is pinned
+// row by row against the Go registration.
+function agencyGuardProblems(text, goText) {
+  const bad = [];
+  const rules = [
+    ['agency_count_conservation_rule', 'AgencyCountConservationRule', 'sequences-one-to-N-events-never-lost-or-duplicated'],
+    ['agency_action_enum_gate', 'AgencyActionEnumGate', 'limit-hold-cancel-recover-never-recorded-as-response'],
+    ['agency_enforcement_plane', 'AgencyEnforcementPlane', 'none-in-observation-phase'],
+  ];
+  const fields = findKey(text, 'agency_guard_field_vocabulary');
+  if (fields === null) return ['agency guard field vocabulary key missing or duplicated'];
+  const toks = fields.split(',');
+  if (toks.length !== 10 || new Set(toks).size !== 10) bad.push('agency guard field vocabulary not ten unique tokens');
+  for (const t of toks) {
+    if (!goText.includes('"' + t + '"')) bad.push('agency guard field token Go mirror missing: ' + t);
+  }
+  const counters = findKey(text, 'agency_counter_vocabulary');
+  if (counters === null) return bad.concat(['agency counter vocabulary key missing or duplicated']);
+  if (counters !== 'event_rate,step_count,parallelism') bad.push('agency counter vocabulary line drifted');
+  for (const tok of counters.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('agency counter token Go mirror missing: ' + tok);
+  }
+  const scopes = findKey(text, 'agency_counter_scope_vocabulary');
+  if (scopes === null) return bad.concat(['agency scope vocabulary key missing or duplicated']);
+  if (scopes !== 'agent,task') bad.push('agency scope line drifted');
+  for (const tok of scopes.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('agency scope token Go mirror missing: ' + tok);
+  }
+  const states = findKey(text, 'agency_limit_state_vocabulary');
+  if (states === null) return bad.concat(['agency limit state vocabulary key missing or duplicated']);
+  if (states !== 'below_ceiling,at_ceiling,above_ceiling') bad.push('agency limit state line drifted');
+  for (const tok of states.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('agency limit state token Go mirror missing: ' + tok);
+  }
+  for (const [key, ident, val] of rules) {
+    const got = findKey(text, key);
+    if (got === null) return bad.concat(['agency guard contract keys missing or duplicated']);
+    if (got !== val) bad.push('agency guard line drifted: ' + key);
+    if (!goText.includes(ident + ' = "' + val + '"')) bad.push('agency guard rule Go mirror drifted: ' + ident);
+  }
+  // Constructor-pinned response and registry lines: pinned in Go,
+  // restated in the section body; the enum gate admits no action
+  // token as a record value anywhere else.
+  if (!goText.includes('AgencyGuardResponseRule = "record-only-no-action"')) bad.push('agency response constant Go mirror drifted');
+  if (!goText.includes('AgencyLadderRegistry = "limit,hold,cancel-or-recover"')) bad.push('agency ladder registry Go mirror drifted');
+  const secAt = text.indexOf('## 21. Agency guard observation record contract');
+  if (secAt < 0) return bad.concat(['section 21 header missing']);
+  const nextSec = text.indexOf('\n## ', secAt + 5);
+  const sec = text.slice(secAt, nextSec < 0 ? text.length : nextSec);
+  if (!sec.includes('record-only-no-action')) bad.push('section 21 body lost the record-only response restatement');
+  // Anchor reverse-check: the ten section 261 bullet lines derive
+  // to the field vocabulary, in order (lower case, spaces to
+  // single underscores).
+  const bullets = [...sec.matchAll(/^\* ([A-Z][A-Za-z ]+)$/gm)].map((m) => m[1]);
+  if (bullets.length !== 10) bad.push('section 261 anchor bullets ' + bullets.length + ', want 10');
+  else if (bullets.map((b) => b.toLowerCase().replace(/ +/g, '_')).join(',') !== fields) {
+    bad.push('section 261 anchor bullets derive to a different vocabulary than the key line');
+  }
+  // Go registration parse: constants and the coverage function rows.
+  const fieldOf = {};
+  for (const m of goText.matchAll(/(Guard\w+)\s+AgencyGuardField = "([a-z_]+)"/g)) fieldOf[m[1]] = m[2];
+  const phaseOf = {};
+  for (const m of goText.matchAll(/(GuardPhase\w+)\s+AgencyGuardPhase = "([a-z_0-9]+)"/g)) phaseOf[m[1]] = m[2];
+  const covBlock = (goText.match(/func agencyGuardCoverage\(\) \[\]AgencyGuardCoverageRow \{[\s\S]*?\n\}/) || [''])[0];
+  const goRows = [...covBlock.matchAll(/\{(Guard\w+), (GuardPhase\w+), "([^"]*)"\}/g)]
+    .map((m) => [fieldOf[m[1]], phaseOf[m[2]], m[3]]);
+  if (goRows.length !== 10 || goRows.some((r) => !r[0] || !r[1])) bad.push('Go coverage registration ' + goRows.length + '/10 rows (or unresolved constant)');
+  // Docs table pin: ten rows, row order and every cell against Go.
+  const rows = [...sec.matchAll(/^\| `([a-z_]+)` \| (counted_v0|anchored|pending) \| (-|W6\.2|W8\.2) \|$/gm)];
+  if (rows.length !== 10) bad.push('agency coverage table row census ' + rows.length + ', want 10');
+  else rows.forEach((rm, i) => {
+    const g = goRows[i];
+    if (!g) { bad.push('no Go coverage row at ' + (i + 1)); return; }
+    if (rm[1] !== g[0] || rm[2] !== g[1] || rm[3] !== (g[2] === '' ? '-' : g[2])) {
+      bad.push('agency coverage row ' + (i + 1) + ' drifted from the Go registration: ' + rm[1]);
+    }
+  });
+  if (goRows.length === 10 && rows.length === 10) {
+    if (goRows.map((r) => r[0]).join(',') !== fields) bad.push('Go coverage order drifted from the field vocabulary line');
+  }
+  return bad;
+}
+
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
@@ -910,6 +999,8 @@ check(cd.length === 0, 'chain dimensions: eight-word vocabulary derived from sec
 if (cd.length) console.log('  ' + cd.join('\n  '));
 const dl = delegationProblems(v, dlSrc);
 check(dl.length === 0, 'delegation observation: five-subject and three-state vocabularies mirrored docs<->Go, section 283 eight-bullet and section 236 five-bullet anchors derive mechanically, four rules and twelve-row field table pinned, none-plane, section 20 present');
+const ag = agencyGuardProblems(v, agSrc);
+check(ag.length === 0, 'agency guard counters: ten-field, three-counter, two-scope, and four-state vocabularies mirrored docs<->Go, section 261 ten-bullet anchor derives mechanically, conservation and enum-gate rules pinned, 10/10 coverage table row-pinned, none-plane, section 21 present');
 if (dl.length) console.log('  ' + dl.join('\n  '));
 
 const mtp = masterTableProblems(v);
@@ -973,6 +1064,9 @@ if (process.argv.includes('--selftest')) {
     ['delegation subject vocabulary loses a word', (t) => t.replace('delegation_subject_vocabulary: skill,mcp,tool,child_process,plugin', 'delegation_subject_vocabulary: skill,mcp,tool,plugin'), (t) => delegationProblems(t, dlSrc)],
     ['delegation no-inheritance rule pre-borrowed into carry-over', (t) => t.replace('delegation_no_auto_inheritance_rule: parent-authority-never-auto-transfers-to-child', 'delegation_no_auto_inheritance_rule: parent-authority-carries-to-child'), (t) => delegationProblems(t, dlSrc)],
     ['delegation enforcement plane pre-borrowed', (t) => t.replace('delegation_enforcement_plane: none-in-observation-phase', 'delegation_enforcement_plane: enforce-now'), (t) => delegationProblems(t, dlSrc)],
+    ['agency counter vocabulary loses a counter', (t) => t.replace('agency_counter_vocabulary: event_rate,step_count,parallelism', 'agency_counter_vocabulary: event_rate,step_count'), (t) => agencyGuardProblems(t, agSrc)],
+    ['agency action enum gate pre-borrowed into enforcement', (t) => t.replace('agency_action_enum_gate: limit-hold-cancel-recover-never-recorded-as-response', 'agency_action_enum_gate: limit-hold-cancel-recover-recorded-as-response'), (t) => agencyGuardProblems(t, agSrc)],
+    ['agency coverage counted row fakes an anchor', (t) => t.replace('| `max_steps` | counted_v0 | - |', '| `max_steps` | anchored | W6.2 |'), (t) => agencyGuardProblems(t, agSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
@@ -992,6 +1086,7 @@ if (process.argv.includes('--selftest')) {
     (t) => alignmentProblems(t, aaSrc),
     (t) => chainDimensionProblems(t, cdSrc),
     (t) => delegationProblems(t, dlSrc),
+    (t) => agencyGuardProblems(t, agSrc),
     (t) => masterTableProblems(t)]) {
     if (pred(v).length) {
       console.log('SELFTEST FAIL: predicate fired on clean file');

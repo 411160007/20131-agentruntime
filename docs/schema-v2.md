@@ -2058,3 +2058,135 @@ stays anchored - this slice lands the record shape that the future
 chain computation will consume, it does not compute the dimension
 itself. Section 19's reversibility note keeps holding: the
 recovery classes stay W2.3's, untouched here.
+
+## 21. Agency guard observation record contract (slice W6.1)
+
+Section 234 of the owner spec refuses to stop at Least Privilege:
+Least Agency bounds how long an agent may run, how many tools it
+may call, how many things it may do in parallel, how many children
+it may spawn, and what it may spend. Section 261 names ten hard
+bound fields per agent and per task and shows the escalation
+ladder LIMIT, HOLD, CANCEL/RECOVER for the moment a bound trips.
+This section lands the observation half only: three pure counters
+(event rate, step count, parallelism) over per-agent or per-task
+streams, a limit record whose hit state is computed and whose only
+admissible response is record-only-no-action, and a 10/10 coverage
+registration in which every non-counted bound field names either a
+real later-slice anchor or stands explicitly pending - never a
+silent hole.
+
+Like sections 12 through 20 this contract is deliberately not one
+of the fifteen schema names of section 289: the wave enumerates no
+"agency guard" schema, so section 11 and its twenty-eight cells
+stay untouched and this section adds no master_cell block (the
+census doctrine forbids private rows beside the table).
+
+### 21.1 The seven agency guard keys
+
+```schemav2
+agency_guard_field_vocabulary: max_steps,max_runtime,max_tool_calls,max_network_requests,max_parallelism,max_cpu,max_memory,max_storage,max_api_cost,max_child_agents
+agency_counter_vocabulary: event_rate,step_count,parallelism
+agency_counter_scope_vocabulary: agent,task
+agency_limit_state_vocabulary: below_ceiling,at_ceiling,above_ceiling
+agency_count_conservation_rule: sequences-one-to-N-events-never-lost-or-duplicated
+agency_action_enum_gate: limit-hold-cancel-recover-never-recorded-as-response
+agency_enforcement_plane: none-in-observation-phase
+```
+
+The first four lines are closed vocabularies in normative order,
+pinned verbatim against `AllAgencyGuardFields`,
+`AllAgencyCounterKinds`, `AllAgencyCounterScopes`, and
+`AllAgencyLimitStates` in `internal/schema/agencyguard.go`; the
+last three are pinned against the rule constants
+(`AgencyCountConservationRule`, `AgencyActionEnumGate`,
+`AgencyEnforcementPlane`) - and `AgencyGuardResponseRule` plus
+`AgencyLadderRegistry` against their record uses - by the sync
+predicate in `scripts/schema-v2-check.mjs` and the Go test in this
+package; drift in either direction is a red build.
+
+The constructors never halt and never kill: the aggregate input
+carries no ceiling field at all (a ceiling that was never declared
+cannot silently shape a count), the limit record computes its
+state from two stated numbers instead of accepting a stated
+verdict, and the response line is constructor-pinned, not caller
+editable. The enum gate is mechanical: every free-text identity
+line a recorder may state (`scope_id`, `event_class`) is rejected
+before construction if it equals a Phase 1 ladder action token, so
+LIMIT, HOLD, CANCEL, and RECOVER can never be written into a
+product-path record value by any input shape. Count conservation
+is mechanical too: the sequence must be the gap-free run 1..N, the
+recorded `event_count` equals the number of accepted events, step
+and rate events state exactly one count each, and the parallelism
+observed value is the pure maximum of stated concurrency (a stated
+zero is idle activity, never inferred silence). Absence is
+single-meaning: an empty stream builds nothing, and the
+taskbook's shared-collection-source stance with slice W8.2 is the
+storage quota anchor row in the table below.
+
+### 21.2 The section 261 anchor and the 10/10 coverage registration
+
+The ten bullet lines below mirror the owner specification's ten
+bound-field names verbatim; the Node checker derives the wire
+tokens mechanically (lower case, spaces to single underscores) and
+pins them row by row, in order, against `AllAgencyGuardFields`:
+
+* Max Steps
+* Max Runtime
+* Max Tool Calls
+* Max Network Requests
+* Max Parallelism
+* Max CPU
+* Max Memory
+* Max Storage
+* Max API Cost
+* Max Child Agents
+
+The registration table gives every one of the ten a standing, so
+the counted subset is a declared stage of a complete map rather
+than a convenient slice:
+
+| `max_steps` | counted_v0 | - |
+| `max_runtime` | anchored | W6.2 |
+| `max_tool_calls` | counted_v0 | - |
+| `max_network_requests` | counted_v0 | - |
+| `max_parallelism` | counted_v0 | - |
+| `max_cpu` | pending | - |
+| `max_memory` | pending | - |
+| `max_storage` | anchored | W8.2 |
+| `max_api_cost` | anchored | W6.2 |
+| `max_child_agents` | counted_v0 | - |
+
+Counted rows are this slice's three counters: steps and
+parallelism are counted directly, and tool calls, network
+requests, and child-agent creations are counted by the event-rate
+counter over the class the recorder states (the class is free
+text on purpose - matching it against a live vocabulary would
+pre-borrow enforcement). Anchored rows name the later slice that
+will cover them (W6.2 lands the runtime and cost proxy fields,
+W8.2 the per-agent/per-task storage quota from the same
+collection source); the two pending rows say out loud that CPU
+and memory have no collector owner yet. An eleventh row, a
+missing row, a reordered row, or a counted row faking an anchor
+is a red build in both directions.
+
+### 21.3 Plane discipline
+
+`AgencyGuardField`, `AgencyCounterKind`, `AgencyCounterScope`,
+`AgencyLimitState`, `AgencyCounterEvent`, `AgencyCounterAggregate`,
+`AgencyLimitRecord`, `BuildAgencyCounterAggregate`,
+`BuildAgencyLimitRecord`, `AllAgencyGuardCoverage`,
+`AgencyForbiddenActionTokens`, and the five rule constants join
+the planeLeak needle set in `scripts/gate-w5.sh` and the Go scan
+in this package in this same PR: no policy, rules, bus, or
+auditlog file may reference them while `agency_enforcement_plane`
+reads none-in-observation-phase, and the command tree is scanned
+for the same symbols with a planted-shape positive control. The
+section 261 ladder tokens themselves stay outside every record
+value (the enum gate rejects them as inputs and the reflective
+test pins them absent from every output field). Decision values
+stay inside the Phase 0 closed pair `{allow, would_block}`
+untouched by this slice, and LIMIT and HOLD stay Phase 1 action
+values with zero writes into any product path. The wire contract
+of docs/api-v0.md gains nothing here: no event field is added;
+the counters read recorded streams and write records only.
+
