@@ -10,7 +10,11 @@
 # only the W2.3 recovery classes), the delegation observation record
 # of slice W5.3 (eight must-record fields, closed five-subject and
 # three-state vocabularies, no-auto-inheritance pinned by the
-# constructor), the full v2-check battery with its selftest
+# constructor), the agency guard observation counters of slice
+# W6.1 (closed ten-word section 261 field vocabulary with a 10/10
+# coverage table, three counters over per-agent/per-task streams,
+# count conservation, and the LIMIT/HOLD action-enum zero-write
+# gate), the full v2-check battery with its selftest
 # positive-control fleet, a decision-plane reachability grep over
 # every wave symbol whose teeth are proven by a plant/remove control
 # on the command tree, and the complete inherited chain (gate-w4,
@@ -30,10 +34,11 @@ command -v go >/dev/null 2>&1 || export PATH="$HOME/.local/go/bin:$PATH"
 
 step() { printf '\n=== %s ===\n' "$*"; }
 
-step '00 preflight: W5 surface repo-visible with eighteen rule keys over sections 18-20'
+step '00 preflight: W5 and W6.1 surface repo-visible with eighteen rule keys over sections 18-20 plus seven agency keys over section 21'
 test -f internal/schema/actionnecessity.go || { echo 'RED: W5.1 surface missing'; exit 1; }
 test -f internal/schema/chaindimensions.go || { echo 'RED: W5.2 surface missing'; exit 1; }
 test -f internal/schema/delegationobservation.go || { echo 'RED: W5.3 surface missing'; exit 1; }
+test -f internal/schema/agencyguard.go || { echo 'RED: W6.1 surface missing'; exit 1; }
 test -f scripts/gate-w5.sh || { echo 'RED: this gate not on disk'; exit 1; }
 grep -q '^## 18. Action necessity record contract' docs/schema-v2.md \
   || { echo 'RED: section 18 header missing'; exit 1; }
@@ -41,9 +46,13 @@ grep -q '^## 19. Behavior chain dimension record contract' docs/schema-v2.md \
   || { echo 'RED: section 19 header missing'; exit 1; }
 grep -q '^## 20. Delegation observation record contract' docs/schema-v2.md \
   || { echo 'RED: section 20 header missing'; exit 1; }
+grep -q '^## 21. Agency guard observation record contract' docs/schema-v2.md \
+  || { echo 'RED: section 21 header missing'; exit 1; }
+m=$(grep -cE '^(agency_guard_field_vocabulary|agency_counter_vocabulary|agency_counter_scope_vocabulary|agency_limit_state_vocabulary|agency_count_conservation_rule|agency_action_enum_gate|agency_enforcement_plane): ' docs/schema-v2.md)
+[ "$m" -eq 7 ] || { echo "RED: W6.1 agency rule key census $m/7"; exit 1; }
 n=$(grep -cE '^(action_necessity_question_vocabulary|action_necessity_answer_vocabulary|action_necessity_danger_only_rule|action_necessity_evidence_rule|action_necessity_absent_default|action_necessity_enforcement_plane|chain_dimension_vocabulary|chain_dimension_observation_states|chain_dimension_coverage_rule|chain_dimension_unclassified_rule|chain_dimension_reversibility_source_rule|chain_dimension_enforcement_plane|delegation_subject_vocabulary|delegation_revalidation_states|delegation_no_auto_inheritance_rule|delegation_reevaluation_registry|delegation_revalidation_obligation_rule|delegation_enforcement_plane): ' docs/schema-v2.md)
 [ "$n" -eq 18 ] || { echo "RED: W5 rule key census $n/18"; exit 1; }
-echo 'W5 SURFACE VISIBLE (necessity + chain dimensions + delegation, eighteen keys pinned)'
+echo 'W5 AND W6.1 SURFACE VISIBLE (necessity + chain dimensions + delegation + agency guard counters, eighteen plus seven keys pinned)'
 
 step '01 v2-check full battery (slot, template, element, vocabularies, anchors, planeLeak, master table, W4 and W5 contracts)'
 node scripts/schema-v2-check.mjs > "$TMPDIR/gate-w5-v2check.out" 2>&1 \
@@ -62,17 +71,19 @@ grep -q 'PASS chain dimensions' "$TMPDIR/gate-w5-v2check.out" \
   || { echo 'RED: chain dimensions predicate did not run'; exit 1; }
 grep -q 'PASS delegation observation' "$TMPDIR/gate-w5-v2check.out" \
   || { echo 'RED: delegation observation predicate did not run'; exit 1; }
+grep -q 'PASS agency guard counters' "$TMPDIR/gate-w5-v2check.out" \
+  || { echo 'RED: agency guard predicate did not run'; exit 1; }
 grep -q 'PASS untrusted consumption' "$TMPDIR/gate-w5-v2check.out" \
   || { echo 'RED: inherited consume predicate did not run'; exit 1; }
 grep -q 'PASS master table' "$TMPDIR/gate-w5-v2check.out" \
   || { echo 'RED: master table predicate did not run'; exit 1; }
-echo 'V2-CHECK FULL RUN GREEN (necessity, chain dimensions, and delegation predicates included)'
+echo 'V2-CHECK FULL RUN GREEN (necessity, chain dimensions, delegation, and agency guard predicates included)'
 
 step '02 selftest positive controls: every mutation caught, shipped file silent'
 node scripts/schema-v2-check.mjs --selftest > "$TMPDIR/gate-w5-selftest.out" 2>&1 \
   || { tail -20 "$TMPDIR/gate-w5-selftest.out"; echo RED: selftest; exit 1; }
-grep -q 'SELFTEST OK: all 50 mutations caught' "$TMPDIR/gate-w5-selftest.out" \
-  || { echo 'RED: selftest banner (want all 50 caught)'; tail -5 "$TMPDIR/gate-w5-selftest.out"; exit 1; }
+grep -q 'SELFTEST OK: all 53 mutations caught' "$TMPDIR/gate-w5-selftest.out" \
+  || { echo 'RED: selftest banner (want all 53 caught)'; tail -5 "$TMPDIR/gate-w5-selftest.out"; exit 1; }
 MISSES=$(grep -c 'SELFTEST MISS' "$TMPDIR/gate-w5-selftest.out" || true)
 [ "$MISSES" -eq 0 ] || { echo "RED: $MISSES selftest mutations missed"; exit 1; }
 echo 'SELFTEST 50/50 CAUGHT (shipped predicates have teeth)'
@@ -101,8 +112,15 @@ for t in TestDelegationSubjectVocabularyPin TestDelegationRuleConstantsPin TestB
 done
 echo 'DELEGATION BATTERY GREEN (five subjects pinned, no-inheritance constant constructor-held, rejections leave no record, docs sync pinned)'
 
+go test -count=1 ./internal/schema -run 'TestAgency' -v > "$TMPDIR/gate-w5-agency.out" 2>&1 \
+  || { tail -30 "$TMPDIR/gate-w5-agency.out"; echo RED: agency guard battery; exit 1; }
+for t in TestAgencyGuardFieldVocabularyPin TestAgencyGuardCoverageRows TestAgencyCounterConservationGolden TestAgencyLimitRecordGoldenPair TestAgencyActionTokensNeverRecorded TestAgencyRejectionsLeaveNoRecord TestAgencyRecordsCarryNoDecision TestAgencySymbolsStayOffTheDecisionPlane TestAgencyGuardDocsSync; do
+  grep -q "^--- PASS: $t" "$TMPDIR/gate-w5-agency.out" || { echo "RED: $t did not pass"; exit 1; }
+done
+echo 'AGENCY GUARD BATTERY GREEN (ten fields pinned with 10/10 coverage rows matched against Go registration, conservation golden, tripped ceiling builds byte-identical counters with nil error, ladder tokens never recorded, docs sync pinned)'
+
 step '04 decision-plane reachability grep: no decision or command file consumes the W5 symbols (plant/remove control)'
-LEAKRE='ActionNecessity|AllNecessity|NecessityQuestion|NecessityAnswer|BuildActionNecessity|ChainDimension|ChainStep|ChainObservation|ChainPhase|ComputableChain|AllChain|DelegationObservation|DelegationSubject|DelegationRevalidation|DelegationRecord|AllDelegation|BuildDelegation'
+LEAKRE='ActionNecessity|AllNecessity|NecessityQuestion|NecessityAnswer|BuildActionNecessity|ChainDimension|ChainStep|ChainObservation|ChainPhase|ComputableChain|AllChain|DelegationObservation|DelegationSubject|DelegationRevalidation|DelegationRecord|AllDelegation|BuildDelegation|AgencyGuardField|AgencyCounterKind|AgencyLimitState|AgencyLimitRecord|BuildAgencyCounterAggregate|BuildAgencyLimitRecord|AllAgencyGuard|AllAgencyCounter|AllAgencyLimit|AgencyForbiddenActionTokens|AgencyLadderRegistry'
 probe() {
   grep -rlE "$LEAKRE" --include='*.go' cmd internal/policy internal/rules internal/bus internal/auditlog 2>/dev/null | grep -v '_test\.go' || true
 }
