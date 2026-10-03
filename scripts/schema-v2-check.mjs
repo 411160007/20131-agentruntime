@@ -452,6 +452,7 @@ const daSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'dataaction.
 const tdSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'trustdomain.go'), 'utf8');
 const ewSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'exportwrap.go'), 'utf8');
 const anSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'actionnecessity.go'), 'utf8');
+const cdSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'chaindimensions.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -668,10 +669,82 @@ function alignmentProblems(text, goText) {
   return bad;
 }
 
+// Behavior chain dimension contract checks (slice W5.2): the eight
+// vocabulary tokens must derive mechanically from the section 242
+// anchor bullets, the 8/8 coverage table must match the Go
+// registration row by row (token, phase, anchor), and the computable
+// subset line must equal the computable rows of that same table.
+function chainDimensionProblems(text, goText) {
+  const bad = [];
+  const rules = [
+    ['chain_dimension_coverage_rule', 'ChainDimensionCoverageRule', 'eight-of-eight-rows-registered-never-dangling'],
+    ['chain_dimension_unclassified_rule', 'ChainDimensionUnclassifiedRule', 'missing-step-data-yields-unclassified-never-not-observed'],
+    ['chain_dimension_reversibility_source_rule', 'ChainDimensionReversibilitySourceRule', 'reversibility-reduction-reads-recovery-classes-only'],
+    ['chain_dimension_enforcement_plane', 'ChainDimensionEnforcementPlane', 'none-in-observation-phase'],
+  ];
+  const vocab = findKey(text, 'chain_dimension_vocabulary');
+  if (vocab === null) return ['chain dimension vocabulary key missing or duplicated'];
+  const toks = vocab.split(',');
+  if (toks.length !== 8 || new Set(toks).size !== 8) bad.push('chain dimension vocabulary not eight unique tokens');
+  for (const t of toks) {
+    if (!goText.includes('"' + t + '"')) bad.push('chain dimension token Go mirror missing: ' + t);
+  }
+  const states = findKey(text, 'chain_dimension_observation_states');
+  if (states === null) return bad.concat(['chain observation states key missing or duplicated']);
+  if (states !== 'observed,not_observed,unclassified') bad.push('chain observation states line drifted');
+  for (const tok of states.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('chain observation state Go mirror missing: ' + tok);
+  }
+  for (const [key, ident, val] of rules) {
+    const got = findKey(text, key);
+    if (got === null) return bad.concat(['chain contract keys missing or duplicated']);
+    if (got !== val) bad.push('chain dimension line drifted: ' + key);
+    if (!goText.includes(ident + ' = "' + val + '"')) bad.push('chain dimension rule Go mirror drifted: ' + ident);
+  }
+  const secAt = text.indexOf('## 19. Behavior chain dimension record contract');
+  if (secAt < 0) return bad.concat(['section 19 header missing']);
+  const nextSec = text.indexOf('\n## ', secAt + 5);
+  const sec = text.slice(secAt, nextSec < 0 ? text.length : nextSec);
+  // Anchor reverse-check: the eight section 242 bullet lines derive
+  // to the vocabulary, in order (lower case, spaces to underscores).
+  const bullets = [...sec.matchAll(/^\* ([A-Z][A-Za-z ]+)$/gm)].map((m) => m[1]);
+  if (bullets.length !== 8) bad.push('section 242 anchor bullets ' + bullets.length + ', want 8');
+  else if (bullets.map((b) => b.toLowerCase().replace(/ +/g, '_')).join(',') !== vocab) {
+    bad.push('section 242 anchor bullets derive to a different vocabulary than the key line');
+  }
+  // Go registration parse: constants and the coverage function rows.
+  const dimOf = {};
+  for (const m of goText.matchAll(/(Dimension\w+)\s+ChainDimension = "([a-z_]+)"/g)) dimOf[m[1]] = m[2];
+  const phaseOf = {};
+  for (const m of goText.matchAll(/(ChainPhase\w+)\s+ChainDimensionPhase = "([a-z_0-9]+)"/g)) phaseOf[m[1]] = m[2];
+  const covBlock = (goText.match(/func chainDimensionCoverage\(\) \[\]ChainDimensionCoverageRow \{[\s\S]*?\n\}/) || [''])[0];
+  const goRows = [...covBlock.matchAll(/\{(Dimension\w+), (ChainPhase\w+), "([^"]*)"\}/g)]
+    .map((m) => [dimOf[m[1]], phaseOf[m[2]], m[3]]);
+  if (goRows.length !== 8 || goRows.some((r) => !r[0] || !r[1])) bad.push('Go coverage registration ' + goRows.length + '/8 rows (or unresolved constant)');
+  const goComputable = goRows.filter((r) => r[1] === 'computable_v0').map((r) => r[0]).join(',');
+  const comp = findKey(text, 'chain_dimension_computable_v0');
+  if (comp === null) return bad.concat(['chain computable subset key missing or duplicated']);
+  if (comp !== goComputable) bad.push('computable subset line drifted from the Go registration');
+  // Docs table pin: eight rows, row order and every cell against Go.
+  const rows = [...sec.matchAll(/^\| `([a-z_]+)` \| (computable_v0|anchored|pending) \| (-|W5\.3|W6|W11) \|$/gm)];
+  if (rows.length !== 8) bad.push('coverage table row census ' + rows.length + ', want 8');
+  else rows.forEach((rm, i) => {
+    const g = goRows[i];
+    if (!g) { bad.push('no Go coverage row at ' + (i + 1)); return; }
+    if (rm[1] !== g[0] || rm[2] !== g[1] || rm[3] !== (g[2] === '' ? '-' : g[2])) {
+      bad.push('coverage row ' + (i + 1) + ' drifted from the Go registration: ' + rm[1]);
+    }
+  });
+  if (goRows.length === 8 && rows.length === 8) {
+    if (goRows.map((r) => r[0]).join(',') !== vocab) bad.push('Go coverage order drifted from the vocabulary line');
+  }
+  return bad;
+}
+
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
-  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane|TrustLevel|RunDomain|AllTrustLevels|AllRunDomains|LegacyClassOf|LiftCandidates|trustToLegacyClass|TrustDomainLegacyProjectionRule|TrustDomainCrossingRule|TrustDomainAbsentDefault|TrustDomainEnforcementPlane|PackagingWord|AllPackagingWords|ExportRejudgementRecord|BuildExportRejudgement|ExportPackagingSensitivityRule|ExportRejudgementIndependenceRule|ExportRejudgementAbsentDefault|ExportRejudgementEnforcementPlane|NecessityQuestion|NecessityAnswer|AllNecessityQuestions|AllNecessityAnswers|ActionNecessityRecord|BuildActionNecessity|ActionNecessityDangerOnlyRule|ActionNecessityEvidenceRule|ActionNecessityAbsentDefault|ActionNecessityEnforcementPlane/;
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane|TrustLevel|RunDomain|AllTrustLevels|AllRunDomains|LegacyClassOf|LiftCandidates|trustToLegacyClass|TrustDomainLegacyProjectionRule|TrustDomainCrossingRule|TrustDomainAbsentDefault|TrustDomainEnforcementPlane|PackagingWord|AllPackagingWords|ExportRejudgementRecord|BuildExportRejudgement|ExportPackagingSensitivityRule|ExportRejudgementIndependenceRule|ExportRejudgementAbsentDefault|ExportRejudgementEnforcementPlane|NecessityQuestion|NecessityAnswer|AllNecessityQuestions|AllNecessityAnswers|ActionNecessityRecord|BuildActionNecessity|ActionNecessityDangerOnlyRule|ActionNecessityEvidenceRule|ActionNecessityAbsentDefault|ActionNecessityEnforcementPlane|ChainDimension|ChainStep|ChainObservationState|ChainStateObserved|ChainStateNotObserved|ChainStateUnclassified|BuildChainDimensions|ComputableChainDimensions|AllChainDimensionCoverage|ChainPhaseComputable|ChainPhaseAnchored|ChainPhasePending|ChainDimensionCoverageRule|ChainDimensionUnclassifiedRule|ChainDimensionReversibilitySourceRule|ChainDimensionEnforcementPlane/;
   for (const d of PLANE_DIRS) {
     const dir = path.join(root, 'internal', d);
     let entries;
@@ -761,6 +834,9 @@ if (ew.length) console.log('  ' + ew.join('\n  '));
 const an = actionNecessityProblems(v, anSrc);
 check(an.length === 0, 'action necessity: three-question and three-answer vocabularies mirrored docs<->Go, danger-only and evidence and absent-default and none-plane rules pinned, section 18 present');
 if (an.length) console.log('  ' + an.join('\n  '));
+const cd = chainDimensionProblems(v, cdSrc);
+check(cd.length === 0, 'chain dimensions: eight-word vocabulary derived from section 242 anchor bullets, 8/8 coverage table pinned row by row against the Go registration, computable subset and unclassified and reversibility-source and none-plane rules mirrored, section 19 present');
+if (cd.length) console.log('  ' + cd.join('\n  '));
 
 const mtp = masterTableProblems(v);
 check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
@@ -817,6 +893,9 @@ if (process.argv.includes('--selftest')) {
     ['action necessity question vocabulary loses a question', (t) => t.replace('action_necessity_question_vocabulary: reasonable_step,necessary_step,substitutable_step', 'action_necessity_question_vocabulary: reasonable_step,necessary_step'), (t) => actionNecessityProblems(t, anSrc)],
     ['action necessity evidence rule pre-borrowed into optional answers', (t) => t.replace('action_necessity_evidence_rule: every-recorded-answer-requires-nonempty-evidence', 'action_necessity_evidence_rule: evidence-optional-for-plausible-answers'), (t) => actionNecessityProblems(t, anSrc)],
     ['action necessity enforcement plane pre-borrowed', (t) => t.replace('action_necessity_enforcement_plane: none-in-observation-phase', 'action_necessity_enforcement_plane: enforce-now'), (t) => actionNecessityProblems(t, anSrc)],
+    ['chain dimension vocabulary loses a dimension', (t) => t.replace('chain_dimension_vocabulary: intent_deviation,capability_escalation,data_sensitivity_escalation,trust_domain_crossing,reversibility_reduction,blast_radius_growth,destination_change,delegation_chain', 'chain_dimension_vocabulary: intent_deviation,capability_escalation,data_sensitivity_escalation,trust_domain_crossing,reversibility_reduction,blast_radius_growth,destination_change'), (t) => chainDimensionProblems(t, cdSrc)],
+    ['chain coverage row upgraded into a false promise', (t) => t.replace('| `blast_radius_growth` | anchored | W11 |', '| `blast_radius_growth` | computable_v0 | - |'), (t) => chainDimensionProblems(t, cdSrc)],
+    ['chain reversibility source rule rewritten to a rival scale', (t) => t.replace('chain_dimension_reversibility_source_rule: reversibility-reduction-reads-recovery-classes-only', 'chain_dimension_reversibility_source_rule: reversibility-reduction-reads-any-score'), (t) => chainDimensionProblems(t, cdSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
@@ -834,6 +913,7 @@ if (process.argv.includes('--selftest')) {
     (t) => impactProblems(t, irSrc), (t) => recoveryProblems(t, irSrc), () => execVerbProblems(),
     (t) => evidenceProblems(t, epSrc), (t) => profileProblems(t, epSrc),
     (t) => alignmentProblems(t, aaSrc),
+    (t) => chainDimensionProblems(t, cdSrc),
     (t) => masterTableProblems(t)]) {
     if (pred(v).length) {
       console.log('SELFTEST FAIL: predicate fired on clean file');
