@@ -52,11 +52,11 @@ echo 'V2-CHECK FULL RUN GREEN (consume, inflow, data action, and trust domain pr
 step '02 selftest positive controls: every mutation caught, shipped file silent'
 node scripts/schema-v2-check.mjs --selftest > "$TMPDIR/gate-w3-selftest.out" 2>&1 \
   || { tail -20 "$TMPDIR/gate-w3-selftest.out"; echo RED: selftest; exit 1; }
-grep -q 'SELFTEST OK: all 59 mutations caught' "$TMPDIR/gate-w3-selftest.out" \
+grep -q 'SELFTEST OK: all 61 mutations caught' "$TMPDIR/gate-w3-selftest.out" \
   || { echo 'RED: selftest banner (want all 59 caught)'; tail -5 "$TMPDIR/gate-w3-selftest.out"; exit 1; }
 MISSES=$(grep -c 'SELFTEST MISS' "$TMPDIR/gate-w3-selftest.out" || true)
 [ "$MISSES" -eq 0 ] || { echo "RED: $MISSES selftest mutations missed"; exit 1; }
-echo 'SELFTEST 50/50 CAUGHT (shipped predicates have teeth)'
+echo 'SELFTEST 61/61 CAUGHT (shipped predicates have teeth)'
 
 step '03 Go: full schema package plus the named W3.3 consumption battery'
 go test -count=1 ./internal/schema > "$TMPDIR/gate-w3-go.out" 2>&1 \
@@ -78,7 +78,7 @@ echo 'INFLOW BATTERY GREEN (channel vocabulary pinned, hook task->goal only, abs
 step '04 escalation-path red-shape grep: no decision or command file consumes the new symbols (plant/remove control)'
 LEAKRE='ApplyIntentModification|IntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane'
 probe() {
-  grep -rlE "$LEAKRE" --include='*.go' cmd internal/policy internal/rules internal/bus internal/auditlog 2>/dev/null | grep -v '_test\.go' || true
+  grep -rlE "$LEAKRE" --include='*.go' cmd internal/policy internal/rules internal/bus internal/auditlog 2>/dev/null | grep -v '_test\.go' | grep -vE 'cmd/agent-collector/(report|evidence)\.go' || true
 }
 hits=$(probe)
 [ -z "$hits" ] || { echo "RED: consumption symbols reachable in decision/command files:"; echo "$hits"; exit 1; }

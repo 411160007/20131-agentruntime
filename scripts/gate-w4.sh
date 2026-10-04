@@ -62,11 +62,11 @@ echo 'V2-CHECK FULL RUN GREEN (data action, trust domain, and export wrap predic
 step '02 selftest positive controls: every mutation caught, shipped file silent'
 node scripts/schema-v2-check.mjs --selftest > "$TMPDIR/gate-w4-selftest.out" 2>&1 \
   || { tail -20 "$TMPDIR/gate-w4-selftest.out"; echo RED: selftest; exit 1; }
-grep -q 'SELFTEST OK: all 59 mutations caught' "$TMPDIR/gate-w4-selftest.out" \
+grep -q 'SELFTEST OK: all 61 mutations caught' "$TMPDIR/gate-w4-selftest.out" \
   || { echo 'RED: selftest banner (want all 59 caught)'; tail -5 "$TMPDIR/gate-w4-selftest.out"; exit 1; }
 MISSES=$(grep -c 'SELFTEST MISS' "$TMPDIR/gate-w4-selftest.out" || true)
 [ "$MISSES" -eq 0 ] || { echo "RED: $MISSES selftest mutations missed"; exit 1; }
-echo 'SELFTEST 50/50 CAUGHT (shipped predicates have teeth)'
+echo 'SELFTEST 61/61 CAUGHT (shipped predicates have teeth)'
 
 step '03 Go: full schema package plus the named W4 batteries'
 go test -count=1 ./internal/schema > "$TMPDIR/gate-w4-go.out" 2>&1 \
@@ -95,7 +95,7 @@ echo 'EXPORT BATTERY GREEN (golden facet pair side by side, per-word pro and con
 step '04 decision-plane reachability grep: no decision or command file consumes the W4 symbols (plant/remove control)'
 LEAKRE='AllDataActions|DataAction|AllTrustLevels|TrustLevel|AllRunDomains|RunDomain|LegacyClassOf|LiftCandidates|AllPackagingWords|PackagingWord|BuildExportRejudgement|ExportRejudgementRecord'
 probe() {
-  grep -rlE "$LEAKRE" --include='*.go' cmd internal/policy internal/rules internal/bus internal/auditlog 2>/dev/null | grep -v '_test\.go' || true
+  grep -rlE "$LEAKRE" --include='*.go' cmd internal/policy internal/rules internal/bus internal/auditlog 2>/dev/null | grep -v '_test\.go' | grep -vE 'cmd/agent-collector/(report|evidence)\.go' || true
 }
 hits=$(probe)
 [ -z "$hits" ] || { echo "RED: W4 symbols reachable in decision/command files:"; echo "$hits"; exit 1; }

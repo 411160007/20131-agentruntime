@@ -458,6 +458,8 @@ const agSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'agencyguard
 const cgSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'costguard.go'), 'utf8');
 const dtSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'decisiontrace.go'), 'utf8');
 const eeSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'evidenceexport.go'), 'utf8');
+const evCliSrc = fs.readFileSync(path.join(root, 'cmd', 'agent-collector', 'evidence.go'), 'utf8');
+const repCliSrc = fs.readFileSync(path.join(root, 'cmd', 'agent-collector', 'report.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -1149,6 +1151,38 @@ function decisionTraceProblems(text, goText) {
 }
 
 // evidence export v0 reverse-lookup (slice W7.2)
+function cliSurfaceProblems(text, evGo, repGo) {
+  const bad = [];
+  const bv = findKey(text, 'evidence_cli_skip_bucket_vocabulary');
+  if (bv === null) return ['evidence CLI skip-bucket vocabulary key missing or duplicated'];
+  const buckets = bv.split(',');
+  if (buckets.length !== 3 || new Set(buckets).size !== 3) bad.push('evidence CLI skip buckets not three unique tokens');
+  const decl = evGo.match(/var evidenceSkipBuckets = \[\]string\{([^\}]*)\}/);
+  const goBuckets = decl ? [...decl[1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]) : [];
+  if (goBuckets.length !== 3) bad.push('Go evidence CLI bucket census ' + goBuckets.length + ', want 3');
+  buckets.forEach((b, i) => { if (goBuckets[i] !== b) bad.push('evidence CLI bucket order pin broke at ' + (i + 1) + ': docs ' + b + ' vs Go ' + goBuckets[i]); });
+  const ruleLines = {
+    evidence_cli_origin_rule: 'origin-is-preceding-same-agent-event-never-self-correlation',
+    evidence_cli_version_rule: 'policy-version-must-be-operator-stated-never-defaulted',
+    evidence_cli_write_rule: 'evidence-writes-only-into-existing-explicit-dir-never-overwrite',
+    report_cli_zero_write_rule: 'report-subcommand-performs-filesystem-writes-zero',
+    cli_surface_enforcement_plane: 'none-in-observation-phase',
+  };
+  for (const [k, want] of Object.entries(ruleLines)) {
+    const got = findKey(text, k);
+    if (got === null) { bad.push(k + ' missing or duplicated'); continue; }
+    if (got !== want) bad.push(k + ' drifted: ' + got);
+  }
+  if (!/var evidenceSkipBuckets = \[\]string\{/.test(evGo)) bad.push('evidenceSkipBuckets declaration absent');
+  if (!/-dir is required/.test(evGo)) bad.push('evidence -dir refusal string absent');
+  if (!/-policy-version must be stated/.test(evGo)) bad.push('evidence -policy-version refusal string absent');
+  if (!/func runEvidence/.test(evGo)) bad.push('runEvidence dispatch body absent');
+  if (repGo.includes('os.WriteFile') || repGo.includes('os.Create') || repGo.includes('os.OpenFile')) bad.push('report subcommand contains a write API (zero-write rule broken)');
+  if (!/func runReport/.test(repGo)) bad.push('runReport dispatch body absent');
+  if (!text.includes('## 25. Read-only CLI surface')) bad.push('docs section 25 heading absent');
+  return bad;
+}
+
 function evidenceExportProblems(text, goText) {
   const bad = [];
   const ruleRe = (ident, val) => new RegExp(ident + '\\s*=\\s*"' + val + '"').test(goText);
@@ -1231,6 +1265,9 @@ if (cg.length) console.log('  ' + cg.join('\n  '));
 const dt = decisionTraceProblems(v, dtSrc);
 check(dt.length === 0, 'decision trace field table: fifteen-token vocabulary mirrored docs<->Go in spec order, four-stance census 6/3/2/4 row-pinned, absence and correlation and pinned-mode and default-applied rules mirrored, docs section 23 present');
 if (dt.length) console.log('  ' + dt.join('\n  '));
+const cli = cliSurfaceProblems(v, evCliSrc, repCliSrc);
+check(cli.length === 0, 'read-only CLI surface: evidence CLI three skip buckets mirrored docs<->Go in registration order, five rule lines plus section-25 heading pinned, report zero-write structural pin, none-plane');
+if (cli.length) console.log('  ' + cli.join('\n  '));
 const ee = evidenceExportProblems(v, eeSrc);
 check(ee.length === 0, 'evidence export v0: five-format, three-stance, seven-member, and seven-integrity vocabularies mirrored docs<->Go in registration order, six rule lines plus absent-token pinned, format 3/2 and member 2/1/4 coverage censuses row-pinned, none-plane, docs section 24 present');
 if (ee.length) console.log('  ' + ee.join('\n  '));
@@ -1306,6 +1343,8 @@ if (process.argv.includes('--selftest')) {
     ['evidence envelope timestamp softened into wall-clock', (t) => t.replace('evidence_timestamp_rule: envelope-timestamp-derived-from-evidence-never-wall-clock', 'evidence_timestamp_rule: envelope-timestamp-is-wall-clock-now'), (t) => evidenceExportProblems(t, eeSrc)],
     ['evidence write-back rule rewritten into repair-on-export', (t) => t.replace('evidence_writeback_rule: export-never-writes-back-to-source', 'evidence_writeback_rule: export-may-rewrite-source-when-convenient'), (t) => evidenceExportProblems(t, eeSrc)],
     ['evidence member gap row fakes a delivered file', (t) => t.replace('| `events.jsonl` | known_gap_absent |', '| `events.jsonl` | delivered_by_export_v0 |'), (t) => evidenceExportProblems(t, eeSrc)],
+    ['evidence CLI write rule softened into overwrite-ok', (t) => t.replace('evidence_cli_write_rule: evidence-writes-only-into-existing-explicit-dir-never-overwrite', 'evidence_cli_write_rule: evidence-may-overwrite-files-when-convenient'), (t) => cliSurfaceProblems(t, evCliSrc, repCliSrc)],
+    ['report zero-write rule rewritten into temp-writes', (t) => t.replace('report_cli_zero_write_rule: report-subcommand-performs-filesystem-writes-zero', 'report_cli_zero_write_rule: report-may-write-temp-files'), (t) => cliSurfaceProblems(t, evCliSrc, repCliSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {

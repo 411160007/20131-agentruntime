@@ -325,6 +325,17 @@ func TestTraceSymbolsStayOffTheDecisionPlane(t *testing.T) {
 			if !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
 				continue
 			}
+			// W7.3 consumption-row update: the read-only CLI
+			// surface (report/evidence subcommands) is an
+			// intentional OBSERVER of trace symbols - that is
+			// what section 307 item 15 asks for. The decision
+			// plane above (policy, rules, bus, auditlog) and
+			// every other command file remain under the strict
+			// ban, and the plant control below still proves
+			// the needles have teeth.
+			if e.Name() == "report.go" || e.Name() == "evidence.go" {
+				continue
+			}
 			data, err := os.ReadFile(p)
 			if err != nil {
 				t.Fatalf("read %s: %v", p, err)

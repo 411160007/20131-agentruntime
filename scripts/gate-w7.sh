@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-w6.sh - machine-assertion battery closing the W6 observation wave:
+# gate-w7.sh - machine-assertion battery closing the W7 read-only wave:
 # the agency guard observation counters of slice W6.1 (closed ten-word
 # section 261 field vocabulary with a 10/10 coverage table, three counters
 # over per-agent/per-task streams, count conservation, and the LIMIT/HOLD
@@ -15,7 +15,7 @@
 # complete inherited chain (gate-w5, which re-runs gate-w4, gate-w3,
 # gate-w2, gate-w1, gate-w0, gate-d7 and gate-d1..d6 serially) with zero
 # regression. Wave close per the taskbook W6 hard-judgement line:
-# gate-w6 rc=0 with the 307 precheck fleet inside, nothing pre-borrowed.
+# gate-w7 rc=0 with the 307 item-15 CLI surface inside, nothing pre-borrowed.
 #
 # Every step runs against real repo artifacts and carries its own
 # control. Any red exits non-zero.
@@ -35,7 +35,7 @@ test -f internal/schema/chaindimensions.go || { echo 'RED: W5.2 surface missing'
 test -f internal/schema/delegationobservation.go || { echo 'RED: W5.3 surface missing'; exit 1; }
 test -f internal/schema/agencyguard.go || { echo 'RED: W6.1 surface missing'; exit 1; }
 test -f internal/schema/costguard.go || { echo 'RED: W6.2 surface missing'; exit 1; }
-test -f scripts/gate-w6.sh || { echo 'RED: this gate not on disk'; exit 1; }
+test -f scripts/gate-w7.sh || { echo 'RED: this gate not on disk'; exit 1; }
 grep -q '^## 18. Action necessity record contract' docs/schema-v2.md \
   || { echo 'RED: section 18 header missing'; exit 1; }
 grep -q '^## 19. Behavior chain dimension record contract' docs/schema-v2.md \
@@ -54,81 +54,101 @@ n=$(grep -cE '^(action_necessity_question_vocabulary|action_necessity_answer_voc
 [ "$n" -eq 18 ] || { echo "RED: W5 rule key census $n/18"; exit 1; }
 echo 'W5, W6.1 AND W6.2 SURFACE VISIBLE (necessity + chain dimensions + delegation + agency guard counters + cost guard proxies, eighteen plus seven plus eight keys pinned)'
 
+w7files=0
+for f in internal/schema/decisiontrace.go internal/schema/evidenceexport.go cmd/agent-collector/report.go cmd/agent-collector/evidence.go testdata/report-golden.txt; do
+  test -f "$f" && w7files=$((w7files+1)) || { echo "RED: W7 surface missing: $f"; exit 1; }
+done
+for h in '## 23. Decision trace field table' '## 24. Evidence export v0 contract' '## 25. Read-only CLI surface'; do
+  grep -q "^$h" docs/schema-v2.md || { echo "RED: docs heading missing: $h"; exit 1; }
+done
+k=$(grep -cE '^(evidence_cli_skip_bucket_vocabulary|evidence_cli_origin_rule|evidence_cli_version_rule|evidence_cli_write_rule|report_cli_zero_write_rule|cli_surface_enforcement_plane): ' docs/schema-v2.md)
+[ "$k" -eq 6 ] || { echo "RED: CLI rule key census $k/6"; exit 1; }
+test -s testdata/report-golden.txt || { echo 'RED: report golden snapshot empty'; exit 1; }
+echo "W7 SURFACE VISIBLE ($w7files/5 files, three headings, six CLI keys, golden non-empty)"
+
+
 step '01 v2-check full battery (slot, template, element, vocabularies, anchors, planeLeak, master table, W4 and W5 contracts)'
-node scripts/schema-v2-check.mjs > "$TMPDIR/gate-w6-v2check.out" 2>&1 \
-  || { tail -40 "$TMPDIR/gate-w6-v2check.out"; echo RED: schema-v2-check; exit 1; }
-grep -q 'SCHEMA-V2: ALL GREEN' "$TMPDIR/gate-w6-v2check.out" \
+node scripts/schema-v2-check.mjs > "$TMPDIR/gate-w7-v2check.out" 2>&1 \
+  || { tail -40 "$TMPDIR/gate-w7-v2check.out"; echo RED: schema-v2-check; exit 1; }
+grep -q 'SCHEMA-V2: ALL GREEN' "$TMPDIR/gate-w7-v2check.out" \
   || { echo 'RED: v2-check banner missing'; exit 1; }
-grep -q 'PASS data action' "$TMPDIR/gate-w6-v2check.out" \
+grep -q 'PASS data action' "$TMPDIR/gate-w7-v2check.out" \
   || { echo 'RED: data action predicate did not run'; exit 1; }
-grep -q 'PASS trust domain' "$TMPDIR/gate-w6-v2check.out" \
+grep -q 'PASS trust domain' "$TMPDIR/gate-w7-v2check.out" \
   || { echo 'RED: trust domain predicate did not run'; exit 1; }
-grep -q 'PASS export wrap' "$TMPDIR/gate-w6-v2check.out" \
+grep -q 'PASS export wrap' "$TMPDIR/gate-w7-v2check.out" \
   || { echo 'RED: export wrap predicate did not run'; exit 1; }
-grep -q 'PASS action necessity' "$TMPDIR/gate-w6-v2check.out" \
+grep -q 'PASS action necessity' "$TMPDIR/gate-w7-v2check.out" \
   || { echo 'RED: action necessity predicate did not run'; exit 1; }
-grep -q 'PASS chain dimensions' "$TMPDIR/gate-w6-v2check.out" \
+grep -q 'PASS chain dimensions' "$TMPDIR/gate-w7-v2check.out" \
   || { echo 'RED: chain dimensions predicate did not run'; exit 1; }
-grep -q 'PASS delegation observation' "$TMPDIR/gate-w6-v2check.out" \
+grep -q 'PASS delegation observation' "$TMPDIR/gate-w7-v2check.out" \
   || { echo 'RED: delegation observation predicate did not run'; exit 1; }
-grep -q 'PASS agency guard counters' "$TMPDIR/gate-w6-v2check.out" \
+grep -q 'PASS agency guard counters' "$TMPDIR/gate-w7-v2check.out" \
   || { echo 'RED: agency guard predicate did not run'; exit 1; }
-grep -q 'PASS cost guard proxies' "$TMPDIR/gate-w6-v2check.out" \
+grep -q 'PASS cost guard proxies' "$TMPDIR/gate-w7-v2check.out" \
   || { echo 'RED: cost guard predicate did not run'; exit 1; }
-grep -q 'PASS untrusted consumption' "$TMPDIR/gate-w6-v2check.out" \
+grep -q 'PASS untrusted consumption' "$TMPDIR/gate-w7-v2check.out" \
   || { echo 'RED: inherited consume predicate did not run'; exit 1; }
-grep -q 'PASS master table' "$TMPDIR/gate-w6-v2check.out" \
+grep -q 'PASS master table' "$TMPDIR/gate-w7-v2check.out" \
   || { echo 'RED: master table predicate did not run'; exit 1; }
 echo 'V2-CHECK FULL RUN GREEN (necessity, chain dimensions, delegation, and agency guard predicates included)'
 
 step '02 selftest positive controls: every mutation caught, shipped file silent'
-node scripts/schema-v2-check.mjs --selftest > "$TMPDIR/gate-w6-selftest.out" 2>&1 \
-  || { tail -20 "$TMPDIR/gate-w6-selftest.out"; echo RED: selftest; exit 1; }
-grep -q 'SELFTEST OK: all 61 mutations caught' "$TMPDIR/gate-w6-selftest.out" \
-  || { echo 'RED: selftest banner (want all 59 caught)'; tail -5 "$TMPDIR/gate-w6-selftest.out"; exit 1; }
-MISSES=$(grep -c 'SELFTEST MISS' "$TMPDIR/gate-w6-selftest.out" || true)
+node scripts/schema-v2-check.mjs --selftest > "$TMPDIR/gate-w7-selftest.out" 2>&1 \
+  || { tail -20 "$TMPDIR/gate-w7-selftest.out"; echo RED: selftest; exit 1; }
+grep -q 'SELFTEST OK: all 61 mutations caught' "$TMPDIR/gate-w7-selftest.out" \
+  || { echo 'RED: selftest banner (want all 59 caught)'; tail -5 "$TMPDIR/gate-w7-selftest.out"; exit 1; }
+MISSES=$(grep -c 'SELFTEST MISS' "$TMPDIR/gate-w7-selftest.out" || true)
 [ "$MISSES" -eq 0 ] || { echo "RED: $MISSES selftest mutations missed"; exit 1; }
 echo 'SELFTEST 61/61 CAUGHT (shipped predicates have teeth)'
 
 step '03 Go: full schema package plus the named W5 and W6 batteries'
-go test -count=1 ./internal/schema > "$TMPDIR/gate-w6-go.out" 2>&1 \
-  || { tail -30 "$TMPDIR/gate-w6-go.out"; echo RED: schema package tests; exit 1; }
-go test -count=1 ./internal/schema -run 'TestNecessity|TestActionNecessity|TestBuildActionNecessity' -v > "$TMPDIR/gate-w6-necessity.out" 2>&1 \
-  || { tail -30 "$TMPDIR/gate-w6-necessity.out"; echo RED: action necessity battery; exit 1; }
+go test -count=1 ./internal/schema > "$TMPDIR/gate-w7-go.out" 2>&1 \
+  || { tail -30 "$TMPDIR/gate-w7-go.out"; echo RED: schema package tests; exit 1; }
+go test -count=1 ./internal/schema -run 'TestNecessity|TestActionNecessity|TestBuildActionNecessity' -v > "$TMPDIR/gate-w7-necessity.out" 2>&1 \
+  || { tail -30 "$TMPDIR/gate-w7-necessity.out"; echo RED: action necessity battery; exit 1; }
 for t in TestNecessityVocabularyAndRulesPin TestNecessityQuestionAndAnswerValidity TestBuildActionNecessityGoldenDeployChain TestBuildActionNecessityGoldenUnrelatedKeyRead TestBuildActionNecessityAbsentMeansUnassessed TestNecessityRejectionsLeaveNoRecord TestActionNecessityFieldSetCarriesNoDecision TestActionNecessitySymbolsStayOffTheDecisionPlane TestActionNecessityDocsSync; do
-  grep -q "^--- PASS: $t" "$TMPDIR/gate-w6-necessity.out" || { echo "RED: $t did not pass"; exit 1; }
+  grep -q "^--- PASS: $t" "$TMPDIR/gate-w7-necessity.out" || { echo "RED: $t did not pass"; exit 1; }
 done
 echo 'ACTION NECESSITY BATTERY GREEN (three questions and three answers pinned, golden pair recorded, rejections leave no record, docs sync pinned)'
 
-go test -count=1 ./internal/schema -run 'TestChainDimension|TestIntentDeviation|TestTrustDomainCrossing|TestReversibilityReduction' -v > "$TMPDIR/gate-w6-chain.out" 2>&1 \
-  || { tail -30 "$TMPDIR/gate-w6-chain.out"; echo RED: chain dimensions battery; exit 1; }
+go test -count=1 ./internal/schema -run 'TestChainDimension|TestIntentDeviation|TestTrustDomainCrossing|TestReversibilityReduction' -v > "$TMPDIR/gate-w7-chain.out" 2>&1 \
+  || { tail -30 "$TMPDIR/gate-w7-chain.out"; echo RED: chain dimensions battery; exit 1; }
 for t in TestChainDimensionVocabularyPin TestChainDimensionCoverageRows TestIntentDeviationGolden TestTrustDomainCrossingGolden TestReversibilityReductionGolden TestChainDimensionsRejectionsLeaveNoRecord TestChainDimensionsRecordCarriesNoDecision TestChainDimensionsSymbolsStayOffTheDecisionPlane TestChainDimensionsDocsSync; do
-  grep -q "^--- PASS: $t" "$TMPDIR/gate-w6-chain.out" || { echo "RED: $t did not pass"; exit 1; }
+  grep -q "^--- PASS: $t" "$TMPDIR/gate-w7-chain.out" || { echo "RED: $t did not pass"; exit 1; }
 done
 echo 'CHAIN DIMENSIONS BATTERY GREEN (eight words pinned, 8/8 coverage rows matched against Go registration, three computable projections golden, docs sync pinned)'
 
-go test -count=1 ./internal/schema -run 'TestDelegation|TestBuildDelegationObservation' -v > "$TMPDIR/gate-w6-delegation.out" 2>&1 \
-  || { tail -30 "$TMPDIR/gate-w6-delegation.out"; echo RED: delegation battery; exit 1; }
+go test -count=1 ./internal/schema -run 'TestDelegation|TestBuildDelegationObservation' -v > "$TMPDIR/gate-w7-delegation.out" 2>&1 \
+  || { tail -30 "$TMPDIR/gate-w7-delegation.out"; echo RED: delegation battery; exit 1; }
 for t in TestDelegationSubjectVocabularyPin TestDelegationRuleConstantsPin TestBuildDelegationObservationSpawnGolden TestDelegationRejectionsLeaveNoRecord TestDelegationRecordCarriesNoDecision TestDelegationSymbolsStayOffTheDecisionPlane TestDelegationDocsSync; do
-  grep -q "^--- PASS: $t" "$TMPDIR/gate-w6-delegation.out" || { echo "RED: $t did not pass"; exit 1; }
+  grep -q "^--- PASS: $t" "$TMPDIR/gate-w7-delegation.out" || { echo "RED: $t did not pass"; exit 1; }
 done
 echo 'DELEGATION BATTERY GREEN (five subjects pinned, no-inheritance constant constructor-held, rejections leave no record, docs sync pinned)'
 
-go test -count=1 ./internal/schema -run 'TestAgency' -v > "$TMPDIR/gate-w6-agency.out" 2>&1 \
-  || { tail -30 "$TMPDIR/gate-w6-agency.out"; echo RED: agency guard battery; exit 1; }
+go test -count=1 ./internal/schema -run 'TestAgency' -v > "$TMPDIR/gate-w7-agency.out" 2>&1 \
+  || { tail -30 "$TMPDIR/gate-w7-agency.out"; echo RED: agency guard battery; exit 1; }
 for t in TestAgencyGuardFieldVocabularyPin TestAgencyGuardCoverageRows TestAgencyCounterConservationGolden TestAgencyLimitRecordGoldenPair TestAgencyActionTokensNeverRecorded TestAgencyRejectionsLeaveNoRecord TestAgencyRecordsCarryNoDecision TestAgencySymbolsStayOffTheDecisionPlane TestAgencyGuardDocsSync; do
-  grep -q "^--- PASS: $t" "$TMPDIR/gate-w6-agency.out" || { echo "RED: $t did not pass"; exit 1; }
+  grep -q "^--- PASS: $t" "$TMPDIR/gate-w7-agency.out" || { echo "RED: $t did not pass"; exit 1; }
 done
 echo 'AGENCY GUARD BATTERY GREEN (ten fields pinned with 10/10 coverage rows matched against Go registration, conservation golden, tripped ceiling builds byte-identical counters with nil error, ladder tokens never recorded, docs sync pinned)'
 
-go test -count=1 ./internal/schema -run 'TestCost' -v > "$TMPDIR/gate-w6-cost.out" 2>&1 \
-  || { tail -30 "$TMPDIR/gate-w6-cost.out"; echo RED: cost guard battery; exit 1; }
+go test -count=1 ./internal/schema -run 'TestCost' -v > "$TMPDIR/gate-w7-cost.out" 2>&1 \
+  || { tail -30 "$TMPDIR/gate-w7-cost.out"; echo RED: cost guard battery; exit 1; }
 for t in TestCostProxyFieldVocabularyPin TestCostProxyCoverageRows TestCostStatedRecordGolden TestCostKnownGapAbsenceNotZero TestCostRejectionsLeaveNoRecord TestCostLadderTokensNeverStated TestCostLLMZeroGateRecord TestCostTruthRecordHasNoValueEntrance TestCostRecordsCarryNoDecision TestCostSymbolsStayOffTheDecisionPlane TestCostSurfaceIsStdlibOnly TestCostGuardDocsSync; do
-  grep -q "^--- PASS: $t" "$TMPDIR/gate-w6-cost.out" || { echo "RED: $t did not pass"; exit 1; }
+  grep -q "^--- PASS: $t" "$TMPDIR/gate-w7-cost.out" || { echo "RED: $t did not pass"; exit 1; }
 done
 echo 'COST GUARD BATTERY GREEN (five proxies pinned with the 5/3 registration matched against Go, known_gap wire shapes omit the value key, half records rejected with nothing left behind, the gate zero keeps one door, the truth line has no value entrance, docs sync pinned)'
 
-step '04 decision-plane reachability grep: no decision or command file consumes the W5 symbols (plant/remove control)'
+go test -count=1 ./cmd/agent-collector -run 'TestReportGolden|TestEvidence' -v > "$TMPDIR/gate-w7-cli.out" 2>&1 \
+  || { tail -30 "$TMPDIR/gate-w7-cli.out"; echo RED: W7.3 CLI battery; exit 1; }
+for t in TestReportGolden TestEvidenceBuildTracesHonest TestEvidenceNoPriorOriginSkipped TestEvidenceWritesOnlyDirAndNeverSource TestEvidenceRefusesWithoutDirOrVersion TestEvidenceTamperNegative TestEvidenceDeterministic; do
+  grep -q "^--- PASS: $t" "$TMPDIR/gate-w7-cli.out" || { echo "RED: $t did not pass"; exit 1; }
+done
+echo 'W7.3 CLI BATTERY GREEN (report golden byte-pinned with zero write API by predicate, evidence writes only into an explicit existing dir and never overwrites, source sha+mtime untouched, honest skip buckets counted, tamper negative red, double export byte-identical)'
+
+step '04 decision-plane reachability grep: no decision-plane or non-whitelisted command file consumes the wave symbols (plant/remove control)'
 LEAKRE='ActionNecessity|AllNecessity|NecessityQuestion|NecessityAnswer|BuildActionNecessity|ChainDimension|ChainStep|ChainObservation|ChainPhase|ComputableChain|AllChain|DelegationObservation|DelegationSubject|DelegationRevalidation|DelegationRecord|AllDelegation|BuildDelegation|AgencyGuardField|AgencyCounterKind|AgencyLimitState|AgencyLimitRecord|BuildAgencyCounterAggregate|BuildAgencyLimitRecord|AllAgencyGuard|AllAgencyCounter|AllAgencyLimit|AgencyForbiddenActionTokens|AgencyLadderRegistry|CostProxyField|CostProxyShape|CostValueState|CostCollectorStanding|CostProxyCoverageRow|CostProxyRecord|CostTruthRecord|BuildCostProxyRecord|BuildCostLLMZeroRecord|BuildCostTruthRecord|AllCostProxy|AllCostValueStates|AllCostCollectorStandings|CostAbsenceRule|CostTruthStance|CostGuardResponseRule|CostGuardEnforcementPlane|CostZeroLLMStatement|TraceField|AllTraceFields|TraceStance|AllTraceStances|TraceCoverageRow|AllTraceCoverage|TraceStanceOf|DecisionTrace|BuildDecisionTrace|TraceAbsenceRule|TraceCorrelationRule|TraceEnforcementModeValue|TraceEnforcementPlane|TraceDefaultApplied|EncodeTraceChecked|TraceDefaultAppliedRule|EvidenceFormat|EvidenceBundleMember|EvidenceIntegrityField|EvidenceFormatStance|AllEvidenceFormats|AllEvidenceFormatStances|AllEvidenceMembers|AllEvidenceIntegrityFields|AllEvidenceFormatCoverage|AllEvidenceMemberCoverage|FormatStanceOf|MemberStanceOf|ExportTraces|BuildEvidenceManifest|VerifyEvidenceBundle|BuildEvidenceBundle|EvidenceFile|EvidenceBundle|EvidenceAbsentCellToken|EvidenceTimestampRule|EvidenceAbsentCellRule|EvidenceWriteBackRule|EvidenceContextRule|EvidenceHashRule|EvidenceBundleEnforcementPlane|TraceCellValue'
 probe() {
   # W7.3 consumption row: cmd/agent-collector report.go/evidence.go are
@@ -153,9 +173,9 @@ hits=$(probe)
 echo 'DECISION-PLANE GREP ZERO HITS (planted shape fired, removal cleared)'
 
 step '05 inherited chain: gate-w5 full battery (re-runs gate-w4, gate-w3, gate-w2, gate-w1, gate-w0, gate-d7 and gate-d1..d6 serially)'
-bash scripts/gate-w5.sh > "$TMPDIR/gate-w6-reg-w5.out" 2>&1 \
-  || { tail -30 "$TMPDIR/gate-w6-reg-w5.out"; echo RED: gate-w5 regression; exit 1; }
-grep -q 'GATE-W5: ALL GREEN' "$TMPDIR/gate-w6-reg-w5.out" \
+bash scripts/gate-w5.sh > "$TMPDIR/gate-w7-reg-w5.out" 2>&1 \
+  || { tail -30 "$TMPDIR/gate-w7-reg-w5.out"; echo RED: gate-w5 regression; exit 1; }
+grep -q 'GATE-W5: ALL GREEN' "$TMPDIR/gate-w7-reg-w5.out" \
   || { echo 'RED: gate-w5 banner missing'; exit 1; }
 echo 'GATE-W5 GREEN INSIDE GATE-W6 (zero regression on the full inherited chain)'
 
@@ -185,8 +205,8 @@ t=$(grep -cE '^[a-z_]+_(enforcement|execution)_plane: ' docs/schema-v2.md)
 echo '307 PRECHECK FLEET GREEN (seven anchors verbatim, plane census all-none: no enforcement form pre-borrowed)'
 
 step '07 tripwire standalone (internal-ledger negative scan)'
-bash scripts/tripwire.sh > "$TMPDIR/gate-w6-tripwire.out" 2>&1 \
-  || { cat "$TMPDIR/gate-w6-tripwire.out"; echo RED: tripwire; exit 1; }
-grep -q 'TRIPWIRE CLEAN' "$TMPDIR/gate-w6-tripwire.out" || { echo RED: tripwire banner; exit 1; }
+bash scripts/tripwire.sh > "$TMPDIR/gate-w7-tripwire.out" 2>&1 \
+  || { cat "$TMPDIR/gate-w7-tripwire.out"; echo RED: tripwire; exit 1; }
+grep -q 'TRIPWIRE CLEAN' "$TMPDIR/gate-w7-tripwire.out" || { echo RED: tripwire banner; exit 1; }
 
 printf '\nGATE-W6: ALL GREEN\n'

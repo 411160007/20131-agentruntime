@@ -50,6 +50,10 @@ func main() {
 		err = runTail(cfg)
 	case "timeline":
 		err = runTimeline(cfg)
+	case "report":
+		err = runReport(cfg)
+	case "evidence":
+		err = runEvidence(cfg)
 	case "hook":
 		// The receiver's failure contract: never disturb the agent.
 		_ = runHookSub(cfg)
@@ -59,7 +63,7 @@ func main() {
 	case "integrate":
 		err = runIntegrateSub(cfg)
 	default:
-		fmt.Fprintf(os.Stderr, "agent-collector: unknown subcommand %q (want status | audit-tail | timeline | hook | mcp | integrate)\n", sub)
+		fmt.Fprintf(os.Stderr, "agent-collector: unknown subcommand %q (want status | audit-tail | timeline | report | evidence | hook | mcp | integrate)\n", sub)
 		os.Exit(2)
 	}
 	if err != nil {
@@ -69,19 +73,20 @@ func main() {
 }
 
 type config struct {
-	showVersion bool
-	out         string
-	interval    time.Duration
-	once        bool
-	maxCycles   int
-	rotateBytes int64
-	rotateDaily bool
-	keepHistory int
-	mode        string // observe is the ONLY mode in Phase 0 (see phase0Modes)
-	trust       string // user trust file for status display (never written by the collector)
-	tailN       int
-	agentFilter string    // timeline: exact agent_id filter (empty = all)
-	since       time.Time // timeline: RFC3339 lower bound (zero = none)
+	showVersion   bool
+	out           string
+	interval      time.Duration
+	once          bool
+	maxCycles     int
+	rotateBytes   int64
+	rotateDaily   bool
+	keepHistory   int
+	mode          string // observe is the ONLY mode in Phase 0 (see phase0Modes)
+	trust         string // user trust file for status display (never written by the collector)
+	tailN         int
+	agentFilter   string    // timeline: exact agent_id filter (empty = all)
+	since         time.Time // timeline: RFC3339 lower bound (zero = none)
+	policyVersion string    // evidence: operator-stated policy version token (required, never defaulted)
 	// adapter surface: integrate target/dir/bin and mcp server exe plus
 	// its pass-through args (rest = positional args after flag parsing).
 	target string
@@ -116,6 +121,7 @@ var knownFlags = map[string]bool{
 	"-dir": true, "--dir": true,
 	"-bin": true, "--bin": true,
 	"-server": true, "--server": true,
+	"-policy-version": true, "--policy-version": true,
 }
 
 // parseFlags supports `agent-collector [subcommand] [flags...]`: the
@@ -147,6 +153,7 @@ func parseFlags(fs *flag.FlagSet, args []string) (config, string, error) {
 	dir := fs.String("dir", "", "for integrate: the agent config directory to write into")
 	bin := fs.String("bin", "", "for integrate: collector binary path embedded in generated config (default: this executable)")
 	server := fs.String("server", "", "for mcp: server executable to relay to (remaining positional args go to it)")
+	policyVersion := fs.String("policy-version", "", "for evidence: operator-stated policy version token (required; never defaulted)")
 	if err := fs.Parse(args); err != nil {
 		return c, sub, err
 	}
@@ -154,6 +161,7 @@ func parseFlags(fs *flag.FlagSet, args []string) (config, string, error) {
 	c.dir = *dir
 	c.bin = *bin
 	c.server = *server
+	c.policyVersion = *policyVersion
 	c.rest = fs.Args()
 	c.agentFilter = *agent
 	if *sinceStr != "" {
