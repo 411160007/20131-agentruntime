@@ -456,6 +456,7 @@ const cdSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'chaindimens
 const dlSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'delegationobservation.go'), 'utf8');
 const agSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'agencyguard.go'), 'utf8');
 const cgSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'costguard.go'), 'utf8');
+const dtSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'decisiontrace.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -1086,6 +1087,66 @@ if (an.length) console.log('  ' + an.join('\n  '));
 const cd = chainDimensionProblems(v, cdSrc);
 check(cd.length === 0, 'chain dimensions: eight-word vocabulary derived from section 242 anchor bullets, 8/8 coverage table pinned row by row against the Go registration, computable subset and unclassified and reversibility-source and none-plane rules mirrored, section 19 present');
 if (cd.length) console.log('  ' + cd.join('\n  '));
+// decision trace field-table reverse-lookup (slice W7.1)
+function decisionTraceProblems(text, goText) {
+  const bad = [];
+  const fv = findKey(text, 'decision_trace_field_vocabulary');
+  if (fv === null) return ['decision trace field vocabulary key missing or duplicated'];
+  const toks = fv.split(',');
+  if (toks.length !== 15 || new Set(toks).size !== 15) bad.push('decision trace field vocabulary not fifteen unique tokens');
+  const goFields = [...goText.matchAll(/Field\w+ +TraceField = "([a-z_]+)"/g)].map((m) => m[1]);
+  if (goFields.length !== 15) bad.push('Go trace field constants census ' + goFields.length + ', want 15');
+  toks.forEach((t, i) => {
+    if (goFields[i] !== t) bad.push('trace field order pin broke at ' + (i + 1) + ': docs ' + t + ' vs Go ' + goFields[i]);
+    if (!goText.includes('"' + t + '"')) bad.push('trace field token Go mirror missing: ' + t);
+  });
+  const sv = findKey(text, 'decision_trace_stance_vocabulary');
+  if (sv === null) return bad.concat(['decision trace stance vocabulary key missing or duplicated']);
+  const stances = sv.split(',');
+  if (stances.length !== 4 || new Set(stances).size !== 4) bad.push('decision trace stance vocabulary not four unique tokens');
+  const goStances = [...goText.matchAll(/Stance\w+ +TraceStance = "([a-z_]+)"/g)].map((m) => m[1]);
+  if (goStances.length !== 4) bad.push('Go trace stance constants census ' + goStances.length + ', want 4');
+  stances.forEach((s, i) => {
+    if (goStances[i] !== s) bad.push('stance order pin broke at ' + (i + 1));
+    if (!goText.includes('"' + s + '"')) bad.push('trace stance token Go mirror missing: ' + s);
+  });
+  const rules = [
+    ['decision_trace_absence_rule', 'TraceAbsenceRule', 'field-without-value-is-absent-not-zero'],
+    ['decision_trace_correlation_rule', 'TraceCorrelationRule', 'trace-pins-origin-event-id-not-equal-decision-id'],
+    ['decision_trace_enforcement_mode', 'TraceEnforcementModeValue', 'record_only_phase0'],
+    ['decision_trace_enforcement_plane', 'TraceEnforcementPlane', 'none-in-observation-phase'],
+    ['decision_trace_default_applied_rule', 'TraceDefaultAppliedRule', 'empty-rule-means-default-applied'],
+  ];
+  for (const [key, ident, val] of rules) {
+    const got = findKey(text, key);
+    if (got === null) return bad.concat(['decision trace contract key missing or duplicated: ' + key]);
+    if (got !== val) bad.push('decision trace line drifted: ' + key);
+    if (!goText.includes(ident + ' = "' + val + '"')) bad.push('decision trace rule Go mirror drifted: ' + ident);
+  }
+  const sec23 = text.indexOf('## 23. Decision trace field table');
+  if (sec23 === -1) return bad.concat(['docs section 23 missing']);
+  const secText = text.slice(sec23);
+  const rowRe = /^\| `([a-z_]+)` \| ([a-z_]+) \|.*\|$/gm;
+  const rows = [];
+  let mm;
+  while ((mm = rowRe.exec(secText)) !== null) {
+    if (toks.includes(mm[1])) rows.push([mm[1], mm[2]]);
+  }
+  if (rows.length !== 15) bad.push('decision trace table row census ' + rows.length + ', want 15');
+  rows.forEach((r, i) => {
+    if (r[0] !== toks[i]) bad.push('decision trace table row-order pin broke at row ' + (i + 1) + ': ' + r[0]);
+    if (!stances.includes(r[1])) bad.push('decision trace table stance wild at row ' + (i + 1));
+  });
+  // stance counts: 6 line + 3 attrs + 2 additive + 4 gap
+  const census = {};
+  rows.forEach((r) => { census[r[1]] = (census[r[1]] || 0) + 1; });
+  if (census.carried_on_audit_line !== 6 || census.carried_via_attrs !== 3 || census.additive_field !== 2 || census.known_gap_absent !== 4) {
+    bad.push('decision trace stance census drifted: ' + JSON.stringify(census));
+  }
+  if (text.indexOf('## 23. Decision trace field table') === -1) bad.push('docs section 23 missing');
+  return bad;
+}
+
 const dl = delegationProblems(v, dlSrc);
 check(dl.length === 0, 'delegation observation: five-subject and three-state vocabularies mirrored docs<->Go, section 283 eight-bullet and section 236 five-bullet anchors derive mechanically, four rules and twelve-row field table pinned, none-plane, section 20 present');
 const ag = agencyGuardProblems(v, agSrc);
@@ -1093,6 +1154,9 @@ check(ag.length === 0, 'agency guard counters: ten-field, three-counter, two-sco
 const cg = costGuardProblems(v, cgSrc);
 check(cg.length === 0, 'cost guard proxies: five-field, two-shape, three-state, and three-standing vocabularies mirrored docs<->Go, field-shape mapping derived from the coverage registration, absence and truth-stance rules pinned, 5/3 coverage table row-pinned, none-plane, section 22 present');
 if (cg.length) console.log('  ' + cg.join('\n  '));
+const dt = decisionTraceProblems(v, dtSrc);
+check(dt.length === 0, 'decision trace field table: fifteen-token vocabulary mirrored docs<->Go in spec order, four-stance census 6/3/2/4 row-pinned, absence and correlation and pinned-mode and default-applied rules mirrored, docs section 23 present');
+if (dt.length) console.log('  ' + dt.join('\n  '));
 if (dl.length) console.log('  ' + dl.join('\n  '));
 
 const mtp = masterTableProblems(v);
