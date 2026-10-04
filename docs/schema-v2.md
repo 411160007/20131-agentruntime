@@ -2190,3 +2190,125 @@ values with zero writes into any product path. The wire contract
 of docs/api-v0.md gains nothing here: no event field is added;
 the counters read recorded streams and write records only.
 
+
+## 22. Cost guard observation record contract (slice W6.2)
+
+Section 261 bounds agents and tasks in fields that are, in the
+end, either counts or durations - requests, calls, children, wall
+time, cpu time, memory held over time - with exactly one
+exception: Max API Cost names money, and money lives on an
+external billing plane this system does not speak to. The true
+cost is therefore structurally absent, and this section lands the
+honest shape for that absence: consumption is recorded through
+five proxy fields in count/duration form, a value line without its
+source is a known_gap whose wire shape carries no value key at
+all, and the cost-truth record has no value entrance to fabricate
+through at any caller. The zero-LLM fact rides the same rail: this
+runtime's decision path calls no LLM at all, so the
+llm_invocation_count zero is admitted through exactly one named
+constructor whose pinned evidence line -
+`zero-llm-calls-in-decision-path-proven-by-gate` - is the
+decision-path gate itself: the stdlib-only import surface of this
+contract, the outbound-closure stance of the module, and the
+planeLeak scans this same PR extends. An explicitly stated zero with its source
+and an honest absence are two different, both-admissible lines
+(the W5.1 two-shapes stance restated for consumption); inventing a
+third - a zero with no source - is precisely what the absence rule
+rejects (the no-inventory doctrine).
+
+Like sections 12 through 21 this contract is deliberately not one
+of the fifteen schema names of section 289: the wave enumerates no
+"cost guard" schema, so section 11 and its twenty-eight cells stay
+untouched and this section adds no master_cell block (the census
+doctrine forbids private rows beside the table).
+
+### 22.1 The eight cost guard keys
+
+```schemav2
+cost_proxy_field_vocabulary: runtime_duration_millis,billable_request_count,cpu_time_millis,memory_mib_millis,llm_invocation_count
+cost_proxy_shape_vocabulary: count,duration
+cost_value_state_vocabulary: stated_observed,known_gap,gate_evidenced_zero
+cost_collector_standing_vocabulary: stated_by_recorder,no_collector_known_gap,gate_evidenced_zero_line
+cost_field_shape_mapping: runtime_duration_millis=duration,billable_request_count=count,cpu_time_millis=duration,memory_mib_millis=duration,llm_invocation_count=count
+cost_absence_rule: no-source-is-known-gap-never-fabricated-zero
+cost_truth_stance: cost-truth-lives-on-external-billing-plane-structurally-absent
+cost_enforcement_plane: none-in-observation-phase
+```
+
+The first four lines are closed vocabularies in normative order,
+pinned verbatim against `AllCostProxyFields`, `AllCostProxyShapes`,
+`AllCostValueStates`, and `AllCostCollectorStandings` in
+`internal/schema/costguard.go`; the mapping line is not a sixth
+vocabulary but a derivation - it must equal the mapping produced
+by the coverage registration below, row for row; the last three
+are pinned against the rule constants (`CostAbsenceRule`,
+`CostTruthStance`, `CostGuardEnforcementPlane`) - and
+`CostGuardResponseRule` plus `CostZeroLLMStatement` against their
+record uses - by the sync predicate in
+`scripts/schema-v2-check.mjs` and the Go tests in this package;
+drift in either direction is a red build.
+
+The constructors never halt and never bill: the proxy input offers
+no state field at all (a recorder states numbers and a source, the
+state is derived), the two half shapes - a value with no source, a
+source with no value - are rejected before construction leaves a
+record behind, and the response line is constructor-pinned, not
+caller editable. The truth record is stricter still: its struct
+has no value field, so the external-plane absence is mechanical,
+not a convention a future caller can forget. The gate-evidenced
+zero has one door only (`BuildCostLLMZeroRecord`, pinned to
+`llm_invocation_count`): no other proxy can borrow a proven zero,
+and the normal path cannot reach the state at all.
+
+### 22.2 The five proxy fields and the 5/3 coverage registration
+
+The registration table gives every proxy field its shape and its
+collector standing, so the observation surface is a declared stage
+of a complete map rather than a convenient slice:
+
+| `runtime_duration_millis` | duration | stated_by_recorder |
+| `billable_request_count` | count | stated_by_recorder |
+| `cpu_time_millis` | duration | no_collector_known_gap |
+| `memory_mib_millis` | duration | no_collector_known_gap |
+| `llm_invocation_count` | count | gate_evidenced_zero_line |
+
+The first two rows fulfil W6.1's anchored pair (max_runtime and
+max_api_cost to W6.2): the runtime bound is watched by the
+duration proxy, and the cost bound is watched by the billable
+request-count proxy while its truth stays the known_gap line of
+section 22.3. The two gap rows carry W6.1's pending stance
+forward unchanged: cpu and memory get a field shape today and a
+number only once a collector owner exists; until then the only
+admissible sourceless record for those fields is the known_gap
+line, which is what "says out loud that there is no collector
+yet" means in record form. The fifth row is the zero the gate
+proves, not a zero counted from a stream. W6.1's ten-row
+registration stays byte-stable behind this slice as its own
+snapshot - this section adds a contract, not a revision, and the
+two tables are pinned in independent directions. A sixth row, a
+missing row, a reordered row, or a gap row upgrading itself to
+stated is a red build in both directions.
+
+### 22.3 Plane discipline
+
+`CostProxyField`, `CostProxyShape`, `CostValueState`,
+`CostCollectorStanding`, `CostProxyCoverageRow`,
+`CostProxyRecordInput`, `CostProxyRecord`, `CostTruthRecord`,
+`BuildCostProxyRecord`, `BuildCostLLMZeroRecord`,
+`BuildCostTruthRecord`, `AllCostProxyFields`,
+`AllCostProxyCoverage`, and the five rule constants join the
+planeLeak needle set in `scripts/gate-w5.sh` and the Go scan in
+this package in this same PR: no policy, rules, bus, or auditlog
+file may reference them while `cost_enforcement_plane` reads
+none-in-observation-phase, and the command tree is scanned for the
+same symbols with the planted-shape positive control. The shared
+section 261 enum gate stays in force here: `scope_id` and `source`
+are rejected before construction if they equal a Phase 1 ladder
+action token, so LIMIT, HOLD, CANCEL, and RECOVER keep zero writes
+into any product-path record value. The truth stance restated as a
+record line - `record-only-no-action`, `known_gap`, and the
+`gate_evidenced_zero` door - changes nothing upstream: decision
+values stay inside the Phase 0 closed pair `{allow, would_block}`
+untouched by this slice, and no aggregate reads a cost record. The
+wire contract of docs/api-v0.md gains nothing here: no event field
+is added; the proxies read stated lines and write records only.

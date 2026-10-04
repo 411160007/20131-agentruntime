@@ -455,6 +455,7 @@ const anSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'actionneces
 const cdSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'chaindimensions.go'), 'utf8');
 const dlSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'delegationobservation.go'), 'utf8');
 const agSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'agencyguard.go'), 'utf8');
+const cgSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'costguard.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -901,6 +902,94 @@ function agencyGuardProblems(text, goText) {
   return bad;
 }
 
+// Cost guard observation contract checks (slice W6.2): the five
+// proxy-field words, two shape words, three value-state words, and
+// three collector-standing words are closed vocabularies pinned
+// docs<->Go; the field-shape mapping line must equal the mapping
+// derived mechanically from the Go coverage registration; the
+// absence, truth-stance, and plane rules mirror the rule
+// constants; and the 5/3 coverage table is pinned row by row
+// against that registration.
+function costGuardProblems(text, goText) {
+  const bad = [];
+  const rules = [
+    ['cost_absence_rule', 'CostAbsenceRule', 'no-source-is-known-gap-never-fabricated-zero'],
+    ['cost_truth_stance', 'CostTruthStance', 'cost-truth-lives-on-external-billing-plane-structurally-absent'],
+    ['cost_enforcement_plane', 'CostGuardEnforcementPlane', 'none-in-observation-phase'],
+  ];
+  const fields = findKey(text, 'cost_proxy_field_vocabulary');
+  if (fields === null) return ['cost proxy field vocabulary key missing or duplicated'];
+  const toks = fields.split(',');
+  if (toks.length !== 5 || new Set(toks).size !== 5) bad.push('cost proxy field vocabulary not five unique tokens');
+  for (const t of toks) {
+    if (!goText.includes('"' + t + '"')) bad.push('cost proxy field token Go mirror missing: ' + t);
+  }
+  const shapes = findKey(text, 'cost_proxy_shape_vocabulary');
+  if (shapes === null) return bad.concat(['cost proxy shape vocabulary key missing or duplicated']);
+  if (shapes !== 'count,duration') bad.push('cost proxy shape vocabulary line drifted');
+  for (const tok of shapes.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('cost shape token Go mirror missing: ' + tok);
+  }
+  const states = findKey(text, 'cost_value_state_vocabulary');
+  if (states === null) return bad.concat(['cost value state vocabulary key missing or duplicated']);
+  if (states !== 'stated_observed,known_gap,gate_evidenced_zero') bad.push('cost value state line drifted');
+  for (const tok of states.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('cost value state token Go mirror missing: ' + tok);
+  }
+  const standings = findKey(text, 'cost_collector_standing_vocabulary');
+  if (standings === null) return bad.concat(['cost collector standing vocabulary key missing or duplicated']);
+  if (standings !== 'stated_by_recorder,no_collector_known_gap,gate_evidenced_zero_line') bad.push('cost collector standing line drifted');
+  for (const tok of standings.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('cost collector standing token Go mirror missing: ' + tok);
+  }
+  for (const [key, ident, val] of rules) {
+    const got = findKey(text, key);
+    if (got === null) return bad.concat(['cost guard contract keys missing or duplicated']);
+    if (got !== val) bad.push('cost guard line drifted: ' + key);
+    if (!goText.includes(ident + ' = "' + val + '"')) bad.push('cost guard rule Go mirror drifted: ' + ident);
+  }
+  // Constructor-pinned response and evidence lines: pinned in Go,
+  // restated in the section body.
+  if (!goText.includes('CostGuardResponseRule = "record-only-no-action"')) bad.push('cost response constant Go mirror drifted');
+  if (!goText.includes('CostZeroLLMStatement = "zero-llm-calls-in-decision-path-proven-by-gate"')) bad.push('cost zero-llm evidence constant Go mirror drifted');
+  const secAt = text.indexOf('## 22. Cost guard observation record contract');
+  if (secAt < 0) return bad.concat(['section 22 header missing']);
+  const nextSec = text.indexOf('\n## ', secAt + 5);
+  const sec = text.slice(secAt, nextSec < 0 ? text.length : nextSec);
+  if (!sec.includes('record-only-no-action')) bad.push('section 22 body lost the record-only response restatement');
+  if (!sec.includes('gate_evidenced_zero')) bad.push('section 22 body lost the gate-evidenced zero restatement');
+  // Go registration parse: constants and the coverage rows, then
+  // the mapping line must equal the mapping derived from them.
+  const fieldOf = {};
+  for (const m of goText.matchAll(/(CostProxy\w+)\s+CostProxyField = "([a-z_]+)"/g)) fieldOf[m[1]] = m[2];
+  const shapeOf = {};
+  for (const m of goText.matchAll(/(CostShape\w+)\s+CostProxyShape = "([a-z_]+)"/g)) shapeOf[m[1]] = m[2];
+  const standOf = {};
+  for (const m of goText.matchAll(/(CostCollector\w+)\s+CostCollectorStanding = "([a-z_]+)"/g)) standOf[m[1]] = m[2];
+  const covBlock = (goText.match(/func costProxyCoverage\(\) \[\]CostProxyCoverageRow \{[\s\S]*?\n\}/) || [''])[0];
+  const goRows = [...covBlock.matchAll(/\{(CostProxy\w+), (CostShape\w+), (CostCollector\w+)\}/g)]
+    .map((m) => [fieldOf[m[1]], shapeOf[m[2]], standOf[m[3]]]);
+  if (goRows.length !== 5 || goRows.some((r) => !r[0] || !r[1] || !r[2])) bad.push('Go coverage registration ' + goRows.length + '/5 rows (or unresolved constant)');
+  const derived = goRows.map((r) => r[0] + '=' + r[1]).join(',');
+  const mapping = findKey(text, 'cost_field_shape_mapping');
+  if (mapping === null) return bad.concat(['cost field-shape mapping key missing or duplicated']);
+  if (goRows.length === 5 && mapping !== derived) bad.push('cost field-shape mapping drifted from the Go coverage registration');
+  // Docs table pin: five rows, row order and every cell against Go.
+  const rows = [...sec.matchAll(/^\| `(runtime_duration_millis|billable_request_count|cpu_time_millis|memory_mib_millis|llm_invocation_count)` \| (count|duration) \| (stated_by_recorder|no_collector_known_gap|gate_evidenced_zero_line) \|$/gm)];
+  if (rows.length !== 5) bad.push('cost coverage table row census ' + rows.length + ', want 5');
+  else rows.forEach((rm, i) => {
+    const g = goRows[i];
+    if (!g) { bad.push('no Go coverage row at ' + (i + 1)); return; }
+    if (rm[1] !== g[0] || rm[2] !== g[1] || rm[3] !== g[2]) {
+      bad.push('cost coverage row ' + (i + 1) + ' drifted from the Go registration: ' + rm[1]);
+    }
+  });
+  if (goRows.length === 5 && rows.length === 5) {
+    if (goRows.map((r) => r[0]).join(',') !== fields) bad.push('Go coverage order drifted from the field vocabulary line');
+  }
+  return bad;
+}
+
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
@@ -1001,6 +1090,9 @@ const dl = delegationProblems(v, dlSrc);
 check(dl.length === 0, 'delegation observation: five-subject and three-state vocabularies mirrored docs<->Go, section 283 eight-bullet and section 236 five-bullet anchors derive mechanically, four rules and twelve-row field table pinned, none-plane, section 20 present');
 const ag = agencyGuardProblems(v, agSrc);
 check(ag.length === 0, 'agency guard counters: ten-field, three-counter, two-scope, and four-state vocabularies mirrored docs<->Go, section 261 ten-bullet anchor derives mechanically, conservation and enum-gate rules pinned, 10/10 coverage table row-pinned, none-plane, section 21 present');
+const cg = costGuardProblems(v, cgSrc);
+check(cg.length === 0, 'cost guard proxies: five-field, two-shape, three-state, and three-standing vocabularies mirrored docs<->Go, field-shape mapping derived from the coverage registration, absence and truth-stance rules pinned, 5/3 coverage table row-pinned, none-plane, section 22 present');
+if (cg.length) console.log('  ' + cg.join('\n  '));
 if (dl.length) console.log('  ' + dl.join('\n  '));
 
 const mtp = masterTableProblems(v);
@@ -1067,6 +1159,9 @@ if (process.argv.includes('--selftest')) {
     ['agency counter vocabulary loses a counter', (t) => t.replace('agency_counter_vocabulary: event_rate,step_count,parallelism', 'agency_counter_vocabulary: event_rate,step_count'), (t) => agencyGuardProblems(t, agSrc)],
     ['agency action enum gate pre-borrowed into enforcement', (t) => t.replace('agency_action_enum_gate: limit-hold-cancel-recover-never-recorded-as-response', 'agency_action_enum_gate: limit-hold-cancel-recover-recorded-as-response'), (t) => agencyGuardProblems(t, agSrc)],
     ['agency coverage counted row fakes an anchor', (t) => t.replace('| `max_steps` | counted_v0 | - |', '| `max_steps` | anchored | W6.2 |'), (t) => agencyGuardProblems(t, agSrc)],
+    ['cost absence rule softened into a zero default', (t) => t.replace('cost_absence_rule: no-source-is-known-gap-never-fabricated-zero', 'cost_absence_rule: no-source-is-zero-by-default'), (t) => costGuardProblems(t, cgSrc)],
+    ['cost truth given a fabricated number', (t) => t.replace('cost_truth_stance: cost-truth-lives-on-external-billing-plane-structurally-absent', 'cost_truth_stance: cost-truth-reported-as-zero-when-unbilled'), (t) => costGuardProblems(t, cgSrc)],
+    ['cost coverage row loses its known-gap standing', (t) => t.replace('| `cpu_time_millis` | duration | no_collector_known_gap |', '| `cpu_time_millis` | duration | stated_by_recorder |'), (t) => costGuardProblems(t, cgSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
