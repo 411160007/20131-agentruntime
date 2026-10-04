@@ -457,6 +457,7 @@ const dlSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'delegationo
 const agSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'agencyguard.go'), 'utf8');
 const cgSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'costguard.go'), 'utf8');
 const dtSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'decisiontrace.go'), 'utf8');
+const eeSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'evidenceexport.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -1147,6 +1148,79 @@ function decisionTraceProblems(text, goText) {
   return bad;
 }
 
+// evidence export v0 reverse-lookup (slice W7.2)
+function evidenceExportProblems(text, goText) {
+  const bad = [];
+  const ruleRe = (ident, val) => new RegExp(ident + '\\s*=\\s*"' + val + '"').test(goText);
+  const fv = findKey(text, 'evidence_export_format_vocabulary');
+  if (fv === null) return ['evidence export format vocabulary key missing or duplicated'];
+  const toks = fv.split(',');
+  if (toks.length !== 5 || new Set(toks).size !== 5) bad.push('evidence format vocabulary not five unique tokens');
+  const goFormats = [...goText.matchAll(/Format\w+ +EvidenceFormat = "([a-z_]+)"/g)].map((m) => m[1]);
+  if (goFormats.length !== 5) bad.push('Go evidence format constants census ' + goFormats.length + ', want 5');
+  toks.forEach((t, i) => { if (goFormats[i] !== t) bad.push('evidence format order pin broke at ' + (i + 1) + ': docs ' + t + ' vs Go ' + goFormats[i]); });
+  const sv = findKey(text, 'evidence_format_stance_vocabulary');
+  if (sv === null) return bad.concat(['evidence format stance vocabulary key missing or duplicated']);
+  const stances = sv.split(',');
+  if (stances.length !== 3 || new Set(stances).size !== 3) bad.push('evidence stance vocabulary not three unique tokens');
+  const goStances = [...goText.matchAll(/Stance\w+ +EvidenceFormatStance = "([a-z_0-9]+)"/g)].map((m) => m[1]);
+  if (goStances.length !== 3) bad.push('Go evidence stance constants census ' + goStances.length + ', want 3');
+  stances.forEach((s, i) => { if (goStances[i] !== s) bad.push('evidence stance order pin broke at ' + (i + 1)); });
+  const mv = findKey(text, 'evidence_bundle_member_vocabulary');
+  if (mv === null) return bad.concat(['evidence bundle member vocabulary key missing or duplicated']);
+  const members = mv.split(',');
+  if (members.length !== 7 || new Set(members).size !== 7) bad.push('evidence member vocabulary not seven unique tokens');
+  const goMembers = [...goText.matchAll(/Member\w+ +EvidenceBundleMember = "([a-z_.]+)"/g)].map((m) => m[1]);
+  if (goMembers.length !== 7) bad.push('Go evidence member constants census ' + goMembers.length + ', want 7');
+  members.forEach((mName, i) => { if (goMembers[i] !== mName) bad.push('evidence member order pin broke at ' + (i + 1) + ': docs ' + mName + ' vs Go ' + goMembers[i]); });
+  const iv = findKey(text, 'evidence_integrity_field_vocabulary');
+  if (iv === null) return bad.concat(['evidence integrity field vocabulary key missing or duplicated']);
+  const fields = iv.split(',');
+  if (fields.length !== 7 || new Set(fields).size !== 7) bad.push('evidence integrity vocabulary not seven unique tokens');
+  const goFields = [...goText.matchAll(/Integrity\w+ +EvidenceIntegrityField = "([a-z_]+)"/g)].map((m) => m[1]);
+  if (goFields.length !== 7) bad.push('Go evidence integrity constants census ' + goFields.length + ', want 7');
+  fields.forEach((f, i) => { if (goFields[i] !== f) bad.push('evidence integrity order pin broke at ' + (i + 1)); });
+  const rules = [
+    ['evidence_timestamp_rule', 'EvidenceTimestampRule', 'envelope-timestamp-derived-from-evidence-never-wall-clock'],
+    ['evidence_absent_cell_rule', 'EvidenceAbsentCellRule', 'csv-absent-cell-is-literal-absent-token-never-empty'],
+    ['evidence_writeback_rule', 'EvidenceWriteBackRule', 'export-never-writes-back-to-source'],
+    ['evidence_context_omission_rule', 'EvidenceContextRule', 'no-section251-field-dropped-from-export-for-convenience'],
+    ['evidence_hash_rule', 'EvidenceHashRule', 'sha256-of-file-bytes-mismatch-is-red-never-repaired'],
+    ['evidence_bundle_enforcement_plane', 'EvidenceBundleEnforcementPlane', 'none-in-observation-phase'],
+  ];
+  for (const [key, ident, val] of rules) {
+    const got = findKey(text, key);
+    if (got === null) return bad.concat(['evidence export contract key missing or duplicated: ' + key]);
+    if (got !== val) bad.push('evidence export line drifted: ' + key);
+    if (!ruleRe(ident, val)) bad.push('evidence export rule Go mirror drifted: ' + ident);
+  }
+  if (!/EvidenceAbsentCellToken = "absent"/.test(goText)) bad.push('absent-cell token Go constant drifted');
+  const sec24 = text.indexOf('## 24. Evidence export v0 contract');
+  if (sec24 === -1) return bad.concat(['docs section 24 missing']);
+  const sec = text.slice(sec24);
+  const fRows = [...sec.matchAll(/^\| `([a-z_.]+)` \| ([a-z_0-9]+) \|.*\|$/gm)].map((m) => [m[1], m[2]]);
+  const fmtRows = fRows.filter((r) => toks.includes(r[0]));
+  if (fmtRows.length !== 5) bad.push('evidence format table row census ' + fmtRows.length + ', want 5');
+  fmtRows.forEach((r, i) => {
+    if (r[0] !== toks[i]) bad.push('evidence format table row-order pin broke at row ' + (i + 1) + ': ' + r[0]);
+    if (!stances.includes(r[1])) bad.push('evidence format table stance wild at row ' + (i + 1));
+  });
+  const memRows = fRows.filter((r) => members.includes(r[0]));
+  if (memRows.length !== 7) bad.push('evidence member table row census ' + memRows.length + ', want 7');
+  memRows.forEach((r, i) => {
+    if (r[0] !== members[i]) bad.push('evidence member table row-order pin broke at row ' + (i + 1) + ': ' + r[0]);
+    if (!stances.includes(r[1])) bad.push('evidence member table stance wild at row ' + (i + 1));
+  });
+  const intRows = [...sec.matchAll(/^\| `([a-z_]+)` \|[^|]*\|$/gm)].map((m) => m[1]).filter((n) => fields.includes(n));
+  if (intRows.length !== 7) bad.push('evidence integrity table row census ' + intRows.length + ', want 7');
+  intRows.forEach((n, i) => { if (n !== fields[i]) bad.push('evidence integrity row-order pin broke at ' + (i + 1) + ': ' + n); });
+  const fc = {}; fmtRows.forEach((r) => { fc[r[1]] = (fc[r[1]] || 0) + 1; });
+  if (fc.delivered_by_export_v0 !== 3 || fc.known_gap_absent !== 2 || fc.delivered_via_manifest_inline) bad.push('evidence format stance census drifted: ' + JSON.stringify(fc));
+  const mc = {}; memRows.forEach((r) => { mc[r[1]] = (mc[r[1]] || 0) + 1; });
+  if (mc.delivered_by_export_v0 !== 2 || mc.delivered_via_manifest_inline !== 1 || mc.known_gap_absent !== 4) bad.push('evidence member stance census drifted: ' + JSON.stringify(mc));
+  return bad;
+}
+
 const dl = delegationProblems(v, dlSrc);
 check(dl.length === 0, 'delegation observation: five-subject and three-state vocabularies mirrored docs<->Go, section 283 eight-bullet and section 236 five-bullet anchors derive mechanically, four rules and twelve-row field table pinned, none-plane, section 20 present');
 const ag = agencyGuardProblems(v, agSrc);
@@ -1157,6 +1231,9 @@ if (cg.length) console.log('  ' + cg.join('\n  '));
 const dt = decisionTraceProblems(v, dtSrc);
 check(dt.length === 0, 'decision trace field table: fifteen-token vocabulary mirrored docs<->Go in spec order, four-stance census 6/3/2/4 row-pinned, absence and correlation and pinned-mode and default-applied rules mirrored, docs section 23 present');
 if (dt.length) console.log('  ' + dt.join('\n  '));
+const ee = evidenceExportProblems(v, eeSrc);
+check(ee.length === 0, 'evidence export v0: five-format, three-stance, seven-member, and seven-integrity vocabularies mirrored docs<->Go in registration order, six rule lines plus absent-token pinned, format 3/2 and member 2/1/4 coverage censuses row-pinned, none-plane, docs section 24 present');
+if (ee.length) console.log('  ' + ee.join('\n  '));
 if (dl.length) console.log('  ' + dl.join('\n  '));
 
 const mtp = masterTableProblems(v);
@@ -1226,6 +1303,9 @@ if (process.argv.includes('--selftest')) {
     ['cost absence rule softened into a zero default', (t) => t.replace('cost_absence_rule: no-source-is-known-gap-never-fabricated-zero', 'cost_absence_rule: no-source-is-zero-by-default'), (t) => costGuardProblems(t, cgSrc)],
     ['cost truth given a fabricated number', (t) => t.replace('cost_truth_stance: cost-truth-lives-on-external-billing-plane-structurally-absent', 'cost_truth_stance: cost-truth-reported-as-zero-when-unbilled'), (t) => costGuardProblems(t, cgSrc)],
     ['cost coverage row loses its known-gap standing', (t) => t.replace('| `cpu_time_millis` | duration | no_collector_known_gap |', '| `cpu_time_millis` | duration | stated_by_recorder |'), (t) => costGuardProblems(t, cgSrc)],
+    ['evidence envelope timestamp softened into wall-clock', (t) => t.replace('evidence_timestamp_rule: envelope-timestamp-derived-from-evidence-never-wall-clock', 'evidence_timestamp_rule: envelope-timestamp-is-wall-clock-now'), (t) => evidenceExportProblems(t, eeSrc)],
+    ['evidence write-back rule rewritten into repair-on-export', (t) => t.replace('evidence_writeback_rule: export-never-writes-back-to-source', 'evidence_writeback_rule: export-may-rewrite-source-when-convenient'), (t) => evidenceExportProblems(t, eeSrc)],
+    ['evidence member gap row fakes a delivered file', (t) => t.replace('| `events.jsonl` | known_gap_absent |', '| `events.jsonl` | delivered_by_export_v0 |'), (t) => evidenceExportProblems(t, eeSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
@@ -1246,6 +1326,7 @@ if (process.argv.includes('--selftest')) {
     (t) => chainDimensionProblems(t, cdSrc),
     (t) => delegationProblems(t, dlSrc),
     (t) => agencyGuardProblems(t, agSrc),
+    (t) => evidenceExportProblems(t, eeSrc),
     (t) => masterTableProblems(t)]) {
     if (pred(v).length) {
       console.log('SELFTEST FAIL: predicate fired on clean file');

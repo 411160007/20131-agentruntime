@@ -2400,3 +2400,92 @@ copied attr value colliding with the Phase 1 ladder action tokens.
 from the table. The trace carries no verdict field of its own
 beyond the copied decision value, no score, and no severity: the
 census of its wire keys is pinned at fourteen.
+
+## 24. Evidence export v0 contract (slice W7.2)
+
+Spec vNext section 252 asks the Enterprise Evidence System to
+support at least CSV, JSON, JSONL, PDF, and a Signed Evidence
+Bundle, recommends a bundle tree of manifest.json, events.jsonl,
+decisions.jsonl, agents.json, policies.json, recovery.json, and a
+hashes/ directory; section 253 then requires key evidence to carry
+seven integrity attributes and forbids dropping context for export
+convenience. This slice is export **v0**: what genuinely has a
+source today is delivered, everything else is named as an honest
+gap row - never a fabricated placeholder file.
+
+The exports read the W7.1 Decision Trace records and nothing else:
+no emitter, no audit writer, and no decision plane moves. Byte
+determinism is the machine gate - the same input exported twice
+leaves identical bytes - which is precisely why the manifest
+carries no wall-clock: the envelope timestamp is derived from the
+latest trace timestamp, and with no traces it is omitted (absent,
+not zero). An empty source label is rejected outright; a guessed
+source would itself be a fabricated integrity field.
+
+```schemav2
+evidence_export_format_vocabulary: jsonl,csv,json,pdf,signed_bundle
+evidence_format_stance_vocabulary: delivered_by_export_v0,delivered_via_manifest_inline,known_gap_absent
+evidence_bundle_member_vocabulary: manifest.json,events.jsonl,decisions.jsonl,agents.json,policies.json,recovery.json,hashes
+evidence_integrity_field_vocabulary: timestamp,source,integrity_hash,policy_version,decision_id,event_correlation_id,actor_identity
+evidence_timestamp_rule: envelope-timestamp-derived-from-evidence-never-wall-clock
+evidence_absent_cell_rule: csv-absent-cell-is-literal-absent-token-never-empty
+evidence_writeback_rule: export-never-writes-back-to-source
+evidence_context_omission_rule: no-section251-field-dropped-from-export-for-convenience
+evidence_hash_rule: sha256-of-file-bytes-mismatch-is-red-never-repaired
+evidence_bundle_enforcement_plane: none-in-observation-phase
+```
+
+The four vocabulary lines are closed sets in registration order,
+pinned verbatim against `AllEvidenceFormats`,
+`AllEvidenceFormatStances`, `AllEvidenceMembers`, and
+`AllEvidenceIntegrityFields`; the six rule lines are pinned
+against `EvidenceTimestampRule`, `EvidenceAbsentCellRule`,
+`EvidenceWriteBackRule`, `EvidenceContextRule`, `EvidenceHashRule`,
+and `EvidenceBundleEnforcementPlane` in `internal/schema/
+evidenceexport.go`. Drift either direction is a red build in the
+Go test and in the sync predicate of `scripts/schema-v2-check.mjs`.
+
+### 24.1 Format coverage (section 252 "at least")
+
+| `jsonl` | delivered_by_export_v0 | ExportTracesJSONL |
+| `csv` | delivered_by_export_v0 | ExportTracesCSV |
+| `json` | delivered_by_export_v0 | ExportTracesJSON |
+| `pdf` | known_gap_absent | rendering stack deferred |
+| `signed_bundle` | known_gap_absent | signing infrastructure deferred |
+
+CSV renders the sixteen closed columns (the fifteen section 251
+fields in spec order plus the correlation column); every uncarried
+cell takes the single literal token `absent` - never an empty
+cell, never a disguised zero. JSONL keeps input order so the
+exported stream preserves audit sequence.
+
+### 24.2 Bundle member coverage (section 252 tree)
+
+| `manifest.json` | delivered_by_export_v0 | BuildEvidenceManifest |
+| `events.jsonl` | known_gap_absent | no event-stream source wired into v0 |
+| `decisions.jsonl` | delivered_by_export_v0 | ExportTracesJSONL body |
+| `agents.json` | known_gap_absent | agent registry export not in this slice |
+| `policies.json` | known_gap_absent | policy snapshot export not in this slice |
+| `recovery.json` | known_gap_absent | waits for the upstream recovery field |
+| `hashes` | delivered_via_manifest_inline | per-file sha256 inline in manifest files[] |
+
+### 24.3 Integrity attributes (section 253)
+
+| `timestamp` | manifest source_timestamp derived from traces |
+| `source` | manifest source, non-empty enforced |
+| `integrity_hash` | per-file sha256 pin, mismatch is red |
+| `policy_version` | copied trace field on every row |
+| `decision_id` | copied trace field on every row |
+| `event_correlation_id` | copied trace origin_event_id |
+| `actor_identity` | copied trace agent field |
+
+`VerifyEvidenceBundle` checks manifest-to-files correspondence
+one-to-one: a pinned file missing, a supplied file the manifest
+never named, or a single flipped byte is a red verdict - reported,
+never repaired. The exports hold no write path to any source: the
+paired test pins the audit file's sha256 and mtime across a full
+bundle build (the `export-never-writes-back-to-source` line above
+is the contract; the test is the proof). The signed bundle stays
+the taskbook's own phasing note - signing infrastructure is not
+this slice, and no fake signature field is smuggled into the
+manifest to look complete.
