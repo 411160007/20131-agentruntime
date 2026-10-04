@@ -52,8 +52,8 @@ echo 'V2-CHECK FULL RUN GREEN (consume, inflow, data action, and trust domain pr
 step '02 selftest positive controls: every mutation caught, shipped file silent'
 node scripts/schema-v2-check.mjs --selftest > "$TMPDIR/gate-w3-selftest.out" 2>&1 \
   || { tail -20 "$TMPDIR/gate-w3-selftest.out"; echo RED: selftest; exit 1; }
-grep -q 'SELFTEST OK: all 56 mutations caught' "$TMPDIR/gate-w3-selftest.out" \
-  || { echo 'RED: selftest banner (want all 56 caught)'; tail -5 "$TMPDIR/gate-w3-selftest.out"; exit 1; }
+grep -q 'SELFTEST OK: all 59 mutations caught' "$TMPDIR/gate-w3-selftest.out" \
+  || { echo 'RED: selftest banner (want all 59 caught)'; tail -5 "$TMPDIR/gate-w3-selftest.out"; exit 1; }
 MISSES=$(grep -c 'SELFTEST MISS' "$TMPDIR/gate-w3-selftest.out" || true)
 [ "$MISSES" -eq 0 ] || { echo "RED: $MISSES selftest mutations missed"; exit 1; }
 echo 'SELFTEST 50/50 CAUGHT (shipped predicates have teeth)'
