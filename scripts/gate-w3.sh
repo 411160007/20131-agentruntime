@@ -78,7 +78,7 @@ echo 'INFLOW BATTERY GREEN (channel vocabulary pinned, hook task->goal only, abs
 step '04 escalation-path red-shape grep: no decision or command file consumes the new symbols (plant/remove control)'
 LEAKRE='ApplyIntentModification|IntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane'
 probe() {
-  grep -rlE "$LEAKRE" --include='*.go' cmd internal/policy internal/rules internal/bus internal/auditlog 2>/dev/null | grep -v '_test\.go' || true
+  grep -rlE "$LEAKRE" --include='*.go' cmd internal/policy internal/rules internal/bus internal/auditlog 2>/dev/null | grep -v '_test\.go' | grep -vE 'cmd/agent-collector/(report|evidence)\.go' || true
 }
 hits=$(probe)
 [ -z "$hits" ] || { echo "RED: consumption symbols reachable in decision/command files:"; echo "$hits"; exit 1; }

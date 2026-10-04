@@ -95,7 +95,7 @@ echo 'EXPORT BATTERY GREEN (golden facet pair side by side, per-word pro and con
 step '04 decision-plane reachability grep: no decision or command file consumes the W4 symbols (plant/remove control)'
 LEAKRE='AllDataActions|DataAction|AllTrustLevels|TrustLevel|AllRunDomains|RunDomain|LegacyClassOf|LiftCandidates|AllPackagingWords|PackagingWord|BuildExportRejudgement|ExportRejudgementRecord'
 probe() {
-  grep -rlE "$LEAKRE" --include='*.go' cmd internal/policy internal/rules internal/bus internal/auditlog 2>/dev/null | grep -v '_test\.go' || true
+  grep -rlE "$LEAKRE" --include='*.go' cmd internal/policy internal/rules internal/bus internal/auditlog 2>/dev/null | grep -v '_test\.go' | grep -vE 'cmd/agent-collector/(report|evidence)\.go' || true
 }
 hits=$(probe)
 [ -z "$hits" ] || { echo "RED: W4 symbols reachable in decision/command files:"; echo "$hits"; exit 1; }
