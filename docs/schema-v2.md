@@ -2312,3 +2312,91 @@ values stay inside the Phase 0 closed pair `{allow, would_block}`
 untouched by this slice, and no aggregate reads a cost record. The
 wire contract of docs/api-v0.md gains nothing here: no event field
 is added; the proxies read stated lines and write records only.
+
+## 23. Decision trace field table (slice W7.1)
+
+Spec vNext section 251 requires every important security decision
+to keep a machine-readable Decision Trace and lists fifteen field
+names. This section is the reverse-lookup: it reads the audit line
+the product already writes (`rules.DecisionEvent` renders the
+policy.decision row, its attrs carrying `rule`, `hard`, `cap`, and
+`res_class`) against the fifteen-name table, and states for every
+row how the field stands today - nothing more, nothing less. No
+event field is added, no emitter changes, and nothing upstream of
+the audit line moves: the trace is a derived read-side record
+whose values are copied, never re-derived.
+
+```schemav2
+decision_trace_field_vocabulary: decision_id,timestamp,agent,task,intent,action,resource,capability,risk_factors,policy_version,policy_rule,decision,enforcement_mode,outcome,recovery_state
+decision_trace_stance_vocabulary: carried_on_audit_line,carried_via_attrs,additive_field,known_gap_absent
+decision_trace_absence_rule: field-without-value-is-absent-not-zero
+decision_trace_correlation_rule: trace-pins-origin-event-id-not-equal-decision-id
+decision_trace_enforcement_mode: record_only_phase0
+decision_trace_enforcement_plane: none-in-observation-phase
+decision_trace_default_applied_rule: empty-rule-means-default-applied
+```
+
+The first two lines are closed vocabularies in normative order,
+pinned verbatim against `AllTraceFields`, `AllTraceStances`, and
+the fifteen-row `AllTraceCoverage` table in
+`internal/schema/decisiontrace.go`; the five rule lines are pinned
+against `TraceAbsenceRule`, `TraceCorrelationRule`,
+`TraceEnforcementModeValue`, `TraceEnforcementPlane`, and
+`TraceDefaultAppliedRule` - drift in either direction is a red
+build in both the Go test and the sync predicate in
+`scripts/schema-v2-check.mjs`.
+
+### 23.1 The fifteen-row reverse-lookup
+
+| `decision_id` | carried_on_audit_line | id |
+| `timestamp` | carried_on_audit_line | ts |
+| `agent` | carried_on_audit_line | agent_id |
+| `task` | known_gap_absent | |
+| `intent` | known_gap_absent | |
+| `action` | carried_on_audit_line | type |
+| `resource` | carried_via_attrs | res_class |
+| `capability` | carried_via_attrs | cap |
+| `risk_factors` | carried_on_audit_line | severity |
+| `policy_version` | additive_field | policy_version |
+| `policy_rule` | carried_via_attrs | rule |
+| `decision` | carried_on_audit_line | decision |
+| `enforcement_mode` | additive_field | enforcement_mode |
+| `outcome` | known_gap_absent | |
+| `recovery_state` | known_gap_absent | |
+
+Six fields ride the audit line itself, three ride its attrs, two
+arrive additively with this slice (the recorder-stated
+`policy_version` and the constructor-pinned `enforcement_mode`),
+and four stay structurally absent at Phase 0: `task`, `intent`,
+`outcome`, and `recovery_state`. The gap rows are named, never
+filled: their keys are omitted from the wire shape and listed in
+`known_gap_fields`, while an attrs-backed field whose attr was
+never written is listed in `unrecorded_fields` and omitted too -
+absence is literally absence, never a zero, an empty string, or a
+borrowed recovery verdict in disguise. A missing matched-rule
+restates as `default_applied` (the documented DecisionEvent
+literal for "no rule matched, default applied"), not as silence.
+
+### 23.2 Plane discipline
+
+`TraceField`, `AllTraceFields`, `TraceStance`, `AllTraceStances`,
+`TraceCoverageRow`, `AllTraceCoverage`, `TraceStanceOf`,
+`DecisionTrace`, `BuildDecisionTrace`, `TraceAbsenceRule`,
+`TraceCorrelationRule`, `TraceEnforcementModeValue`,
+`TraceEnforcementPlane`, `TraceDefaultApplied`,
+`EncodeTraceChecked`, and `TraceDefaultAppliedRule` join the
+planeLeak needle set in `scripts/gate-w5.sh` and `scripts/gate-w6.sh`
+and the Go scan in this package in this same PR: no policy, rules,
+bus, or auditlog file may reference them while
+`decision_trace_enforcement_plane` reads none-in-observation-phase,
+and the command tree is scanned for the same symbols with the
+planted-shape positive control. Construction rejects, before any
+record exists: non-policy.decision lines, decisions outside the
+Phase 0 runtime pair, missing id/agent/timestamp/hard annotation,
+an origin event id that is empty or equal to the decision id (no
+self-correlation), a wild or unstated `policy_version`, and any
+copied attr value colliding with the Phase 1 ladder action tokens.
+`EncodeTraceChecked` refuses hand-edited gap lists that drifted
+from the table. The trace carries no verdict field of its own
+beyond the copied decision value, no score, and no severity: the
+census of its wire keys is pinned at fourteen.
