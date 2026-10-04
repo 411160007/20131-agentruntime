@@ -1,8 +1,10 @@
-// w14_goldengen_test.go - golden maintenance path: run
-// REPORT_GEN_GOLDEN=1 go test -run TestGenerateReportGolden to rewrite
-// testdata/report-golden.txt from the renderer. Normal test runs
-// (and CI) skip this file's test entirely; drift is caught by
-// TestReportGolden, never silently repaired here.
+// goldengen_test.go - the report golden is a first-class artifact:
+// this test pins its invariants directly (non-empty, report header,
+// one census line per pinned vocabulary family) so regeneration is a
+// deliberate edit of testdata/report-golden.txt after a reviewed
+// renderer change. There is deliberately no t.Skip path here: the
+// inherited evals gate counts any SKIP as red, and an env-gated
+// generator would be a live skip in every serial run.
 package main
 
 import (
@@ -10,19 +12,31 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
-func TestGenerateReportGolden(t *testing.T) {
-	if os.Getenv("REPORT_GEN_GOLDEN") != "1" {
-		t.Skip("golden generation is opt-in (REPORT_GEN_GOLDEN=1)")
-	}
-	evs, err := timelineEvents(filepath.Join("..", "..", "testdata", "timeline-sample.jsonl"), "", time.Time{})
+func TestReportGoldenInvariants(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "testdata", "report-golden.txt"))
 	if err != nil {
-		t.Fatalf("load sample: %v", err)
+		t.Fatalf("read golden: %v", err)
 	}
-	out := strings.Join(renderReport(evs), "\n") + "\n"
-	if err := os.WriteFile(filepath.Join("..", "..", "testdata", "report-golden.txt"), []byte(out), 0o644); err != nil {
-		t.Fatalf("write golden: %v", err)
+	lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+	if len(lines) < 10 {
+		t.Fatalf("golden collapsed to %d lines", len(lines))
+	}
+	if !strings.HasPrefix(lines[0], "report: ") {
+		t.Fatalf("golden header drifted: %q", lines[0])
+	}
+	need := []string{"decisions:", "event types:", "severity census:", "agents: "}
+	for _, n := range need {
+		found := false
+		for _, ln := range lines {
+			if strings.TrimSuffix(ln, " ") == n || strings.HasPrefix(ln, n) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("golden census family missing: %q", n)
+		}
 	}
 }
