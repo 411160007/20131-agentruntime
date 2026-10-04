@@ -2489,3 +2489,45 @@ is the contract; the test is the proof). The signed bundle stays
 the taskbook's own phasing note - signing infrastructure is not
 this slice, and no fake signature field is smuggled into the
 manifest to look complete.
+
+
+## 25. Read-only CLI surface: report + evidence (slice W7.3)
+
+Section 307 item 15 ("enterprise can export complete Decision /
+Evidence") gets its Phase 0 realisation form here: the collector's
+status/audit-tail/timeline family gains two user-visible read-only
+subcommands. `report` aggregates counts over validated audit lines
+and prints to stdout only. `evidence` turns policy.decision lines
+into W7.1 traces, envelopes them with the W7.2 integrity bundle, and
+writes the verified bundle **only** into an explicit existing
+operator directory. Honest skipping is bucketed and counted: a
+decision with no preceding same-agent event is never self-correlated,
+an un-stated policy version is a recorder error refused up front, and
+a rejected trace never leaks a partial record.
+
+```schemav2
+evidence_cli_skip_bucket_vocabulary: no_prior_origin,self_correlation,trace_rejected
+evidence_cli_origin_rule: origin-is-preceding-same-agent-event-never-self-correlation
+evidence_cli_version_rule: policy-version-must-be-operator-stated-never-defaulted
+evidence_cli_write_rule: evidence-writes-only-into-existing-explicit-dir-never-overwrite
+report_cli_zero_write_rule: report-subcommand-performs-filesystem-writes-zero
+cli_surface_enforcement_plane: none-in-observation-phase
+```
+
+The five CLI contract lines are pinned against the Go sources:
+the skip-bucket list derives from `evidenceSkipBuckets` in
+`cmd/agent-collector/evidence.go` in registration order, the write
+rule against the refusal-before-any-`WriteFile` path, the report
+zero-write rule against the absence of any write API in
+`cmd/agent-collector/report.go`, and the enforcement plane line is
+`none-in-observation-phase` like every Phase 0 surface. Determinism
+is unchanged from section 24: the same audit input exported twice
+leaves byte-identical bundle members, and the golden snapshot test
+pins `renderReport` output verbatim.
+
+### 25.1 Skip-bucket coverage
+
+| `no_prior_origin` | counted-skip | leading decision with no preceding same-agent line |
+| `self_correlation` | counted-skip | origin would equal the decision id (blocked upstream too) |
+| `trace_rejected` | counted-skip | BuildDecisionTrace rejection, full line skipped not patched |
+
