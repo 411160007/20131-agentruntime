@@ -1,0 +1,18 @@
+report: 6 event(s), 1 policy.decision line(s)
+decisions:
+  allow            5
+  would_block      1
+event types:
+  agent.detected           3
+  agent.scan               1
+  collector.start          1
+  policy.decision          1
+severity census:
+  severity=0 5
+  severity=4 1
+agents: 5 distinct
+  agi-tl0002               2
+  agi-1-641b3336           1
+  agi-7-641b3336           1
+  agi-tl0001               1
+  collector-641b3336       1
