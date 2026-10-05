@@ -279,6 +279,13 @@ func TestTotalBytesMatchesDisk(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeSeg(t, base, "20260101T000000Z", evCls("t2", time.Now().UTC(), schema.SevInfo))
+	// Close before the disk sweep: on Windows a still-open append handle
+	// lags the directory-entry size, so a live-file stat there reads 0
+	// while TotalBytes' in-memory writer counter is exact. Closing first
+	// makes both sides read the same bytes on every OS.
+	if err := l.Close(); err != nil {
+		t.Fatal(err)
+	}
 	got := l.TotalBytes()
 	var want int64
 	entries, _ := os.ReadDir(dir)
