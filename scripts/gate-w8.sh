@@ -154,15 +154,16 @@ pre8 'quota_response_rule: record-only-no-action'
 # quota never becomes a second collector and never averages the two scopes
 pre8 'quota_shared_source_rule: quota-recounts-stored-audit-lines-never-a-second-collector'
 pre8 'quota_scope_pair_rule: per-agent-and-per-task-quoted-separately-never-averaged'
-# storage quota stays an observation stance: no enforcement plane promoted
-grep -q '^storage_enforcement_plane: none-in-observation-phase$' docs/schema-v2.md \
-  || grep -q '^quota_enforcement_plane: none-in-observation-phase$' docs/schema-v2.md \
-  || { echo 'RED: no W8 observation-phase plane pinned'; exit 1; }
+# storage governance stays an observation stance: writes are never blocked by
+# pressure, and the wave declares no enforcement plane at all (record-only).
+pre8 'storage_write_block_rule: pressure-never-blocks-writes-in-observation-phase'
+p=$(grep -cE '^(storage|quota)_[a-z_]*(enforcement|execution)_plane: ' docs/schema-v2.md || true)
+[ "$p" -eq 0 ] || { echo "RED: the W8 wave grew an enforcement plane declaration ($p lines)"; exit 1; }
 c=$(grep -cE '^[a-z_]+_(enforcement|execution)_plane: none-in-observation-phase$' docs/schema-v2.md)
 t=$(grep -cE '^[a-z_]+_(enforcement|execution)_plane: ' docs/schema-v2.md)
 [ "$c" -eq "$t" ] || { echo "RED: a declared plane was promoted out of observation stance ($c/$t)"; exit 1; }
 [ "$c" -ge 16 ] || { echo "RED: plane census $c, want at least 16 none-lines"; exit 1; }
-echo "STORAGE OBSERVATION ANCHORS GREEN (eight verbatim anchors, plane census all-none: $c/$t, nothing enforced, §304 value not hung)"
+echo "STORAGE OBSERVATION ANCHORS GREEN (nine verbatim anchors, zero enforcement-plane declaration in the wave, plane census all-none: $c/$t, section 304 value not hung)"
 
 step '07 tripwire standalone (internal-ledger negative scan)'
 bash scripts/tripwire.sh > "$LOGDIR/gate-w8-tripwire.out" 2>&1 \
