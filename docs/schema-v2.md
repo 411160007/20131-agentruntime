@@ -2531,3 +2531,100 @@ pins `renderReport` output verbatim.
 | `self_correlation` | counted-skip | origin would equal the decision id (blocked upstream too) |
 | `trace_rejected` | counted-skip | BuildDecisionTrace rejection, full line skipped not patched |
 
+
+## 26. Storage governance V2: time + capacity dual limit (slice W8.1)
+
+The rotation base (size policy, UTC day-cut, KeepHistory) ships since
+D1 and stays untouched; this section adds the second axis of section
+268: audit history is bounded by BOTH wall-clock retention per
+severity class AND a total-capacity hard cap (section 269), so
+neither axis may grow without bound. The section 270 pressure ladder
+is landed as the observation it is contracted to be in this phase -
+five closed bands computed from usage against the configured quota
+and recorded, with every band response pinned
+`record-only-no-action`: no compression, aggregation, or eviction
+policy is wired into the write path, and a Critical security event
+can never be dropped or blocked by pressure (section 270 last line),
+which the write-path tests prove by landing events far over quota.
+
+Pruning itself is a governance pass (`Log.Enforce`), never a write
+side effect: the oldest rotated segments go first, a segment expires
+only under the retention window of the highest severity class it
+holds, and capacity eviction skips any segment holding Critical
+events (positive control: critical conservation counts are equal
+before and after an over-pressure pass). When the exempt history
+alone still busts the cap the governor reports the honest watermark
+line - `when-only-held-segments-remain-report-over-quota-never-drop-critical` -
+and BytesAfter stays truthfully above quota instead of faking
+compliance with a silent drop.
+
+The live head file inherits the 0953ac1 rotation-gate exemption: a
+rename-on-threshold legitimately leaves a freshly recreated empty
+head until the next event, so governance never prunes the live
+segment, the empty head is exempt from content validation while
+keeping its 0600 mode gate, and rotated archives still validate
+fully. A segment whose lines cannot be parsed is held, never
+guessed-pruned (fail-closed on data loss); reads for governance
+decisions touch only per-line `ts` and `severity` metadata, so
+Logging Privacy (section 272) holds by construction.
+
+### 26.1 The storage governance keys
+
+```schemav2
+storage_severity_retention_mapping: info=7d,low=7d,medium=30d,high=90d,critical=180d
+storage_pressure_band_vocabulary: normal,compress_aggregate,strong_aggregation,evict_old_normal,retain_critical_only
+storage_govern_action_vocabulary: prune_expired,evict_for_capacity,hold_critical,hold_live_head,hold_unreadable,over_quota_critical_only
+storage_dual_limit_rule: time-and-capacity-both-enforced-neither-infinite-growth
+storage_critical_hold_rule: critical-classified-segments-never-pruned-by-capacity-pressure
+storage_pressure_response_rule: record-only-no-action
+storage_overquota_honesty_rule: when-only-held-segments-remain-report-over-quota-never-drop-critical
+storage_live_head_rule: governance-never-prunes-the-live-segment-empty-head-stays-valid
+storage_write_block_rule: pressure-never-blocks-writes-in-observation-phase
+storage_unreadable_rule: unreadable-segment-is-held-never-guessed-pruned
+storage_quota_stance: tier-defaults-are-initial-engineering-defaults-not-permanent-commercial-promise
+```
+
+`storage_severity_retention_mapping` mirrors the section 268 defaults
+(info/low = runtime event detailed 7d, medium = security decision
+30d, high = agent/task audit 90d, critical = critical incident 180d)
+and is derived mechanically from the `StorageRetention*` constants in
+`internal/auditlog/governance.go`; Enterprise may widen windows via
+`Governance.RetainOverrides` (section 268 "Enterprise 可以配置更长周
+期"), never silently narrow below the shipped defaults' documented
+meaning. `storage_pressure_band_vocabulary` and the band table below
+derive from `storageBandCoverage()`; the six governance actions are
+the closed `GovernAction` enum. Rule lines mirror the eight Go
+constants one for one.
+
+| severity | window |
+| `info` | 7d |
+| `low` | 7d |
+| `medium` | 30d |
+| `high` | 90d |
+| `critical` | 180d |
+
+| band | usage_edge | response |
+| `normal` | below_60 | record_only |
+| `compress_aggregate` | 60_to_80 | record_only |
+| `strong_aggregation` | 80_to_90 | record_only |
+| `evict_old_normal` | 90_to_95 | record_only |
+| `retain_critical_only` | 95_to_100 | record_only |
+
+### 26.2 Honest gaps this slice does not pretend to close
+
+* Quota TIER numbers (section 269 Free 512MB / Pro 1-2GB / Recovery
+  1-10GB) are initial engineering defaults carried as the
+  `storage_quota_stance` line only; no tier auto-configuration is
+  wired, and remote configuration of quotas is a known_gap here.
+* The band responses themselves (compress, aggregate, evict-old,
+  retain-critical-only) are recorded, not executed: real
+  compression/aggregation pipelines are not built by this slice
+  (`record-only-no-action`).
+* per-agent / per-task quotas and rate fields are section 271 =
+  slice W8.2; the user-visible `storage` subcommand reading
+  `TotalBytes` (the du-source pinned by the row-census tests) is
+  section 273 = slice W8.3.
+* Like sections 22 through 25 this contract is deliberately not one
+  of the fifteen schema names of section 289: section 11 and its
+  twenty-eight cells stay untouched and no master_cell block is
+  added.
