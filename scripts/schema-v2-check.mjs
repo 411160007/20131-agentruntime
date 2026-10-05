@@ -462,6 +462,8 @@ const evCliSrc = fs.readFileSync(path.join(root, 'cmd', 'agent-collector', 'evid
 const repCliSrc = fs.readFileSync(path.join(root, 'cmd', 'agent-collector', 'report.go'), 'utf8');
 const sgSrc = fs.readFileSync(path.join(root, 'internal', 'auditlog', 'governance.go'), 'utf8');
 const quotaSrc = fs.readFileSync(path.join(root, 'internal', 'auditlog', 'quota.go'), 'utf8');
+const svSrc = fs.readFileSync(path.join(root, 'internal', 'auditlog', 'storageview.go'), 'utf8');
+const storCliSrc = fs.readFileSync(path.join(root, 'cmd', 'agent-collector', 'storage.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -1392,6 +1394,63 @@ const qp = quotaProblems(v, quotaSrc);
 check(qp.length === 0, 'per-scope quota observation: kind and state vocabularies derived from Go constants, state mirror pinned against the section 21 triad, five rule lines plus two aliased shipped tokens pinned docs<->Go, task attr key pinned, section 27 present with record-only, shared-source, and task-attribution restatements');
 if (qp.length) console.log('  ' + qp.join('\n  '));
 
+// storageViewProblems pins the read-only occupancy surface (slice W8.3):
+// the closed member registration docs<->Go in specification order, the
+// rule lines including the two aliases of shipped vocabularies, the
+// structural read-only pins, and the no-second-dialect pins for the
+// window mapping and the pressure ladder.
+function storageViewProblems(text, viewGo, cmdGo) {
+  const bad = [];
+  const mv = findKey(text, 'storagecli_member_vocabulary');
+  if (mv === null) return ['storage CLI member vocabulary key missing or duplicated'];
+  const want = mv.split(',');
+  if (want.length !== 8 || new Set(want).size !== 8) bad.push('storage CLI member vocabulary is not eight unique tokens');
+  const decl = viewGo.match(/var storageViewMembers = \[\]string\{([^\}]*)\}/);
+  const goMembers = decl ? [...decl[1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]) : [];
+  if (goMembers.length !== 8) bad.push('Go storage member registration census ' + goMembers.length + ', want 8');
+  want.forEach((m, i) => { if (goMembers[i] !== m) bad.push('storage member order pin broke at ' + (i + 1) + ': docs ' + m + ' vs Go ' + goMembers[i]); });
+  const ruleLines = {
+    storagecli_read_only_rule: 'storage-census-opens-audit-read-only-never-creates-never-advances',
+    storagecli_absence_rule: 'member-without-source-reported-absent-never-rendered-as-zero',
+    storagecli_shared_source_rule: 'storage-census-opens-audit-read-only-never-creates-never-advances;quota-recounts-stored-audit-lines-never-a-second-collector',
+    storagecli_ceiling_rule: 'undeclared-ceiling-not-computed-stated-known-gap',
+    storagecli_retention_alias: 'renders-section-26-retention-mapping-never-a-second-window-table',
+    storagecli_band_alias: 'renders-section-26-pressure-band-vocabulary-never-a-second-ladder',
+    storagecli_enforcement_plane: 'none-in-observation-phase',
+  };
+  const aliased = new Set(['storagecli_shared_source_rule', 'storagecli_ceiling_rule']);
+  for (const [k, wantVal] of Object.entries(ruleLines)) {
+    const got = findKey(text, k);
+    if (got === null) { bad.push(k + ' missing or duplicated'); continue; }
+    if (got !== wantVal) bad.push(k + ' drifted: ' + got);
+    if (!aliased.has(k) && !viewGo.includes('"' + wantVal + '"')) bad.push(k + ' has no Go-side literal');
+  }
+  // Aliases must be aliases: the ceiling line reuses the shipped quota
+  // token, the shared-source line reuses the shipped read-only line.
+  if (!/StorageViewCeilingRule = QuotaAbsentCeilingRule/.test(viewGo)) bad.push('storage ceiling line is not an alias of the shipped quota token');
+  if (!/StorageViewSharedSourceRule = StorageViewReadOnlyRule \+ ";" \+ QuotaSharedSourceRule/.test(viewGo)) bad.push('storage shared-source line is not an alias composition of the shipped tokens');
+  // Structural read-only pins: the census handle is opened without any
+  // create or write flag and the package file carries no write API.
+  if (!/os\.Open\(path\)/.test(viewGo)) bad.push('read-only census handle absent (no os.Open on the live segment)');
+  if (/os\.OpenFile|O_CREATE|O_WRONLY|os\.WriteFile|os\.Create/.test(viewGo)) bad.push('storage census file contains a write API (read-only rule broken)');
+  if (cmdGo.includes('os.WriteFile') || cmdGo.includes('os.Create') || cmdGo.includes('os.OpenFile')) bad.push('storage subcommand contains a write API (read-only rule broken)');
+  if (!/func runStorage/.test(cmdGo)) bad.push('runStorage dispatch body absent');
+  if (!/func renderStorage/.test(cmdGo)) bad.push('renderStorage pure renderer absent');
+  if (!/func checkStorageViewOrder/.test(viewGo)) bad.push('member-order fail-closed check absent');
+  // No second dialect: windows and bands are derived, never re-typed.
+  const windowPins = [...viewGo.matchAll(/g\.windowToken\(schema\.Sev[A-Za-z]+\)/g)].length;
+  if (windowPins !== 5) bad.push('retention line derives ' + windowPins + ' of 5 windows from the shipped constants');
+  if (/\b(?:info|low|medium|high|critical)=\d+d/.test(viewGo)) bad.push('storage census hand-types a retention window');
+  if (/"normal"|"compress_aggregate"|"strong_aggregation"|"evict_old_normal"|"retain_critical_only"/.test(viewGo)) bad.push('storage census hand-types a pressure band');
+  if (!/string\(p\.Band\)/.test(viewGo)) bad.push('pressure value is not the shipped band token');
+  if (!text.includes('## 28. Storage occupancy read-only surface')) bad.push('docs section 28 heading absent');
+  return bad;
+}
+
+const sv = storageViewProblems(v, svSrc, storCliSrc);
+check(sv.length === 0, 'storage occupancy surface: eight-member closed registration mirrored docs<->Go in specification order, seven rule lines pinned with two shipped-token aliases, read-only structural pins on both files, five derived windows and no band literal (no second dialect), pure renderer and fail-closed order check present, section 28 present');
+if (sv.length) console.log('  ' + sv.join('\n  '));
+
 const mtp = masterTableProblems(v);
 check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
 if (mtp.length) console.log('  ' + mtp.join('\n  '));
@@ -1472,6 +1531,9 @@ if (process.argv.includes('--selftest')) {
     ['storage retention window shrinks critical below its class', (t) => t.replace('high=90d,critical=180d', 'high=90d,critical=7d'), (t) => storageGovProblems(t, sgSrc)],
     ['quota critical exemption flipped into silent drop', (t) => t.replace('quota_critical_exempt_rule: critical-events-never-quota-dropped-report-watermark', 'quota_critical_exempt_rule: critical-events-droppable-under-quota-pressure'), (t) => quotaProblems(t, quotaSrc)],
     ['quota shared source renamed into a second collector', (t) => t.replace('quota_shared_source_rule: quota-recounts-stored-audit-lines-never-a-second-collector', 'quota_shared_source_rule: quota-runs-a-parallel-event-collector'), (t) => quotaProblems(t, quotaSrc)],
+    ['storage census borrows a second window table', (t) => t.replace('storagecli_retention_alias: renders-section-26-retention-mapping-never-a-second-window-table', 'storagecli_retention_alias: renders-operator-supplied-window-table'), (t) => storageViewProblems(t, svSrc, storCliSrc)],
+    ['storage census fabricates a zero for an absent member', (t) => t.replace('storagecli_absence_rule: member-without-source-reported-absent-never-rendered-as-zero', 'storagecli_absence_rule: member-without-source-reported-as-zero-by-default'), (t) => storageViewProblems(t, svSrc, storCliSrc)],
+    ['storage census member loses a token', (t) => t.replace('storagecli_member_vocabulary: runtime_logs,audit,recovery,evidence,total,quota,retention,pressure_status', 'storagecli_member_vocabulary: runtime_logs,audit,recovery,evidence,total,quota,pressure_status'), (t) => storageViewProblems(t, svSrc, storCliSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
@@ -1496,6 +1558,7 @@ if (process.argv.includes('--selftest')) {
     (t) => costGuardProblems(t, cgSrc),
     (t) => decisionTraceProblems(t, dtSrc),
     (t) => storageGovProblems(t, sgSrc),
+    (t) => storageViewProblems(t, svSrc, storCliSrc),
     (t) => cliSurfaceProblems(t, evCliSrc, repCliSrc),
     (t) => masterTableProblems(t)]) {
     if (pred(v).length) {

@@ -12,12 +12,16 @@
 # lines, per-scope ceilings never averaged, stated task ids only, undeclared
 # ceilings reported as a known gap instead of a fabricated zero, critical
 # conservation plus the aliased watermark token, and record-only responses
-# that never block a write). Slice W8.3 (the user-visible storage subcommand,
-# section 273) is NOT shipped yet and is deliberately absent from this gate:
-# nothing pre-borrowed. The wave-close hard judgement line of the taskbook is
-# gate-w8 rc=0, and the section 304 Storage Usage review line is carried in
-# the leg report, not hung here (its collector dependency stays recorded as-is
-# in the gap matrix).
+# that never block a write), plus slice W8.3 the user-visible read-only
+# storage census (section 273: eight closed members in specification order,
+# a read-only handle that never creates and never advances the audit plane,
+# absent members stated instead of zeroed, retention and band lines aliased
+# from the shipped section 26 vocabularies, per-scope lines kept in two
+# separate dimensions, and no write API anywhere on the surface). The
+# wave-close hard judgement line of the taskbook is gate-w8 rc=0, and the
+# section 304 Storage Usage review line is carried in the leg report, not
+# hung here (its collector dependency stays recorded as-is in the gap
+# matrix).
 #
 # Fleet counts are read from the shipped checker at run time rather than
 # copied into this file, so a mutation added by a later leg cannot pass a
@@ -37,27 +41,34 @@ mkdir -p "$LOGDIR"
 
 step() { printf '\n=== %s ===\n' "$*"; }
 
-step '00 preflight: W8.1 and W8.2 surface repo-visible with eleven storage keys over section 26 plus ten quota keys over section 27'
+step '00 preflight: W8.1, W8.2 and W8.3 surface repo-visible with eleven storage keys over section 26, ten quota keys over section 27, and eight storage-CLI keys over section 28'
 test -f internal/auditlog/governance.go || { echo 'RED: W8.1 surface missing'; exit 1; }
 test -f internal/auditlog/quota.go || { echo 'RED: W8.2 surface missing'; exit 1; }
 test -f internal/auditlog/governance_test.go || { echo 'RED: W8.1 tests missing'; exit 1; }
 test -f internal/auditlog/quota_test.go || { echo 'RED: W8.2 tests missing'; exit 1; }
 test -f scripts/gate-w8.sh || { echo 'RED: this gate not on disk'; exit 1; }
+test -f internal/auditlog/storageview.go || { echo 'RED: W8.3 census surface missing'; exit 1; }
+test -f cmd/agent-collector/storage.go || { echo 'RED: W8.3 subcommand missing'; exit 1; }
+test -f cmd/agent-collector/storage_test.go || { echo 'RED: W8.3 tests missing'; exit 1; }
 grep -q '^## 26. Storage governance V2: time + capacity dual limit' docs/schema-v2.md \
   || { echo 'RED: section 26 header missing'; exit 1; }
 grep -q '^## 27. Per-agent / per-task storage quota observation' docs/schema-v2.md \
   || { echo 'RED: section 27 header missing'; exit 1; }
+grep -q '^## 28. Storage occupancy read-only surface' docs/schema-v2.md \
+  || { echo 'RED: section 28 header missing'; exit 1; }
 s=$(grep -cE '^storage_[a-z_]+: ' docs/schema-v2.md)
 [ "$s" -eq 11 ] || { echo "RED: storage rule key census $s/11"; exit 1; }
 q=$(grep -cE '^quota_[a-z_]+: ' docs/schema-v2.md)
 [ "$q" -eq 10 ] || { echo "RED: quota rule key census $q/10"; exit 1; }
+c8=$(grep -cE '^storagecli_[a-z_]+: ' docs/schema-v2.md)
+[ "$c8" -eq 8 ] || { echo "RED: storage CLI rule key census $c8/8"; exit 1; }
 # the honesty watermark is one token in two dialects: W8.1 emits the capacity
 # line, W8.2 aliases it, and the structural pin forbids a second spelling.
 grep -q '^storage_govern_action_vocabulary: .*over_quota_critical_only$' docs/schema-v2.md \
   || { echo 'RED: storage watermark token missing from the action vocabulary'; exit 1; }
 grep -q '^quota_watermark_token: over_quota_critical_only$' docs/schema-v2.md \
   || { echo 'RED: quota watermark alias not pinned'; exit 1; }
-echo "W8 SURFACE VISIBLE (governance + quota with tests, two headings, eleven plus ten keys, watermark aliased not re-spelled)"
+echo "W8 SURFACE VISIBLE (governance + quota + storage census with tests, three headings, eleven plus ten plus eight keys, watermark aliased not re-spelled)"
 
 step '01 v2-check full battery including the two W8 predicates'
 node scripts/schema-v2-check.mjs > "$LOGDIR/gate-w8-v2check.out" 2>&1 \
@@ -72,7 +83,11 @@ grep -q 'const sg = storageGovProblems(v, sgSrc)' scripts/schema-v2-check.mjs \
   || { echo 'RED: storage predicate not wired into the run'; exit 1; }
 grep -q 'const qp = quotaProblems(v, quotaSrc)' scripts/schema-v2-check.mjs \
   || { echo 'RED: quota predicate not wired into the run'; exit 1; }
-echo 'V2-CHECK FULL RUN GREEN (storage governance and quota predicates defined and wired)'
+grep -q 'function storageViewProblems' scripts/schema-v2-check.mjs \
+  || { echo 'RED: storage census predicate definition lost'; exit 1; }
+grep -q 'const sv = storageViewProblems(v, svSrc, storCliSrc)' scripts/schema-v2-check.mjs \
+  || { echo 'RED: storage census predicate not wired into the run'; exit 1; }
+echo 'V2-CHECK FULL RUN GREEN (storage governance, quota, and storage census predicates defined and wired)'
 
 step '02 selftest positive controls: every mutation caught, fleet size read from the shipped checker'
 node scripts/schema-v2-check.mjs --selftest > "$LOGDIR/gate-w8-selftest.out" 2>&1 \
@@ -103,6 +118,13 @@ for t in TestQuotaVocabulariesStaySyncedWithSchema TestQuotaEventRatePositiveAnd
   grep -q "^--- PASS: $t" "$LOGDIR/gate-w8-quota.out" || { echo "RED: $t did not pass"; exit 1; }
 done
 echo 'W8.2 QUOTA BATTERY GREEN (vocabularies in sync, per-scope positive and negative controls, stated task ids only, undeclared ceiling is a known gap not a zero, rate omitted when the window is not stated, critical conservation with the watermark, malformed segments held, observation never blocks a write)'
+
+go test -count=1 ./cmd/agent-collector -run 'TestStorage' -v > "$LOGDIR/gate-w8-storage.out" 2>&1 \
+  || { tail -30 "$LOGDIR/gate-w8-storage.out"; echo RED: W8.3 storage battery; exit 1; }
+for t in TestStorageCensusMatchesDiskSum TestStorageGoldenRenderedLines TestStorageCensusIsReadOnlyBeforeAndAfter TestStorageAbsentMembersStatedNotZeroed TestStorageUndeclaredCapacityLeavesBandUncomputed TestStorageScopeCensusKeepsDimensionsSeparate TestStorageMemberOrderLockedToRegistration; do
+  grep -q "^--- PASS: $t" "$LOGDIR/gate-w8-storage.out" || { echo "RED: $t did not pass"; exit 1; }
+done
+echo 'W8.3 STORAGE CENSUS BATTERY GREEN (census equals an independently walked disk sum, golden display shape pinned verbatim, read-only proven by hash and mtime identity plus never creating an absent family, absent members stated not zeroed, undeclared ceiling leaves the band uncomputed, agent and task dimensions displayed separately, member order locked to the closed registration)'
 
 step '04 decision-plane reachability grep: no decision-plane or command file consumes the W8 symbols (plant/remove control)'
 LEAKRE8='Governance|QuotaRecord|QuotaReport|QuotaState|StoragePressureBand|StorageBand|GovernAction|GovernDecision|GovernReport|PressureReading|over_quota_critical_only'
@@ -157,6 +179,11 @@ pre8 'quota_scope_pair_rule: per-agent-and-per-task-quoted-separately-never-aver
 # storage governance stays an observation stance: writes are never blocked by
 # pressure, and the wave declares no enforcement plane at all (record-only).
 pre8 'storage_write_block_rule: pressure-never-blocks-writes-in-observation-phase'
+# the read-only census states absence and never a second dialect
+pre8 'storagecli_read_only_rule: storage-census-opens-audit-read-only-never-creates-never-advances'
+pre8 'storagecli_absence_rule: member-without-source-reported-absent-never-rendered-as-zero'
+pre8 'storagecli_retention_alias: renders-section-26-retention-mapping-never-a-second-window-table'
+pre8 'storagecli_band_alias: renders-section-26-pressure-band-vocabulary-never-a-second-ladder'
 p=$(grep -cE '^(storage|quota)_[a-z_]*(enforcement|execution)_plane: ' docs/schema-v2.md || true)
 [ "$p" -eq 0 ] || { echo "RED: the W8 wave grew an enforcement plane declaration ($p lines)"; exit 1; }
 c=$(grep -cE '^[a-z_]+_(enforcement|execution)_plane: none-in-observation-phase$' docs/schema-v2.md)
