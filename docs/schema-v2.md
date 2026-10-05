@@ -2689,3 +2689,53 @@ quota_task_attr_key: task_id
   of the fifteen schema names of section 289: section 11 and its
   twenty-eight cells stay untouched and no master_cell block is
   added.
+
+## 28. Storage occupancy read-only surface (slice W8.3)
+
+Section 273 requires that a user or an enterprise can find out how much
+disk 20131 actually holds, and that no design lets logs grow silently
+until the disk is full. Section 26 landed the dual limits and section 27
+landed the per-scope lens; this section lands the user-visible read-only
+surface over both: the collector's `storage` subcommand prints the
+occupancy census for the eight members the specification names, beside
+the status / audit-tail / timeline / report / evidence family.
+
+```schemav2
+storagecli_member_vocabulary: runtime_logs,audit,recovery,evidence,total,quota,retention,pressure_status
+storagecli_read_only_rule: storage-census-opens-audit-read-only-never-creates-never-advances
+storagecli_absence_rule: member-without-source-reported-absent-never-rendered-as-zero
+storagecli_shared_source_rule: storage-census-opens-audit-read-only-never-creates-never-advances;quota-recounts-stored-audit-lines-never-a-second-collector
+storagecli_ceiling_rule: undeclared-ceiling-not-computed-stated-known-gap
+storagecli_retention_alias: renders-section-26-retention-mapping-never-a-second-window-table
+storagecli_band_alias: renders-section-26-pressure-band-vocabulary-never-a-second-ladder
+storagecli_enforcement_plane: none-in-observation-phase
+```
+
+* The member list is one closed registration
+  (`storageViewMembers` in `internal/auditlog/storageview.go`), emitted in
+  specification order and fail-closed: the census refuses to render if a
+  member is added, dropped, or reordered.
+* `audit` and `total` come from the shipped du source (`TotalBytes` over
+  the live segment plus the rotated family). The cross-check is against
+  an independently walked disk sum, never a hand-transcribed number.
+* `runtime_logs`, `recovery`, and `evidence` have no separately measured
+  store in this release: the audit file is the collector's only
+  persistence exit, recovery records are a classification plane carried
+  on audit lines, and evidence bundles land only in an operator-declared
+  existing directory. All three are reported with the absent token - not
+  as zero, not as an estimate.
+* `retention` is derived from the shipped per-class constants and renders
+  the section 26 mapping token for token; `pressure_status` renders the
+  section 26 band vocabulary and is not computed at all when no capacity
+  ceiling was declared. Both lines are aliases of shipped vocabularies,
+  never a second window table or a second ladder.
+* Per-agent and per-task lines re-count already-durable audit lines
+  through the shipped observation path. The two dimensions are displayed
+  separately, never averaged into each other, and an undeclared ceiling
+  is stated as a known gap.
+* The census opens the live segment read-only (no create flag): asking
+  how much is stored never advances the audit plane, never materialises
+  an absent file, and never disturbs a concurrent append handle. No line
+  in this slice can block, delete, or trim anything - the enforcement
+  plane stays `none-in-observation-phase` like every other Phase 0
+  surface, and the write path does not consult the census.
