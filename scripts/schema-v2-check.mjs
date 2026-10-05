@@ -460,6 +460,7 @@ const dtSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'decisiontra
 const eeSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'evidenceexport.go'), 'utf8');
 const evCliSrc = fs.readFileSync(path.join(root, 'cmd', 'agent-collector', 'evidence.go'), 'utf8');
 const repCliSrc = fs.readFileSync(path.join(root, 'cmd', 'agent-collector', 'report.go'), 'utf8');
+const sgSrc = fs.readFileSync(path.join(root, 'internal', 'auditlog', 'governance.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -1150,6 +1151,67 @@ function decisionTraceProblems(text, goText) {
   return bad;
 }
 
+// storage governance v2 dual limits (slice W8.1)
+function storageGovProblems(text, goText) {
+  const bad = [];
+  const goHas = (ident, val) => new RegExp(ident + '\\s*=\\s*"' + val + '"').test(goText);
+  // retention mapping derived mechanically from the Go constants
+  const rets = [...goText.matchAll(/StorageRetention(\w+)\s*=\s*"(\d+d)"/g)].map((m) => [m[1].toLowerCase(), m[2]]);
+  if (rets.length !== 5) return bad.concat(['storage retention Go constant census ' + rets.length + ', want 5']);
+  const derivedMap = rets.map((r) => r[0] + '=' + r[1]).join(',');
+  const mapLine = findKey(text, 'storage_severity_retention_mapping');
+  if (mapLine === null) return bad.concat(['storage retention mapping key missing or duplicated']);
+  if (mapLine !== derivedMap) bad.push('storage retention mapping drifted from the Go constants: docs ' + mapLine + ' vs Go ' + derivedMap);
+  // band vocabulary derived from the coverage registration
+  const bandConst = {};
+  for (const m of goText.matchAll(/(Band\w+)\s+StorageBand = "([a-z_]+)"/g)) bandConst[m[1]] = m[2];
+  const covBlock = (goText.match(/func storageBandCoverage\(\) \[\]bandRow \{[\s\S]*?\n\}/) || [''])[0];
+  const goBands = [...covBlock.matchAll(/\{(Band\w+), (\d+), StoragePressureResponse\}/g)]
+    .map((m) => [bandConst[m[1]], Number(m[2])]);
+  if (goBands.length !== 5 || goBands.some((r) => !r[0] || !r[1])) bad.push('Go band coverage registration ' + goBands.length + '/5 rows (or unresolved constant)');
+  const bv = findKey(text, 'storage_pressure_band_vocabulary');
+  if (bv === null) return bad.concat(['storage pressure band vocabulary key missing or duplicated']);
+  if (goBands.length === 5 && bv !== goBands.map((r) => r[0]).join(',')) bad.push('storage band vocabulary drifted from the Go coverage registration');
+  // closed action enum mirrored in Go
+  const av = findKey(text, 'storage_govern_action_vocabulary');
+  if (av === null) return bad.concat(['storage govern action vocabulary key missing or duplicated']);
+  for (const tok of av.split(',')) if (!goText.includes('"' + tok + '"')) bad.push('govern action token Go mirror missing: ' + tok);
+  // eight rule lines, docs<->Go one for one
+  const rules = [
+    ['storage_dual_limit_rule', 'StorageDualLimitRule', 'time-and-capacity-both-enforced-neither-infinite-growth'],
+    ['storage_critical_hold_rule', 'StorageCriticalHoldRule', 'critical-classified-segments-never-pruned-by-capacity-pressure'],
+    ['storage_pressure_response_rule', 'StoragePressureResponse', 'record-only-no-action'],
+    ['storage_overquota_honesty_rule', 'StorageOverQuotaHonesty', 'when-only-held-segments-remain-report-over-quota-never-drop-critical'],
+    ['storage_live_head_rule', 'StorageLiveHeadRule', 'governance-never-prunes-the-live-segment-empty-head-stays-valid'],
+    ['storage_write_block_rule', 'StorageWriteBlockRule', 'pressure-never-blocks-writes-in-observation-phase'],
+    ['storage_unreadable_rule', 'StorageUnreadableRule', 'unreadable-segment-is-held-never-guessed-pruned'],
+    ['storage_quota_stance', 'StorageQuotaStance', 'tier-defaults-are-initial-engineering-defaults-not-permanent-commercial-promise'],
+  ];
+  for (const [key, ident, val] of rules) {
+    const got = findKey(text, key);
+    if (got === null) return bad.concat(['storage contract key missing or duplicated: ' + key]);
+    if (got !== val) bad.push('storage line drifted: ' + key);
+    if (!goHas(ident, val)) bad.push('storage rule Go mirror drifted: ' + ident);
+  }
+  const secAt = text.indexOf('## 26. Storage governance V2');
+  if (secAt < 0) return bad.concat(['section 26 header missing']);
+  const nextSec = text.indexOf('\n## ', secAt + 5);
+  const sec = text.slice(secAt, nextSec < 0 ? text.length : nextSec);
+  if (!sec.includes('record-only-no-action')) bad.push('section 26 body lost the record-only response restatement');
+  if (!sec.includes('0953ac1')) bad.push('section 26 body lost the empty-head exemption lineage');
+  const retRows = [...sec.matchAll(/^\| `(info|low|medium|high|critical)` \| (\d+d) \|$/gm)];
+  if (retRows.length !== 5) bad.push('retention table row census ' + retRows.length + ', want 5');
+  else retRows.forEach((rm, i) => {
+    if (rm[1] !== rets[i][0] || rm[2] !== rets[i][1]) bad.push('retention row ' + (i + 1) + ' drifted from the Go constants: ' + rm[1]);
+  });
+  const bandRows = [...sec.matchAll(/^\| `(normal|compress_aggregate|strong_aggregation|evict_old_normal|retain_critical_only)` \| (\S+) \| record_only \|$/gm)];
+  if (bandRows.length !== 5) bad.push('band table row census ' + bandRows.length + ', want 5');
+  else bandRows.forEach((rm, i) => {
+    if (!goBands[i] || rm[1] !== goBands[i][0]) bad.push('band row ' + (i + 1) + ' drifted from the Go coverage order');
+  });
+  return bad;
+}
+
 // evidence export v0 reverse-lookup (slice W7.2)
 function cliSurfaceProblems(text, evGo, repGo) {
   const bad = [];
@@ -1273,6 +1335,10 @@ check(ee.length === 0, 'evidence export v0: five-format, three-stance, seven-mem
 if (ee.length) console.log('  ' + ee.join('\n  '));
 if (dl.length) console.log('  ' + dl.join('\n  '));
 
+const sg = storageGovProblems(v, sgSrc);
+check(sg.length === 0, 'storage governance v2: retention mapping derived from Go constants, band ladder derived from coverage registration, six actions mirrored, eight rule lines pinned docs<->Go, both tables row-pinned in order, section 26 present with record-only and empty-head restatements');
+if (sg.length) console.log('  ' + sg.join('\n  '));
+
 const mtp = masterTableProblems(v);
 check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
 if (mtp.length) console.log('  ' + mtp.join('\n  '));
@@ -1345,6 +1411,12 @@ if (process.argv.includes('--selftest')) {
     ['evidence member gap row fakes a delivered file', (t) => t.replace('| `events.jsonl` | known_gap_absent |', '| `events.jsonl` | delivered_by_export_v0 |'), (t) => evidenceExportProblems(t, eeSrc)],
     ['evidence CLI write rule softened into overwrite-ok', (t) => t.replace('evidence_cli_write_rule: evidence-writes-only-into-existing-explicit-dir-never-overwrite', 'evidence_cli_write_rule: evidence-may-overwrite-files-when-convenient'), (t) => cliSurfaceProblems(t, evCliSrc, repCliSrc)],
     ['report zero-write rule rewritten into temp-writes', (t) => t.replace('report_cli_zero_write_rule: report-subcommand-performs-filesystem-writes-zero', 'report_cli_zero_write_rule: report-may-write-temp-files'), (t) => cliSurfaceProblems(t, evCliSrc, repCliSrc)],
+    ['trace field vocabulary loses a token', (t) => t.replace('enforcement_mode,outcome,recovery_state', 'enforcement_mode,outcome'), (t) => decisionTraceProblems(t, dtSrc)],
+    ['trace stance census row faked', (t) => t.replace('| `task` | known_gap_absent |', '| `task` | carried_on_audit_line |'), (t) => decisionTraceProblems(t, dtSrc)],
+    ['trace absence rule softened into a zero default', (t) => t.replace('decision_trace_absence_rule: field-without-value-is-absent-not-zero', 'decision_trace_absence_rule: absent-means-zero'), (t) => decisionTraceProblems(t, dtSrc)],
+    ['storage pressure response softened into write-blocking', (t) => t.replace('storage_pressure_response_rule: record-only-no-action', 'storage_pressure_response_rule: block-writes-over-quota'), (t) => storageGovProblems(t, sgSrc)],
+    ['storage critical hold flipped into evict-any', (t) => t.replace('storage_critical_hold_rule: critical-classified-segments-never-pruned-by-capacity-pressure', 'storage_critical_hold_rule: critical-segments-evictable-under-capacity-pressure'), (t) => storageGovProblems(t, sgSrc)],
+    ['storage retention window shrinks critical below its class', (t) => t.replace('high=90d,critical=180d', 'high=90d,critical=7d'), (t) => storageGovProblems(t, sgSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
@@ -1366,6 +1438,10 @@ if (process.argv.includes('--selftest')) {
     (t) => delegationProblems(t, dlSrc),
     (t) => agencyGuardProblems(t, agSrc),
     (t) => evidenceExportProblems(t, eeSrc),
+    (t) => costGuardProblems(t, cgSrc),
+    (t) => decisionTraceProblems(t, dtSrc),
+    (t) => storageGovProblems(t, sgSrc),
+    (t) => cliSurfaceProblems(t, evCliSrc, repCliSrc),
     (t) => masterTableProblems(t)]) {
     if (pred(v).length) {
       console.log('SELFTEST FAIL: predicate fired on clean file');
