@@ -461,6 +461,7 @@ const eeSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'evidenceexp
 const evCliSrc = fs.readFileSync(path.join(root, 'cmd', 'agent-collector', 'evidence.go'), 'utf8');
 const repCliSrc = fs.readFileSync(path.join(root, 'cmd', 'agent-collector', 'report.go'), 'utf8');
 const sgSrc = fs.readFileSync(path.join(root, 'internal', 'auditlog', 'governance.go'), 'utf8');
+const quotaSrc = fs.readFileSync(path.join(root, 'internal', 'auditlog', 'quota.go'), 'utf8');
 const snake = (s) => s.toLowerCase().replace(/ +/g, '_');
 // Recovery anchor rule is one step wider: spaces AND hyphens collapse
 // to single underscores (the spec spells NON-REVERSIBLE with a hyphen).
@@ -1212,6 +1213,54 @@ function storageGovProblems(text, goText) {
   return bad;
 }
 
+
+// per-scope quota observation reverse-lookup (slice W8.2)
+function quotaProblems(text, goText) {
+  const bad = [];
+  const goHas = (ident, val) => new RegExp(ident + '\\s*=\\s*"' + val + '"').test(goText);
+  const kinds = [...goText.matchAll(/QuotaKind(\w+)\s*=\s*"([a-z_]+)"/g)].map((m) => m[2]);
+  if (kinds.length !== 2) return bad.concat(['quota kind Go census ' + kinds.length + ', want 2']);
+  const kv = findKey(text, 'quota_kind_vocabulary');
+  if (kv === null) return bad.concat(['quota kind vocabulary key missing or duplicated']);
+  if (kv !== kinds.join(',')) bad.push('quota kind vocabulary drifted from the Go constants: docs ' + kv + ' vs Go ' + kinds.join(','));
+  const states = [...goText.matchAll(/Quota\w+\s+QuotaState = "([a-z_]+)"/g)].map((m) => m[1]);
+  if (states.length !== 3) return bad.concat(['quota state Go census ' + states.length + ', want 3']);
+  const sm = findKey(text, 'quota_state_mirror');
+  if (sm === null) return bad.concat(['quota state mirror key missing or duplicated']);
+  if (sm !== states.join(',')) bad.push('quota state mirror drifted from the Go constants');
+  const av = findKey(text, 'agency_limit_state_vocabulary');
+  if (av !== null && av !== sm) bad.push('quota state mirror drifted from the section 21 closed three-state vocabulary');
+  if (!goHas('QuotaScopeAgent', 'agent') || !goHas('QuotaScopeTask', 'task')) bad.push('quota scope token Go mirror missing');
+  if (!goHas('QuotaTaskAttrKey', 'task_id')) bad.push('quota task attribution key drifted');
+  const rules = [
+    ['quota_scope_pair_rule', 'QuotaDualDimensionRule', 'per-agent-and-per-task-quoted-separately-never-averaged'],
+    ['quota_shared_source_rule', 'QuotaSharedSourceRule', 'quota-recounts-stored-audit-lines-never-a-second-collector'],
+    ['quota_critical_exempt_rule', 'QuotaCriticalExemptRule', 'critical-events-never-quota-dropped-report-watermark'],
+    ['quota_unattributed_rule', 'QuotaUnattributedRule', 'line-without-stated-id-unattributed-never-defaulted'],
+    ['quota_absent_ceiling_rule', 'QuotaAbsentCeilingRule', 'undeclared-ceiling-not-computed-stated-known-gap'],
+  ];
+  for (const [key, ident, val] of rules) {
+    const got = findKey(text, key);
+    if (got === null) return bad.concat(['quota contract key missing or duplicated: ' + key]);
+    if (got !== val) bad.push('quota line drifted: ' + key);
+    if (!goHas(ident, val)) bad.push('quota rule Go mirror drifted: ' + ident);
+  }
+  const rsp = findKey(text, 'quota_response_rule');
+  if (rsp !== 'record-only-no-action') bad.push('quota response line drifted: ' + rsp);
+  if (!/QuotaResponseRule\s*=\s*StoragePressureResponse/.test(goText)) bad.push('quota response must alias the shipped StoragePressureResponse token, never a second dialect');
+  const wm = findKey(text, 'quota_watermark_token');
+  if (wm !== 'over_quota_critical_only') bad.push('quota watermark token drifted: ' + wm);
+  if (!/QuotaWatermarkToken\s*=\s*string\(GovernOverQuotaCritical\)/.test(goText)) bad.push('quota watermark must alias the shipped GovernOverQuotaCritical token, never a second dialect');
+  const secAt = text.indexOf('## 27. Per-agent / per-task storage quota observation');
+  if (secAt < 0) return bad.concat(['section 27 header missing']);
+  const nextSec = text.indexOf('\n## ', secAt + 5);
+  const sec = text.slice(secAt, nextSec < 0 ? text.length : nextSec);
+  if (!sec.includes('record-only-no-action')) bad.push('section 27 body lost the record-only response restatement');
+  if (!sec.includes('second collector')) bad.push('section 27 body lost the shared-source restatement');
+  if (!sec.includes('task_id')) bad.push('section 27 body lost the stated task-attr attribution restatement');
+  return bad;
+}
+
 // evidence export v0 reverse-lookup (slice W7.2)
 function cliSurfaceProblems(text, evGo, repGo) {
   const bad = [];
@@ -1339,6 +1388,10 @@ const sg = storageGovProblems(v, sgSrc);
 check(sg.length === 0, 'storage governance v2: retention mapping derived from Go constants, band ladder derived from coverage registration, six actions mirrored, eight rule lines pinned docs<->Go, both tables row-pinned in order, section 26 present with record-only and empty-head restatements');
 if (sg.length) console.log('  ' + sg.join('\n  '));
 
+const qp = quotaProblems(v, quotaSrc);
+check(qp.length === 0, 'per-scope quota observation: kind and state vocabularies derived from Go constants, state mirror pinned against the section 21 triad, five rule lines plus two aliased shipped tokens pinned docs<->Go, task attr key pinned, section 27 present with record-only, shared-source, and task-attribution restatements');
+if (qp.length) console.log('  ' + qp.join('\n  '));
+
 const mtp = masterTableProblems(v);
 check(mtp.length === 0, 'master table: 28 cells (seven schemas x four elements), closed three-state census, evidence rules, pointer sections substantive');
 if (mtp.length) console.log('  ' + mtp.join('\n  '));
@@ -1417,6 +1470,8 @@ if (process.argv.includes('--selftest')) {
     ['storage pressure response softened into write-blocking', (t) => t.replace('storage_pressure_response_rule: record-only-no-action', 'storage_pressure_response_rule: block-writes-over-quota'), (t) => storageGovProblems(t, sgSrc)],
     ['storage critical hold flipped into evict-any', (t) => t.replace('storage_critical_hold_rule: critical-classified-segments-never-pruned-by-capacity-pressure', 'storage_critical_hold_rule: critical-segments-evictable-under-capacity-pressure'), (t) => storageGovProblems(t, sgSrc)],
     ['storage retention window shrinks critical below its class', (t) => t.replace('high=90d,critical=180d', 'high=90d,critical=7d'), (t) => storageGovProblems(t, sgSrc)],
+    ['quota critical exemption flipped into silent drop', (t) => t.replace('quota_critical_exempt_rule: critical-events-never-quota-dropped-report-watermark', 'quota_critical_exempt_rule: critical-events-droppable-under-quota-pressure'), (t) => quotaProblems(t, quotaSrc)],
+    ['quota shared source renamed into a second collector', (t) => t.replace('quota_shared_source_rule: quota-recounts-stored-audit-lines-never-a-second-collector', 'quota_shared_source_rule: quota-runs-a-parallel-event-collector'), (t) => quotaProblems(t, quotaSrc)],
   ];
   let fired = 0;
   for (const [name, mutate, pred] of cases) {
