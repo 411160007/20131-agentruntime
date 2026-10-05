@@ -8,7 +8,7 @@
 # coverage registration, the known_gap wire shape that omits the value key
 # entirely, the single-door gate-evidenced zero, and the cost-truth record
 # structurally without any value entrance), the full v2-check battery with
-# its 67-mutation selftest fleet, a decision-plane reachability grep over
+# its 69-mutation selftest fleet, a decision-plane reachability grep over
 # every wave symbol whose teeth are proven by a plant/remove control, the
 # section 307 observation-form pre-verification fleet for items
 # 2/4/6/8/9/12 (kept verbatim, zero enforcement-form promotion), and the
@@ -97,11 +97,11 @@ echo 'V2-CHECK FULL RUN GREEN (necessity, chain dimensions, delegation, and agen
 step '02 selftest positive controls: every mutation caught, shipped file silent'
 node scripts/schema-v2-check.mjs --selftest > "$TMPDIR/gate-w7-selftest.out" 2>&1 \
   || { tail -20 "$TMPDIR/gate-w7-selftest.out"; echo RED: selftest; exit 1; }
-grep -q 'SELFTEST OK: all 67 mutations caught' "$TMPDIR/gate-w7-selftest.out" \
-  || { echo 'RED: selftest banner (want all 67 caught)'; tail -5 "$TMPDIR/gate-w7-selftest.out"; exit 1; }
+grep -q 'SELFTEST OK: all 69 mutations caught' "$TMPDIR/gate-w7-selftest.out" \
+  || { echo 'RED: selftest banner (want all 69 caught)'; tail -5 "$TMPDIR/gate-w7-selftest.out"; exit 1; }
 MISSES=$(grep -c 'SELFTEST MISS' "$TMPDIR/gate-w7-selftest.out" || true)
 [ "$MISSES" -eq 0 ] || { echo "RED: $MISSES selftest mutations missed"; exit 1; }
-echo 'SELFTEST 67/67 CAUGHT (shipped predicates have teeth)'
+echo 'SELFTEST 69/67 CAUGHT (shipped predicates have teeth)'
 
 step '03 Go: full schema package plus the named W5 and W6 batteries'
 go test -count=1 ./internal/schema > "$TMPDIR/gate-w7-go.out" 2>&1 \

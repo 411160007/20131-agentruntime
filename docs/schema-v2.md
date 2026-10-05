@@ -2628,3 +2628,64 @@ constants one for one.
   of the fifteen schema names of section 289: section 11 and its
   twenty-eight cells stay untouched and no master_cell block is
   added.
+
+## 27. Per-agent / per-task storage quota observation (slice W8.2)
+
+Section 271 bounds what a single agent or task may consume: one
+anomalous agent must never eat the whole disk with its own audit
+lines, and critical security events keep being retained no matter
+what a quota says. Section 26 lands the global dual limit; this
+section lands the per-scope lens on top of it, inside the auditlog
+package (writer.go and rotate.go untouched, byte for byte).
+
+```schemav2
+quota_kind_vocabulary: event_rate,log_bytes
+quota_scope_pair_rule: per-agent-and-per-task-quoted-separately-never-averaged
+quota_shared_source_rule: quota-recounts-stored-audit-lines-never-a-second-collector
+quota_critical_exempt_rule: critical-events-never-quota-dropped-report-watermark
+quota_unattributed_rule: line-without-stated-id-unattributed-never-defaulted
+quota_absent_ceiling_rule: undeclared-ceiling-not-computed-stated-known-gap
+quota_response_rule: record-only-no-action
+quota_watermark_token: over_quota_critical_only
+quota_state_mirror: below_ceiling,at_ceiling,above_ceiling
+quota_task_attr_key: task_id
+```
+
+* Shared source: `ObserveQuota` re-counts the bytes already written
+  to the segment family (rotated history plus the live head). It
+  starts no second collector, keeps no parallel stream, and
+  references no agency-guard symbol — the §21 vocabularies are mirrored by
+  literals and pinned from the schema side by
+  `TestQuotaVocabulariesStaySyncedWithSchema`, so drift in either
+  direction is red on both planes.
+* Attribution: the agent axis reads `agent_id` (the event contract
+  makes it mandatory); the task axis is attributed only from a
+  stated `attrs.task_id`. A line without it is unattributed on the
+  task axis and the report states the gap once — never a default
+  task, never a guessed bucket (the W7.1 trace doctrine: absence
+  named, not fabricated).
+* Record-only (observation-phase stance): every ceiling emits records
+  with the shipped response token `record-only-no-action`; the
+  write path never consults the observation and a triggered quota
+  blocks, drops, delays, or prunes nothing.
+* Critical exemption: a triggered scope that still holds Critical
+  lines carries `critical_held_events` (conservation count) and the
+  honest watermark `over_quota_critical_only` — the W8.1 token
+  reused, not a second dialect of the same stance.
+* An undeclared ceiling is a stated `known_gaps` line, never a zero
+  and never a computed state (P06, inherited from the cost guard);
+  an event-rate ceiling without a stated window is likewise not
+  computed. A segment with any malformed line is held whole and
+  reported unattributed (fail-closed, never guessed onto a scope).
+* Conservation pins: `events_seen` = attributed lines counted,
+  `critical_seen_events` totals all Critical lines read,
+  `bytes_attributed + bytes_unattributed` equals the readable plus
+  held bytes scanned. Nothing is lost, nothing is double-counted,
+  nothing is invented.
+* This observation is the per-scope half of the data the future
+  `storage` subcommand (section 273, slice W8.3) surfaces read-only
+  beside `TotalBytes`.
+* Like sections 22 through 26 this contract is deliberately not one
+  of the fifteen schema names of section 289: section 11 and its
+  twenty-eight cells stay untouched and no master_cell block is
+  added.
