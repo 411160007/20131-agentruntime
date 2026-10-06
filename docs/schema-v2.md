@@ -2799,3 +2799,76 @@ gate_response_rule: record-only-no-promotion-decision-in-this-report
   empty corpora must leak no metric keys), reserved-vocabulary scans,
   and input-immutability pins (report, candidate, and labels render
   identically before and after a gate build).
+
+## 30. Policy diff form and the promotion decision record (slice W9.3)
+
+Section 254 ends the policy simulator pipeline at a Promotion
+Decision: after replay, evaluation, and the analysis faces, a human
+review decides whether a candidate leaves shadow observation, and
+that decision belongs to the ledger, not to the runtime. Slice W9.3
+lands the two remaining record surfaces: the rule-set diff form
+(`internal/replay.Diff`, rendered next to the replay and gate
+reports) and the promotion decision record shape
+(`schema.PolicyPromotionRecord`), with the section 254 discipline -
+absent a promoted record, no enforcement plane is admissible -
+pre-pinned as the record's own restatement and wired nowhere. This
+slice builds the recording surface only; the discipline gate itself
+is Phase 1 semantics.
+
+Both surfaces inherit the isolation contract: no registry, no
+writer, no engine, no runtime decision plane, no merge, no apply.
+The diff renders the effect fields of the documents it compares as
+data and introduces no decision vocabulary of its own; the
+promotion record carries no effect, no severity, no pointer. Both
+render byte-deterministically.
+
+```diff
+diff_states: added,removed,modified
+diff_changed_field_order: priority,field,op,value,effect,severity,hard,caps
+diff_default_change_rule: stated-only-on-disagreement-absent-means-unchanged
+diff_empty_list_rule: added-removed-modified-render-as-empty-arrays-never-null
+diff_identical_rule: identical-true-only-when-no-add-no-remove-no-modify-no-default-change
+diff_input_gate: both-documents-must-pass-policy-grammar-nil-or-invalid-rejects-with-no-half-diff
+diff_response_rule: record-only-zero-enforcement-plane
+```
+
+* Diff fields: two citation heads (`base`, `candidate`: id, name,
+  version, rule count), `added`/`removed` entries carrying the full
+  rule and its `doc_side`, `modified` entries naming the edited
+  fields in the normative order above plus both full rule views, an
+  optional `default_effect_change` pair, `identical`, and the pinned
+  stance line. Rule lists and union ids are ordered by rule id; two
+  runs over the same pair serialize to identical bytes.
+
+```promotion
+promotion_decision_vocabulary: shadow,promoted,rejected,deferred
+promotion_vocabulary_order_rule: declaration-order-is-normative-shadow-precedes-promotion-per-section-254
+promotion_absent_rule: unstated-gates-citation-renders-explicit-absent-token-never-empty-string
+promotion_replay_cite_rule: record-must-cite-64-hex-replay-digest-a-decision-without-evidence-is-not-recordable
+promotion_no_half_record_rule: every-rejection-returns-zero-value-never-partial-record
+promotion_pins_rule: stance-and-enforcement-restatements-constructor-pinned-hand-mutation-fails-validation
+promotion_enforcement_plane: none-in-record-phase
+```
+
+* Promotion record fields: `kind` (fixed `policy.promotion`),
+  `candidate_id`/`candidate_version`, `base_policy_id`/
+  `base_policy_version`, `decision` (the closed four above),
+  `rationale` (required text - a decision without a stated reason is
+  not recordable), `decided_by` (id grammar), `decided_at` (RFC3339),
+  `replay_digest` (64 lowercase hex, required citation),
+  `gates_digest` (64 lowercase hex or the explicit `absent` token),
+  and the two constructor-pinned restatements (`stance`,
+  `promotion_enforcement_plane`). The record is not an EventType;
+  while `promotion_enforcement_plane` reads `none-in-record-phase`,
+  no decision-plane file (policy, rules, bus, auditlog) may
+  reference these symbols.
+* Machine checks: diff golden byte pin (one canonical edited pair),
+  added/removed/modified/default classification with normative field
+  order, identical-pair empty-array rendering, determinism double
+  run, invalid/nil input rejection with no half diff, closed
+  vocabulary round-trip, digest/timestamp/version grammar rejection
+  table (twelve shapes), pinned-restatement tamper tests, and the
+  reserved-enforcement-vocabulary scan over both rendered surfaces.
+  The wave-end gate for this slice family (```gates/```diff/
+  ```promotion word census and self-assertion) lands with the W9
+  closing gate.
