@@ -49,6 +49,25 @@ func mustBuiltinCandidate(t *testing.T) *schema.Policy {
 	return p
 }
 
+// cloneBuiltin deep-copies the cached built-in policy: a test that
+// appends synthetic rules must never mutate the shared cache the rest
+// of the package (and the runtime) reads.
+func cloneBuiltin(t *testing.T) *schema.Policy {
+	t.Helper()
+	raw, err := json.Marshal(mustBuiltinCandidate(t))
+	if err != nil {
+		t.Fatalf("clone builtin: %v", err)
+	}
+	var q schema.Policy
+	if err := json.Unmarshal(raw, &q); err != nil {
+		t.Fatalf("clone builtin parse: %v", err)
+	}
+	if err := q.Validate(); err != nil {
+		t.Fatalf("clone builtin invalid: %v", err)
+	}
+	return &q
+}
+
 func runGolden(t *testing.T, p *schema.Policy) *Report {
 	t.Helper()
 	events, held, err := LoadCorpus(goldenPath("normal.jsonl"), goldenPath("danger.jsonl"))
@@ -234,10 +253,7 @@ func TestCandidateChangeFlipsVerdictPositiveControl(t *testing.T) {
 	rep := runGolden(t, base)
 	before := rep.Totals.WouldBlock
 
-	mutated, err := rules.Builtin()
-	if err != nil {
-		t.Fatal(err)
-	}
+	mutated := cloneBuiltin(t)
 	mutated.Rules = append(mutated.Rules, schema.Rule{
 		ID: "rp-synthetic", Priority: 999, Field: schema.FieldType, Op: schema.OpEquals,
 		Value: "agent.detected", Effect: schema.EffectWouldBlock, Severity: schema.SevLow,
@@ -275,6 +291,41 @@ func TestReplayNeverEmitsEnforcementWords(t *testing.T) {
 	}
 	if !strings.Contains(s, "record-only, zero enforcement plane") {
 		t.Fatalf("replay report lost its record-only stance line")
+	}
+}
+
+// TestReservedVocabularyAskIsHeld pins the Phase 0 emission discipline
+// on the replay plane: a candidate rule with the reserved ask effect
+// produces no decision line; its events are held and counted, and the
+// rendered report never carries the reserved word as a verdict.
+func TestReservedVocabularyAskIsHeld(t *testing.T) {
+	cand := cloneBuiltin(t)
+	cand.Rules = append(cand.Rules, schema.Rule{
+		ID: "rp-askshape", Priority: 999, Field: schema.FieldType, Op: schema.OpEquals,
+		Value: "agent.detected", Effect: schema.EffectAsk, Severity: schema.SevMedium,
+	})
+	if err := cand.Validate(); err != nil {
+		t.Fatalf("ask candidate invalid: %v", err)
+	}
+	rep := runGolden(t, cand)
+	b, err := rep.Render()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), `"decision": "ask"`) {
+		t.Fatalf("replay emitted a reserved-vocabulary decision line")
+	}
+	heldByAsk := 0
+	for _, e := range rep.Verdicts {
+		if e.MatchedRule == "rp-askshape" {
+			heldByAsk++
+		}
+	}
+	if heldByAsk != 0 {
+		t.Fatalf("ask verdicts leaked into the report: %d", heldByAsk)
+	}
+	if rep.Totals.Held == 0 {
+		t.Fatalf("ask-shaped events were not counted as held")
 	}
 }
 

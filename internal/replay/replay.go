@@ -49,13 +49,14 @@ type RuleHit struct {
 }
 
 // Totals summarizes a replay. Held counts corpus lines that were not
-// kept (unparseable or invalid records): they are reported as held,
-// never guessed into a verdict and never silently dropped.
+// kept (unparseable or invalid records) and verdicts the Phase 0
+// emission discipline refuses to render (reserved-vocabulary effects):
+// both are reported as held, never guessed into a verdict and never
+// silently dropped.
 type Totals struct {
 	Cases      int       `json:"cases"`
 	Held       int       `json:"held_lines"`
 	Allow      int       `json:"allow"`
-	Ask        int       `json:"ask"`
 	WouldBlock int       `json:"would_block"`
 	ByRule     []RuleHit `json:"by_rule"`
 }
@@ -166,6 +167,13 @@ func Run(candidate *schema.Policy, events []*schema.Event, sources []string, hel
 			rep.Totals.Held++
 			continue
 		}
+		// Phase 0 emission discipline, identical to the runtime
+		// recorder: reserved-vocabulary effects (ask) have no
+		// decision line yet, so that verdict is held, never emitted.
+		if err := schema.MustPhase0Decision(d); err != nil {
+			rep.Totals.Held++
+			continue
+		}
 		v := Verdict{
 			Seq:            i + 1,
 			ID:             e.ID,
@@ -182,8 +190,6 @@ func Run(candidate *schema.Policy, events []*schema.Event, sources []string, hel
 		switch out.Effect {
 		case schema.EffectAllow:
 			rep.Totals.Allow++
-		case schema.EffectAsk:
-			rep.Totals.Ask++
 		case schema.EffectWouldBlock:
 			rep.Totals.WouldBlock++
 		}
