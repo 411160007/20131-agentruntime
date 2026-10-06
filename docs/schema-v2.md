@@ -2739,3 +2739,63 @@ storagecli_enforcement_plane: none-in-observation-phase
   in this slice can block, delete, or trim anything - the enforcement
   plane stays `none-in-observation-phase` like every other Phase 0
   surface, and the write path does not consult the census.
+
+## 29. Historical replay and the three-gate report (slices W9.1-W9.2)
+
+Section 254 of the master directive orders the policy simulator as
+Candidate Policy -> Historical Replay -> Security Evaluation ->
+False Positive Analysis -> Agent Productivity Analysis -> Performance
+Analysis -> Recovery Impact Analysis -> Promotion Decision, with new
+rules preferring shadow before promotion. Slice W9.1 lands the replay
+step (`internal/replay`, `agent-collector replay --policy <candidate>
+[--labels <table>] <corpora...>`); slice W9.2 lands the middle
+evaluation faces as a machine-readable three-gate report
+(`agent-collector replay --gates ...`). Recovery impact and the
+promotion decision record are separate slices and appear nowhere
+here.
+
+Isolation is the contract for both surfaces. The packages read a
+candidate document, audit corpora, and an optional label table; they
+register nothing, construct no engine, open no writer, and import
+nothing that reaches the runtime decision plane. Every blocking
+reading is the Phase 0 observation word would_block - reserved
+vocabulary effects (an ask-shaped effect has no Phase 0 decision line)
+are held, never emitted, exactly as in the runtime recorder. The
+verdict report and the gate report are byte-deterministic: two runs
+over identical inputs render identical bytes.
+
+```gates
+gate_sections: security_evaluation,false_positive_analysis,agent_productivity_analysis,performance_analysis
+gate_status_pair: measured,known_gap
+gate_absent_rule: section-without-source-states-known-gap-never-defaulted-zero
+gate_label_denominator_rule: fp-rate-over-labels-expecting-allow; missed-rate-over-labels-expecting-would_block
+gate_label_without_event_rule: label-with-no-replayed-event-counted-never-dropped
+gate_timing_rule: wall-clock-outside-byte-determinism-contract-structural-counts-only
+gate_per_source_rule: per-source-boundaries-not-stored-declared-gap-no-invented-split
+gate_response_rule: record-only-no-promotion-decision-in-this-report
+```
+
+* Verdict report fields: `seq`, `id`, `type`, `agent_id`, `decision`,
+  `severity`, `matched_rule` (omitted when the default was applied -
+  `default_applied` records that honestly), plus totals with the
+  fixed-order `by_rule` tally (count descending, id ascending) and
+  stable `mismatches` lines. Held counts both unparseable corpus
+  lines and verdicts the Phase 0 emission discipline refuses to
+  render; nothing is guessed and nothing is silently dropped.
+* Gate report fields: `security_evaluation` mirrors the replay totals
+  and adds `severity_would_block` banding (ascending, would_block
+  only); `false_positive_analysis` is measured only with a label table
+  and at least one replayed verdict, with the rate definitions pinned
+  above, otherwise it is a stated known gap that emits no metric keys;
+  `agent_productivity_analysis` lists per-agent exposure (events,
+  would_block, blocked share) ordered by agent id;
+  `performance_analysis` is structural only (evaluated events, held
+  lines, candidate rule count) and states both absence stances for
+  wall-clock timings and per-source boundaries.
+* Machine checks: determinism double-run on the golden corpus, an
+  oracle recount of the false-positive arithmetic taken from the raw
+  label file and a generic-decode of the rendered verdicts (never
+  hand-copied), known-gap negative controls (missing label table and
+  empty corpora must leak no metric keys), reserved-vocabulary scans,
+  and input-immutability pins (report, candidate, and labels render
+  identically before and after a gate build).

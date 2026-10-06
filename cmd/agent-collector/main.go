@@ -106,6 +106,7 @@ type config struct {
 	// comparison. Read-only: nothing here can reach the runtime policy.
 	replayPolicy string // replay: candidate policy json (required)
 	replayLabels string // replay: optional labels json (expect per event id)
+	replayGates  bool   // replay: print the machine-readable three-gate evaluation report instead of per-event verdicts
 	// adapter surface: integrate target/dir/bin and mcp server exe plus
 	// its pass-through args (rest = positional args after flag parsing).
 	target string
@@ -183,6 +184,7 @@ func parseFlags(fs *flag.FlagSet, args []string) (config, string, error) {
 	perTaskBytes := fs.Int64("per-task-bytes", 0, "for storage: per-task byte ceiling used only to display scope records (0 = never declared)")
 	replayPolicy := fs.String("policy", "", "for replay: candidate policy json to judge against history (required; never becomes the runtime policy)")
 	replayLabels := fs.String("labels", "", "for replay: optional golden label json (event id -> expected verdict)")
+	replayGates := fs.Bool("gates", false, "for replay: print the machine-readable three-gate evaluation report (security / false positive / productivity / performance) instead of the per-event verdicts")
 	if err := fs.Parse(args); err != nil {
 		return c, sub, err
 	}
@@ -196,6 +198,7 @@ func parseFlags(fs *flag.FlagSet, args []string) (config, string, error) {
 	c.perTaskBytes = *perTaskBytes
 	c.replayPolicy = *replayPolicy
 	c.replayLabels = *replayLabels
+	c.replayGates = *replayGates
 	c.rest = fs.Args()
 	c.agentFilter = *agent
 	if *sinceStr != "" {
