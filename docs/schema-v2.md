@@ -2870,5 +2870,77 @@ promotion_enforcement_plane: none-in-observation-phase
   table (twelve shapes), pinned-restatement tamper tests, and the
   reserved-enforcement-vocabulary scan over both rendered surfaces.
   The wave-end gate for this slice family (```gates/```diff/
-  ```promotion word census and self-assertion) lands with the W9
-  closing gate.
+  ```promotion/```cache word census and self-assertion) lands with
+  the W9 closing gate.
+
+## 31. Decision cache observation shape (slice W9.4)
+
+Section 267 bounds any future decision cache: the key carries the
+context (agent, task, resource, capability, policy version,
+context, TTL, confidence), one grant may never be reused
+indefinitely across unrelated scenes, and a change of the key
+context must invalidate the entry. Phase 0 has no cache and no
+decisions to cache - every decision is recomputed - so slice W9.4
+lands the recording surface only: the eight-constraint key shape
+plus the taskbook's `context_epoch` invalidation slot
+(`schema.DecisionCacheKey`) and an entry-count / hit-rate
+observation record (`schema.DecisionCacheObservation`) that reuses
+the shipped section 261 counter source from slice W6.1 (the
+event-rate kind and the per-agent / per-task scope pair) instead of
+starting a second collector. The section 267 disciplines - finite
+TTL mandatory, context-change and epoch invalidation, Phase 0 hits
+identically zero - are pre-pinned as the record's own restatements
+and wired nowhere.
+
+The shape never consults a store, returns a verdict, short-circuits
+a computation, or holds runtime state; the invalidation helpers are
+pure comparisons over stated values. A nonzero hit sighting is not
+recordable in this phase: a hit would assert that a decision was
+answered from memory, which Phase 0 declares structurally
+impossible (positive-control pin). The rate line follows the shipped
+honest-absence discipline - with no consultations it renders the
+explicit `absent` token, never a fabricated zero.
+
+```cache
+decision_cache_key_vocabulary: agent,task,resource,capability,policy_version,context,ttl_seconds,confidence_percent
+decision_cache_key_order_rule: declaration-order-is-normative-eight-spec-constraints-plus-ninth-context-epoch-slot
+decision_cache_finite_ttl_rule: ttl-must-be-positive-inside-the-record-bound-indefinite-reuse-is-not-recordable
+decision_cache_context_invalidation_rule: changed-context-dimension-or-any-epoch-move-invalidates-equality-is-the-only-fresh-answer
+decision_cache_phase_zero_hits: hits-recorded-zero-always-every-decision-recomputed-nonzero-rejects-construction
+decision_cache_absent_rule: no-consultations-renders-explicit-absent-token-never-fabricated-zero
+decision_cache_counter_source: event-rate-kind-and-agent-task-scope-reused-from-slice-w6-1-no-second-collector
+decision_cache_no_half_record_rule: every-rejection-returns-zero-value-never-partial-key-or-record
+decision_cache_pins_rule: stance-and-enforcement-restatements-constructor-pinned-hand-mutation-fails-validation
+decision_cache_enforcement_plane: none-in-observation-phase
+```
+
+* Key fields: the eight spec constraints in spec order (`agent`,
+  `task`, `resource`, `capability` id grammar; `policy_version`
+  >= 1; non-blank `context`; finite `ttl_seconds` inside the record
+  bound; `confidence_percent` 0..100) plus the ninth construction
+  field `context_epoch` (>= 1; zero is the unset shape). Two keys
+  bind the same context when the identity dimensions, the context
+  statement, the policy version, and the epoch all match; TTL and
+  confidence are entry properties, not context.
+* Observation fields: `kind` (fixed `decision.cache`), the reused
+  counter source (`counter_kind` pinned to `event_rate`, `scope`
+  from the shipped pair), `subject_id` (id grammar), the key shape,
+  `entries_observed`, `consultations_observed`, `hits_recorded`
+  (Phase 0 pin: zero), `invalidated_by_context_change`, the derived
+  `hit_rate_percent` line, and the two constructor-pinned
+  restatements (`stance`, `decision_cache_enforcement_plane`). The
+  record is not an EventType; while
+  `decision_cache_enforcement_plane` reads the shipped
+  `none-in-observation-phase` token, no decision-plane file (policy,
+  rules, bus, auditlog) may reference these symbols.
+* Machine tests: normative wire-order pin over the nine fields,
+  byte-deterministic key encoding, indefinite-reuse TTL rejection
+  table (zero, negative, over-bound), key rejection table with
+  zero-value guarantee, context-binding and epoch invalidation
+  matrix (seven breaking mutations, two non-context properties),
+  Phase 0 nonzero-hit positive control, record rejection table
+  (second-collector name, unshipped scope, negative counts, hits
+  over consultations, half key), fabricated-rate tamper test,
+  pinned-restatement tests, and the reserved-vocabulary scan over
+  the emitted record. The ```cache word family joins the wave-end
+  census with its siblings.
