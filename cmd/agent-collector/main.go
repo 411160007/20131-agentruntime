@@ -8,8 +8,10 @@
 //
 // Control surface (read-only): the "status", "audit-tail", and
 // "timeline" subcommands summarize an existing audit file; "report"
-// aggregates counts over it, "evidence" exports a verified bundle, and
-// "storage" prints the occupancy census. None of them writes.
+// aggregates counts over it, "evidence" exports a verified bundle,
+// "storage" prints the occupancy census, and "replay" judges a
+// candidate policy document against audit corpora without ever
+// installing it. None of them writes.
 //
 // Adapter surface (platform integration): "hook" receives one agent
 // hook callback on stdin and records it (always exits 0, never writes
@@ -58,6 +60,8 @@ func main() {
 		err = runEvidence(cfg)
 	case "storage":
 		err = runStorage(cfg)
+	case "replay":
+		err = runReplay(cfg)
 	case "hook":
 		// The receiver's failure contract: never disturb the agent.
 		_ = runHookSub(cfg)
@@ -67,7 +71,7 @@ func main() {
 	case "integrate":
 		err = runIntegrateSub(cfg)
 	default:
-		fmt.Fprintf(os.Stderr, "agent-collector: unknown subcommand %q (want status | audit-tail | timeline | report | evidence | storage | hook | mcp | integrate)\n", sub)
+		fmt.Fprintf(os.Stderr, "agent-collector: unknown subcommand %q (want status | audit-tail | timeline | report | evidence | storage | replay | hook | mcp | integrate)\n", sub)
 		os.Exit(2)
 	}
 	if err != nil {
@@ -97,6 +101,11 @@ type config struct {
 	capacityBytes int64 // storage: total capacity ceiling for the pressure band
 	perAgentBytes int64 // storage: per-agent byte ceiling for the scope census
 	perTaskBytes  int64 // storage: per-task byte ceiling for the scope census
+	// replay surface: a candidate policy document judged against audit
+	// corpora; the optional label table turns the report into a golden
+	// comparison. Read-only: nothing here can reach the runtime policy.
+	replayPolicy string // replay: candidate policy json (required)
+	replayLabels string // replay: optional labels json (expect per event id)
 	// adapter surface: integrate target/dir/bin and mcp server exe plus
 	// its pass-through args (rest = positional args after flag parsing).
 	target string
@@ -135,6 +144,8 @@ var knownFlags = map[string]bool{
 	"-capacity-bytes": true, "--capacity-bytes": true,
 	"-per-agent-bytes": true, "--per-agent-bytes": true,
 	"-per-task-bytes": true, "--per-task-bytes": true,
+	"-policy": true, "--policy": true,
+	"-labels": true, "--labels": true,
 }
 
 // parseFlags supports `agent-collector [subcommand] [flags...]`: the
@@ -170,6 +181,8 @@ func parseFlags(fs *flag.FlagSet, args []string) (config, string, error) {
 	capacityBytes := fs.Int64("capacity-bytes", 0, "for storage: total capacity ceiling used only to display the pressure band (0 = never declared, band not computed)")
 	perAgentBytes := fs.Int64("per-agent-bytes", 0, "for storage: per-agent byte ceiling used only to display scope records (0 = never declared)")
 	perTaskBytes := fs.Int64("per-task-bytes", 0, "for storage: per-task byte ceiling used only to display scope records (0 = never declared)")
+	replayPolicy := fs.String("policy", "", "for replay: candidate policy json to judge against history (required; never becomes the runtime policy)")
+	replayLabels := fs.String("labels", "", "for replay: optional golden label json (event id -> expected verdict)")
 	if err := fs.Parse(args); err != nil {
 		return c, sub, err
 	}
@@ -181,6 +194,8 @@ func parseFlags(fs *flag.FlagSet, args []string) (config, string, error) {
 	c.capacityBytes = *capacityBytes
 	c.perAgentBytes = *perAgentBytes
 	c.perTaskBytes = *perTaskBytes
+	c.replayPolicy = *replayPolicy
+	c.replayLabels = *replayLabels
 	c.rest = fs.Args()
 	c.agentFilter = *agent
 	if *sinceStr != "" {
