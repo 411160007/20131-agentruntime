@@ -28,10 +28,12 @@ import (
 //     decision word and an unrecorded state must be stated as
 //     deferred with a reason, not left blank;
 //   - two constructor-pinned restatements no caller can edit: the
-//     record-only stance, and the pre-pinned discipline that the
-//     Phase 1 gate (the no-promotion-record, no-enforcement rule)
-//     will later read - absent a
-//     promoted record, no enforcement plane is admissible. Pinning
+//     record-only stance carrying the pre-pinned discipline that a
+//     later Phase 1 gate will read - absent a promoted record, no
+//     enforcement plane is admissible - and the
+//     enforcement-plane token, pinned to the single shipped spelling
+//     none-in-observation-phase every wave record already uses (no
+//     second dialect). Pinning
 //     the sentence here is documentation of the future gate's input
 //     contract; nothing in this slice consults, enforces, or wires
 //     it anywhere.
@@ -48,7 +50,7 @@ import (
 // docs/schema-v2.md section 30 is the human-facing contract. The
 // record is not an EventType and enters no decision-plane file
 // (policy, rules, bus, auditlog) while
-// promotion_enforcement_plane reads none-in-record-phase.
+// promotion_enforcement_plane reads none-in-observation-phase.
 
 // PromotionDecision is one closed decision word of the section 254
 // promotion step. Declaration order is normative (shadow precedes
@@ -96,8 +98,8 @@ const PromotionDigestAbsent = "absent"
 // constructor-pinned restatements. They are values, not fields a
 // caller supplies.
 const (
-	PromotionRecordStance = "policy_promotion_record: record-only, zero enforcement plane"
-	PromotionEnforcement  = "none-in-record-phase; absent a promoted record no enforcement plane is admissible (pre-pinned Phase 1 discipline, not wired here)"
+	PromotionRecordStance = "policy_promotion_record: record-only, zero enforcement plane; absent a promoted record no enforcement plane is admissible (pre-pinned discipline, not wired in this phase)"
+	PromotionEnforcement  = "none-in-observation-phase"
 )
 
 // PolicyPromotionRecord is one promotion decision as recorded. Field
@@ -200,7 +202,7 @@ func (r *PolicyPromotionRecord) Validate() error {
 		return fmt.Errorf("promotion record: stance must be the pinned record-only line, got %q", r.Stance)
 	}
 	if r.EnforcementPlane != PromotionEnforcement {
-		return fmt.Errorf("promotion record: promotion_enforcement_plane must be the pinned none-in-record-phase line, got %q", r.EnforcementPlane)
+		return fmt.Errorf("promotion record: promotion_enforcement_plane must be the shipped none-in-observation-phase token, got %q", r.EnforcementPlane)
 	}
 	return nil
 }

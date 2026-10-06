@@ -2847,7 +2847,7 @@ promotion_absent_rule: unstated-gates-citation-renders-explicit-absent-token-nev
 promotion_replay_cite_rule: record-must-cite-64-hex-replay-digest-a-decision-without-evidence-is-not-recordable
 promotion_no_half_record_rule: every-rejection-returns-zero-value-never-partial-record
 promotion_pins_rule: stance-and-enforcement-restatements-constructor-pinned-hand-mutation-fails-validation
-promotion_enforcement_plane: none-in-record-phase
+promotion_enforcement_plane: none-in-observation-phase
 ```
 
 * Promotion record fields: `kind` (fixed `policy.promotion`),
@@ -2859,7 +2859,7 @@ promotion_enforcement_plane: none-in-record-phase
   `gates_digest` (64 lowercase hex or the explicit `absent` token),
   and the two constructor-pinned restatements (`stance`,
   `promotion_enforcement_plane`). The record is not an EventType;
-  while `promotion_enforcement_plane` reads `none-in-record-phase`,
+  while `promotion_enforcement_plane` reads the shipped `none-in-observation-phase` token,
   no decision-plane file (policy, rules, bus, auditlog) may
   reference these symbols.
 * Machine checks: diff golden byte pin (one canonical edited pair),
