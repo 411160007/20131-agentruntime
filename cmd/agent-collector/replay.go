@@ -44,6 +44,33 @@ func runReplay(c config) error {
 		}
 		rep.CheckLabels(labels)
 	}
+	if c.replayGates {
+		// The three-gate report is the machine-readable evaluation face
+		// over the same verdicts; it reads nothing the replay did not
+		// already produce and writes nothing anywhere.
+		var labels map[string]replay.LabelExpect
+		if c.replayLabels != "" {
+			labels, err = replay.LoadLabels(c.replayLabels)
+			if err != nil {
+				return err
+			}
+		}
+		gates, err := replay.BuildGates(rep, candidate, labels)
+		if err != nil {
+			return err
+		}
+		out, err := gates.RenderGates()
+		if err != nil {
+			return err
+		}
+		if _, err := os.Stdout.Write(out); err != nil {
+			return err
+		}
+		if len(rep.Mismatches) > 0 {
+			return fmt.Errorf("replay: %d label mismatches (see verdict report)", len(rep.Mismatches))
+		}
+		return nil
+	}
 	out, err := rep.Render()
 	if err != nil {
 		return err
