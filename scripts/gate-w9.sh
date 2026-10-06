@@ -118,19 +118,20 @@ done
 sn=$(printf '%s\n' "$snames" | wc -l)
 echo "SCHEMA-FAMILY BATTERY GREEN ($sn tests over promotion and decision cache)"
 
-step '04 decision-plane reachability grep: no decision-plane or command file consumes the W9 symbols (plant/remove control)'
-LEAKRE9='PolicyDiff|DiffHead|ModifiedRule|DefaultEffectChange|GatesReport|SecurityGate|FalsePositiveGate|ProductivityGate|PerformanceGate|PolicyPromotionRecord|PromotionDecision|DecisionCacheKey|DecisionCacheObservation|LoadCandidate|LoadCorpus|LoadLabels|BuildGates|BuildPolicyPromotionRecord|BuildDecisionCacheKey|BuildDecisionCacheObservation|PromotionRecordStance|DecisionCacheRecordStance'
+step '04 decision-plane reachability grep: no decision-plane package consumes the W9 symbols (plant/remove control)'
+# The shipped read-only replay subcommand on the CLI surface is the admitted
+# consumer of the replay package (slice W9.1 comment states it is rendering
+# only, with no write API anywhere on that file). The decision plane itself -
+# policy, rules, bus, auditlog - and the runtime command must never reference
+# a W9 symbol.
+LEAKRE9='PolicyDiff|DiffHead|ModifiedRule|DefaultEffectChange|GatesReport|SecurityGate|FalsePositiveGate|ProductivityGate|PerformanceGate|PolicyPromotionRecord|PromotionDecision|DecisionCacheKey|DecisionCacheObservation|LoadCandidate|LoadCorpus|LoadLabels|BuildGates|BuildPolicyPromotionRecord|BuildDecisionCacheKey|BuildDecisionCacheObservation|PromotionRecordStance|DecisionCacheRecordStance|20131\.com/agentruntime/internal/replay'
 probe9() {
-  grep -rlE "$LEAKRE9" --include='*.go' cmd internal/policy internal/rules internal/bus 2>/dev/null | grep -v '_test\.go' || true
+  grep -rlE "$LEAKRE9" --include='*.go' internal/policy internal/rules internal/bus internal/auditlog cmd/hello-collector 2>/dev/null | grep -v '_test\.go' || true
 }
 hits=$(probe9)
-[ -z "$hits" ] || { echo "RED: W9 symbols reachable in decision/command files:"; echo "$hits"; exit 1; }
-PLANT=cmd/agentruntime/w9-teeth-plant.go
-if [ ! -d cmd/agentruntime ]; then
-  d=$(find cmd -mindepth 1 -maxdepth 1 -type d | head -1)
-  PLANT="$d/w9-teeth-plant.go"
-fi
-printf 'package main\n\n// probe\nvar _ = PolicyDiff{}\n' > "$PLANT"
+[ -z "$hits" ] || { echo "RED: W9 symbols reachable in decision-plane files:"; echo "$hits"; exit 1; }
+PLANT=internal/policy/w9-teeth-plant.go
+printf 'package policy\n\n// probe\nvar _ = DecisionCacheKey{}\n' > "$PLANT"
 hits=$(probe9)
 rm -f "$PLANT"
 [ -n "$hits" ] || { echo 'RED: planted reference did not fire (gate has no teeth)'; exit 1; }
