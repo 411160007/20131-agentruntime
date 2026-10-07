@@ -3102,3 +3102,124 @@ intel_fallback_enforcement_plane: none-in-observation-phase
   (zero hits on net, net/http, crypto/tls; go.mod stays with zero
   requires); the schema docs machine check stays VALID over the amended
   file; the slice diff touches documentation only.
+
+## 34. AI output poisoning guard contract (slice W10.3)
+
+Section 292 names the surfaces that intelligence output must never touch
+directly and the chain every AI suggestion must walk through before it
+can influence anything. The untouchable surface is a closed set of five
+boundaries - Hard Deny, Root Boundary, Credential Boundary, Recovery
+Boundary, Anti-Tamper. The mandatory chain is a closed set of four steps
+in normative order - Schema Validation, Source Validation, Risk
+Evaluation, Policy Evaluation. Section 228 adds the role-side mirror of
+the same wall: third-party models may serve as intent interpreter, plan
+interpreter, context analyzer, behavior explainer, threat-analysis
+assistant, or recommendation engine, and exactly four direct actions are
+forbidden to them - grant Root, modify User Hard Deny, modify Security
+Boundary, release Anti-Tamper. Deterministic policy evaluation is never
+a step an answer can skip: bypass of the deterministic policy engine is
+banned on the same footing, so the admissible sink for any intelligence
+output is the earliest stage of the analysis chain - it may enter at
+Analysis, it may inform Risk, it is weighed at Policy, and it never
+arrives at Core as a boundary mutation.
+
+This slice lands the contract surface only: no implementation, no
+import, no call site, no validator, no wiring. It inherits the
+section-32 isolation contract and the section-33 fallback contract
+unchanged, and it consumes the `intel_fallback_hallucination_forward`
+deferral exactly as pinned: the guard that recognizes hallucination
+signals and unsafe recommendations as content is this contract, and its
+recognition mechanics stay ahead of any wiring. The honest current-state
+line continues: the product consumes no intelligence answer at all, the
+sixth evidence-trust tier (external LLM interpretation, the
+`llm_interpretation` source class) exists in the schema closed set as a
+declared rank with no shipped producer anywhere in the collectors, and
+therefore every prohibition here guards an empty inflow today - which is
+precisely why the chain and the boundary set can be frozen now, before
+any source exists to be tempted. Per section 229, a low-trust source can
+never by itself move a higher-trust security boundary; this contract
+pins that sentence as an enforceable stance rather than prose.
+
+Guard rules (closed sets, verbatim against sections 292 and 228):
+
+* The five untouchable boundaries form a closed set. An intelligence
+  answer that requests, implies, or encodes a change to any of them is
+  untrusted content for analysis at most; it produces no write, no
+  mutation, no policy delta, and no enforcement action - and once any
+  enforcement phase exists, mutation verbs from this path are expected
+  to be mechanically rejected at the chain's last step, not reviewed
+  into permission.
+* The four-step validation chain is mandatory and ordered. An answer
+  that fails schema validation never reaches source validation; one
+  from a disallowed source never reaches risk evaluation; one whose
+  risk evaluation is pending or failed never reaches policy
+  evaluation; and none of the four steps can be bypassed by
+  transport-level claims (speed, confidence, provenance headers, or
+  the model asserting its own trust level are all payload
+  self-description, which the section-229 trust order ranks below the
+  boundaries it is trying to move).
+* The four section-228 must-nots map one-to-one onto the guarded
+  boundaries and are stated as contract-level bans: grant Root is
+  banned; modify User Hard Deny is banned; modify Security Boundary -
+  read across the credential and recovery boundaries - is banned;
+  release Anti-Tamper is banned. The ban is on direct action by model
+  output at every plane, in observation phase and, by pre-pinned
+  stance, in every later phase.
+* Bypass of deterministic policy evaluation is banned as the fifth
+  stance line: the policy engine's answer is computed by embedded
+  rules and hard-coded defaults regardless of intelligence presence or
+  absence; an intelligence output may only be an input that policy
+  evaluation itself consumes through the frozen chain, never a
+  substitute for running it.
+* Future enforcement-phase machine-check positions are pre-pinned now,
+  declared and not implemented: a guard-family census re-taken from
+  disk at wave gates; the must-not set reverse-checked line-by-line
+  against contract clauses; a zero-producer grep for the
+  `llm_interpretation` source class outside the schema closed set with
+  plant/remove teeth; and a sink-stage denylist check when (not if) any
+  consumer is ever proposed for wiring review.
+
+```intel
+intel_guard_boundaries_closed_set: hard-deny,root-boundary,credential-boundary,recovery-boundary,anti-tamper
+intel_guard_boundary_count_pin: exactly-five-boundaries-any-add-or-drop-fails-the-contract
+intel_guard_validation_chain_closed_set: schema-validation,source-validation,risk-evaluation,policy-evaluation-four-steps-in-normative-order
+intel_guard_chain_count_pin: exactly-four-steps-any-add-or-drop-fails-the-contract
+intel_guard_admissible_sink_first_stage: intelligence-output-enters-at-analysis-stage-only-never-at-policy-or-core-as-boundary-mutation
+intel_guard_must_not_closed_set: grant-root,modify-user-hard-deny,modify-security-boundary,release-anti-tamper
+intel_guard_must_not_count_pin: exactly-four-prohibitions-mapped-one-to-one-onto-guarded-boundaries
+intel_guard_policy_bypass_banned: intelligence-answer-never-bypasses-deterministic-policy-evaluation
+intel_guard_low_trust_cannot_move_high_trust: sixth-tier-evidence-never-unilaterally-moves-a-higher-tier-security-boundary
+intel_guard_sixth_tier_structural_absence: no-shipped-producer-emits-llm-interpretation-source-class-zero-llm-current-state-continuation-proof
+intel_guard_enforcement_slots_prepinned: guard-census-mustnot-reverse-lookup-zero-producer-grep-sink-stage-denylist-declared-not-implemented
+intel_guard_wiring_state: contract-docs-only-zero-implementation-zero-import-zero-call-site
+intel_guard_enforcement_plane: none-in-observation-phase
+```
+
+* Clause coverage (contract line ↔ source clause, every clause of the
+  two source texts answered exactly once): the five bullets of section
+  292's "不能直接修改" list map to
+  `intel_guard_boundaries_closed_set` plus its count pin; section
+  292's four-step chain maps to
+  `intel_guard_validation_chain_closed_set` plus its count pin and,
+  for the ordering semantics, the ordered-bypass bullet above; the six
+  allowed roles of section 228 are already pinned by the section-32
+  function contract and are not re-traded here; the four "绝不能直接"
+  items of section 228 map to `intel_guard_must_not_closed_set` with
+  its one-to-one count pin; "低可信来源不能单独改变高优先级安全边界"
+  of section 229 maps to `intel_guard_low_trust_cannot_move_high_trust`;
+  the taskbook's sink formulation maps to
+  `intel_guard_admissible_sink_first_stage`; the "绕 Deterministic
+  Policy" ban maps to `intel_guard_policy_bypass_banned`; the
+  pre-pinned check positions map to `intel_guard_enforcement_slots_prepinned`;
+  and the structural-absence continuation proof maps to
+  `intel_guard_sixth_tier_structural_absence`.
+* Machine checks: guard-key census re-taken from disk (thirteen
+  `intel_guard_` keys pinned; family count recomputed mechanically at
+  the wave-end gate, never hand-copied); §228 must-not reverse lookup
+  four-for-four and §292 boundaries five-for-five and chain
+  four-for-four against the fence above; zero-producer grep for
+  `llm_interpretation` outside the schema declaration surface with
+  plant/remove teeth controls; the section-33 decision-plane
+  zero-LLM-import and zero-network closure checks re-run and stay
+  clean; the schema docs machine check stays VALID over the amended
+  file; the slice diff touches documentation only.
