@@ -3275,3 +3275,51 @@ package tests: constructor-pinned tokens, positive and negative
 fixtures for each derivable dimension, declared-gap closed-vocabulary
 mirrors, digest binding, null-list and userinfo refusals, and the
 single-plane-token spelling check across every wave record.
+
+## 36. Coverage truthfulness matrix (slice W11.2)
+
+The V2 security-coverage contract demands that every Agent, OS, Tool,
+MCP, and Capability surface shows its real coverage state, never a
+smoothed promise. This slice lands the matrix in its two required forms -
+the human table (`docs/coverage-truthfulness.md`) and the machine-readable
+mirror (`testdata/golden/coverage-truthfulness.json`) - under a four-tier
+closed vocabulary: `FULL`, `LIMITED`, `MONITOR ONLY`, `UNAVAILABLE`. No
+fifth tier exists; no cell may be empty. FULL means the shipped code
+declares no degradation path; LIMITED means the shipped code names a
+concrete one; MONITOR ONLY means observation and record only, which is
+every shipped surface today; UNAVAILABLE means the platform does not
+implement the surface at all (and on any GOOS outside linux, darwin, and
+windows the whole collection surface is UNAVAILABLE by compile-time fact).
+
+Every cell carries at least one evidence pointer - a shipped file plus a
+token that must resolve inside it - and the machine check
+(`scripts/coverage-truth-check.mjs`) re-resolves every pointer against
+the real tree on every run, so a hollow cell is structurally impossible.
+The two forms are lockstep-bound: same rows, same order, same tiers,
+checked from independent parses of both carriers.
+
+Counters are in this contract by census, not by prose. The shipped
+per-cycle attributes `no_cmdline` and `hidden` are recorded as populated
+and re-found in the collector wiring at build time. The unix
+hidden-by-OS seed field is recorded as declared-unset: it exists in the
+statistics shape, no production path increments it, and the check counts
+non-test occurrences expecting exactly the declaration. The day code
+populates it without upgrading the matrix in the same PR, the census
+goes red - a silent half-claim is exactly what this contract forbids.
+
+Outward obligation: every consumer display - this document, the UI
+surface when it ships, the enterprise report surface when it ships -
+must carry the tiers verbatim per platform together with the per-platform
+difference notes that say why a cell is not FULL. Blanket promises that
+smooth the per-OS hiding mechanisms into one undifferentiated guarantee
+are forbidden in every carrier; the checker fails the exact marketing
+shapes, and naming the difference is the product.
+
+Wiring boundary: nothing. The matrix is display and documentation only -
+not an event type, not a decision input. While the enforcement-plane
+token reads `none-in-observation-phase` (the one shipped spelling; the
+check rejects any second dialect) the matrix reaches no evaluator, rule
+engine, bus, policy file, or collector: the name coverage-truthfulness
+appearing in any decision-plane source is a gate failure. Machine
+assertions for this slice live in the Node check and its selftest
+controls, run over the real tree by the discovery package tests.

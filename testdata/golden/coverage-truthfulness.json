@@ -1,0 +1,185 @@
+{
+  "doc": "Coverage truthfulness matrix v0 — every shipped collection surface carries one of four honest tiers per supported platform, and every cell names an evidence pointer that a gate re-resolves against the shipped tree.",
+  "version_lock": "Version lock: this matrix, docs/coverage-truthfulness.md and scripts/coverage-truth-check.mjs MUST evolve in one PR; the checker re-derives counters, vocabularies and platform facts from shipped source code on every run and fails on any drift — never against this file alone.",
+  "tiers": ["FULL", "LIMITED", "MONITOR ONLY", "UNAVAILABLE"],
+  "tier_semantics": {
+    "FULL": "the surface is collected on this platform and the shipped code declares no degradation path for it",
+    "LIMITED": "the surface is collected, but the shipped code names a concrete degradation path — fields can come back empty or unreadable",
+    "MONITOR ONLY": "the surface is observed and recorded only; Phase 0 expresses and audits, it never decides, blocks, or stops",
+    "UNAVAILABLE": "the platform does not implement this surface at all (a compile-time fact)"
+  },
+  "spec_classes": ["agent", "os", "tool", "mcp", "capability"],
+  "platforms": ["linux", "darwin", "windows"],
+  "enforcement_plane_token": "none-in-observation-phase",
+  "honesty": [
+    "Every cell names at least one evidence pointer resolvable in the shipped tree; an unresolvable pointer fails the checker, so no cell can be hollow.",
+    "Platform differences are named per row and per cell. Blanket promises that smooth the per-OS hiding mechanisms into one undifferentiated guarantee are forbidden in every carrier; naming why each cell is not FULL is the product, and this matrix exists precisely to force that naming.",
+    "Counters are read from the shipped source at build time. A declared-but-unpopulated counter is recorded as declared-unset and never rendered as live coverage.",
+    "This matrix drives display and documentation only. While the enforcement-plane token reads none-in-observation-phase it feeds no decision, no rule engine, no policy evaluator, and no audit judgement."
+  ],
+  "unsupported_goos": {
+    "tier": "UNAVAILABLE",
+    "note": "Any other GOOS keeps the discovery package compiling but collects nothing; the snapshot returns an explicit unsupported error instead of pretending coverage.",
+    "evidence": [
+      { "file": "internal/discovery/scan_other.go", "token": "process snapshot unsupported on this platform" }
+    ]
+  },
+  "counters": {
+    "no_cmdline": {
+      "source_field": "res.Stats.NoCmdline",
+      "event_attr": "no_cmdline",
+      "populated": true,
+      "note": "Rows whose command line came back empty at scan time, counted at scan and shipped as an event attribute every cycle."
+    },
+    "hidden": {
+      "source_field": "discovery.HiddenFromUs",
+      "event_attr": "hidden",
+      "populated": true,
+      "note": "Rows the OS actively hides from us, counted through the per-platform hiddenFromUs predicate wired into the collector."
+    },
+    "no_cmdline_at": {
+      "source_field": "ScanStats.NoCmdlineAt",
+      "event_attr": null,
+      "populated": false,
+      "note": "Declared for the unix hidden-by-OS seed, but no shipped production path increments it. Recorded as declared-unset: the census expects exactly one non-test occurrence (the declaration) and fails the day real code populates it without upgrading this row.",
+      "production_occurrence_expectation": 1
+    }
+  },
+  "rows": [
+    {
+      "id": "os.process-snapshot",
+      "class": "os",
+      "covers": "the enumeration of running processes feeding every other surface",
+      "cells": {
+        "linux": { "tier": "FULL", "note": "enumerated from /proc pid directories; the enumeration itself needs no privilege", "evidence": [{ "file": "internal/discovery/scan_linux.go", "token": "no numeric pid directories" }] },
+        "darwin": { "tier": "FULL", "note": "enumerated from the full ps listing (all pids, all users)", "evidence": [{ "file": "internal/discovery/scan_darwin.go", "token": "-axo pid=,ppid=,args=" }] },
+        "windows": { "tier": "FULL", "note": "enumerated from the toolhelp process snapshot", "evidence": [{ "file": "internal/discovery/scan_windows.go", "token": "toolhelp snapshot returned no processes" }] }
+      }
+    },
+    {
+      "id": "os.cmdline-visibility",
+      "class": "os",
+      "covers": "the command-line text of each enumerated process",
+      "cells": {
+        "linux": { "tier": "LIMITED", "note": "other users' processes read back empty; kernel threads carry no cmdline", "evidence": [{ "file": "internal/discovery/scan_linux.go", "token": "the file reads back empty" }] },
+        "darwin": { "tier": "LIMITED", "note": "the ps args probe fails for kernel-protected privacy (or the process vanished)", "evidence": [{ "file": "internal/discovery/scan_darwin.go", "token": "kernel-level privacy or the process vanished" }] },
+        "windows": { "tier": "LIMITED", "note": "protected processes cannot even be opened for the limited query rights; the cmdline read rides on that same handle", "evidence": [{ "file": "internal/discovery/scan_windows.go", "token": "for the limited query rights" }] }
+      }
+    },
+    {
+      "id": "os.hidden-process-accounting",
+      "class": "os",
+      "covers": "the honest per-cycle count of rows the OS hides from us",
+      "shared_evidence": [
+        { "file": "internal/discovery/discovery.go", "token": "func HiddenFromUs" },
+        { "file": "cmd/agent-collector/run.go", "token": "hiddenFn: discovery.HiddenFromUs" },
+        { "file": "cmd/agent-collector/run.go", "token": "strconv.Itoa(hidden)" }
+      ],
+      "cells": {
+        "linux": { "tier": "FULL", "note": "per-platform predicate present with a true branch (empty or failing /proc read)", "evidence": [{ "file": "internal/discovery/scan_linux.go", "token": "func hiddenFromUs" }] },
+        "darwin": { "tier": "FULL", "note": "per-platform predicate present with a true branch (ps args probe failure)", "evidence": [{ "file": "internal/discovery/scan_darwin.go", "token": "func hiddenFromUs" }] },
+        "windows": { "tier": "FULL", "note": "per-platform predicate present with a true branch (OpenProcess failure)", "evidence": [{ "file": "internal/discovery/scan_windows.go", "token": "func hiddenFromUs" }] }
+      }
+    },
+    {
+      "id": "os.no-cmdline-accounting",
+      "class": "os",
+      "covers": "the honest per-cycle count of rows whose cmdline came back empty",
+      "shared_evidence": [
+        { "file": "internal/discovery/discovery.go", "token": "res.Stats.NoCmdline++" },
+        { "file": "cmd/agent-collector/run.go", "token": "strconv.Itoa(res.Stats.NoCmdline)" }
+      ],
+      "cells": {
+        "linux": { "tier": "LIMITED", "note": "the empty-cmdline count ships; its hidden-by-OS sibling field is declared-unset, so accounting is not yet complete", "evidence": [{ "file": "internal/discovery/discovery.go", "token": "hidden from us by the OS (unix)" }] },
+        "darwin": { "tier": "LIMITED", "note": "same shipped counter, same declared-unset unix sibling", "evidence": [{ "file": "internal/discovery/discovery.go", "token": "hidden from us by the OS (unix)" }] },
+        "windows": { "tier": "LIMITED", "note": "the empty-cmdline count ships on every platform; the declared-unset sibling names the missing half", "evidence": [{ "file": "internal/discovery/discovery.go", "token": "hidden from us by the OS (unix)" }] }
+      }
+    },
+    {
+      "id": "agent.claude-code-detection",
+      "class": "agent",
+      "covers": "detection of Claude Code agent processes by shipped fingerprints",
+      "shared_evidence": [
+        { "file": "internal/discovery/discovery.go", "token": "\"claude-cli\"" },
+        { "file": "internal/discovery/discovery.go", "token": "claude-inspector" }
+      ],
+      "cells": {
+        "linux": { "tier": "LIMITED", "note": "fingerprints match command text; degraded wherever cmdline visibility degrades", "evidence": [{ "file": "internal/discovery/scan_linux.go", "token": "the file reads back empty" }] },
+        "darwin": { "tier": "LIMITED", "note": "same rule table, degraded by the darwin privacy path", "evidence": [{ "file": "internal/discovery/scan_darwin.go", "token": "kernel-level privacy" }] },
+        "windows": { "tier": "LIMITED", "note": "the shipped patterns also carry windows launcher suffixes, degraded by the windows handle path", "evidence": [{ "file": "internal/discovery/discovery.go", "token": "ps1)" }] }
+      }
+    },
+    {
+      "id": "agent.codex-detection",
+      "class": "agent",
+      "covers": "detection of Codex agent processes by shipped fingerprints",
+      "shared_evidence": [
+        { "file": "internal/discovery/discovery.go", "token": "\"codex-cli\"" },
+        { "file": "internal/discovery/discovery.go", "token": "command-runner" }
+      ],
+      "cells": {
+        "linux": { "tier": "LIMITED", "note": "command-text fingerprints; degraded with cmdline visibility", "evidence": [{ "file": "internal/discovery/scan_linux.go", "token": "the file reads back empty" }] },
+        "darwin": { "tier": "LIMITED", "note": "same rule table, degraded by the darwin privacy path", "evidence": [{ "file": "internal/discovery/scan_darwin.go", "token": "kernel-level privacy" }] },
+        "windows": { "tier": "LIMITED", "note": "shipped patterns cover the windows executable suffix shapes; degraded by the windows handle path", "evidence": [{ "file": "internal/discovery/discovery.go", "token": "codex\\.(exe" }] }
+      }
+    },
+    {
+      "id": "agent.openclaw-detection",
+      "class": "agent",
+      "covers": "detection of OpenClaw agent processes by shipped fingerprints",
+      "shared_evidence": [
+        { "file": "internal/discovery/discovery.go", "token": "\"openclaw\"" },
+        { "file": "internal/discovery/discovery.go", "token": "token is far too broad" }
+      ],
+      "cells": {
+        "linux": { "tier": "LIMITED", "note": "command-text fingerprints; degraded with cmdline visibility", "evidence": [{ "file": "internal/discovery/scan_linux.go", "token": "the file reads back empty" }] },
+        "darwin": { "tier": "LIMITED", "note": "same rule table, degraded by the darwin privacy path", "evidence": [{ "file": "internal/discovery/scan_darwin.go", "token": "kernel-level privacy" }] },
+        "windows": { "tier": "LIMITED", "note": "the gateway launch-form pattern is command-text based; degraded by the windows handle path", "evidence": [{ "file": "internal/discovery/discovery.go", "token": "index\\.js" }] }
+      }
+    },
+    {
+      "id": "mcp-server-detection",
+      "class": "mcp",
+      "covers": "detection of MCP servers (direct fingerprints, parent-chain lineage, orphaned siblings)",
+      "shared_evidence": [
+        { "file": "internal/discovery/discovery.go", "token": "\"mcp-server-binary\"" },
+        { "file": "internal/discovery/discovery.go", "token": "needs lineage" },
+        { "file": "internal/discovery/discovery.go", "token": "MCPSiblings" }
+      ],
+      "cells": {
+        "linux": { "tier": "LIMITED", "note": "direct rules read command text; the chain rule reads lineage — both bounded by the rows above", "evidence": [{ "file": "internal/discovery/scan_linux.go", "token": "the file reads back empty" }] },
+        "darwin": { "tier": "LIMITED", "note": "same two rules, degraded by the darwin privacy path", "evidence": [{ "file": "internal/discovery/scan_darwin.go", "token": "kernel-level privacy" }] },
+        "windows": { "tier": "LIMITED", "note": "same two rules, degraded by the windows handle path", "evidence": [{ "file": "internal/discovery/scan_windows.go", "token": "for the limited query rights" }] }
+      }
+    },
+    {
+      "id": "tool.call-observation",
+      "class": "tool",
+      "covers": "observation of tool-call traffic through the local relay",
+      "shared_evidence": [
+        { "file": "internal/mcpproxy/proxy.go", "token": "forwarding happens FIRST and UNCONDITIONALLY" },
+        { "file": "internal/mcpproxy/proxy.go", "token": "may be nil (pure relay)" }
+      ],
+      "cells": {
+        "linux": { "tier": "MONITOR ONLY", "note": "relay pairing observes completed records; nothing here decides or blocks", "evidence": [{ "file": "internal/mcpproxy/proxy.go", "token": "func New(observe Observer) *Proxy" }] },
+        "darwin": { "tier": "MONITOR ONLY", "note": "same observer shape; the nil-observer degradation is declared in the field comment", "evidence": [{ "file": "internal/mcpproxy/proxy.go", "token": "func New(observe Observer) *Proxy" }] },
+        "windows": { "tier": "MONITOR ONLY", "note": "same observer shape on the windows build", "evidence": [{ "file": "internal/mcpproxy/proxy.go", "token": "func New(observe Observer) *Proxy" }] }
+      }
+    },
+    {
+      "id": "capability.classification",
+      "class": "capability",
+      "covers": "the closed capability vocabulary attached to classified events",
+      "shared_evidence": [
+        { "file": "internal/schema/capability.go", "token": "capabilityTable" },
+        { "file": "internal/schema/capability.go", "token": "Phase 0 boundary" },
+        { "file": "internal/schema/capability.go", "token": "\"proc.spawn\"" }
+      ],
+      "cells": {
+        "linux": { "tier": "MONITOR ONLY", "note": "the vocabulary expresses capability use and never grants or enforces it", "evidence": [{ "file": "internal/schema/capability.go", "token": "it does not enforce grants" }] },
+        "darwin": { "tier": "MONITOR ONLY", "note": "same closed table on every platform; input fields degrade with detection rows", "evidence": [{ "file": "internal/schema/capability.go", "token": "NON-TRANSITIVE" }] },
+        "windows": { "tier": "MONITOR ONLY", "note": "same closed table on every platform; input fields degrade with detection rows", "evidence": [{ "file": "internal/schema/capability.go", "token": "NON-TRANSITIVE" }] }
+      }
+    }
+  ]
+}
