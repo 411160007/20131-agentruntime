@@ -3323,3 +3323,58 @@ engine, bus, policy file, or collector: the name coverage-truthfulness
 appearing in any decision-plane source is a gate failure. Machine
 assertions for this slice live in the Node check and its selftest
 controls, run over the real tree by the discovery package tests.
+
+## 37. Compatibility matrix contract (slice W11.3)
+
+The V2 platform-capability contract demands a per-platform answer to a
+different question than the coverage matrix: not "what was collected"
+but "does the platform give the runtime a chance to collect at all".
+This slice lands that matrix in its two required forms - the human table
+(`docs/compatibility-matrix.md`) and the machine-readable mirror
+(`testdata/golden/compatibility-matrix.json`) - under the same four-tier
+closed vocabulary as the coverage matrix (no second dialect is legal on
+this axis). Row ids share the `compat.` namespace and the two matrices'
+row sets must stay disjoint; the checker fails on an id that appears in
+both.
+
+Platform facts are re-derived, not restated: the checker reads the build
+tags of the shipped scan files to confirm linux, darwin, and windows each
+carry an implementation, reads the unsupported-GOOS fallback's explicit
+error text, and asserts the specification-named HarmonyOS has zero
+implementation files anywhere in the shipped Go tree - which is why every
+row reads UNAVAILABLE there as a declared gap rather than an
+approximation. The enforcement face keeps its shipped honesty shape:
+pre-action interception is UNAVAILABLE everywhere (matches are recorded
+as would_block but never enforced), and borrowing coverage-matrix
+collection cells to inflate this axis is the contract's named inverse
+violation - the inflated-cell ban beside the hollow-cell ban.
+
+The five per-OS-update regression families of the compatibility
+contract are recorded as one UNAVAILABLE row with a declared-gap entry:
+the CI three-platform build+test jobs carry a partial contract/API shape
+only and must never be presented as real-machine OS-update regression.
+Counting posture follows the evals known_gap precedent: declared, not
+yet verified, honest miss over silent pass.
+
+## 38. Red-team plan contract (slice W11.3)
+
+The automatic red-team requirement (ten attack families, run every
+version) lands as plan only: `docs/red-team-plan.md` carries the closed
+ten-family census (RT-01 through RT-10), the seven simulation subject
+shapes, and the phase gate - the engine is not built, the plan intercepts
+nothing, and like the threat model it deliberately contains no attack
+procedures.
+
+The contract's machine judgement is bidirectional: every family section
+names at least one shipped threat row (TM-xx) or an explicit
+declared_known_gap marker - silence is not an option, the same rule the
+threat model gate enforces on its own rows - and every threat row in the
+threat model's current census is referenced by at least one family. A new
+threat row that no family exercises, an exercise family with no threat
+anchor, a census that moves without upgrading the machine mirror in the
+same PR, and any phrasing that generalizes an exercise result into an
+all-platforms promise all fail the gate. Until the engine ships, the
+named partial carriers (the rule battery, the replay surface, the CI
+jobs) must not be presented as a red team, and future engine results join
+the evals ledger with the same honest-miss accounting as every other
+detected gap.
