@@ -1,0 +1,159 @@
+{
+  "doc": "Compatibility matrix v0 — on each supported platform, what the platform gives this runtime to observe and correlate, tiered against the shipped code, with every cell bound to an evidence pointer the checker re-resolves against the tree.",
+  "version_lock": "Version lock: this matrix, docs/compatibility-matrix.md, docs/red-team-plan.md and scripts/compat-redteam-check.mjs MUST evolve in one PR; the checker re-derives platform facts from shipped source code (build tags, scan files, schema enums) on every run and fails on any drift — never against this file alone.",
+  "tiers": ["FULL", "LIMITED", "MONITOR ONLY", "UNAVAILABLE"],
+  "tier_semantics": {
+    "FULL": "the platform gives the runtime the chance to collect this surface and the shipped code names no degradation path for it",
+    "LIMITED": "the platform gives a chance to collect, but the shipped code names a concrete degradation path — what comes back can be empty, weaker, or fallback-derived",
+    "MONITOR ONLY": "the surface reaches the runtime only as declared, completed records; Phase 0 expresses and audits, it never decides, blocks, or stops",
+    "UNAVAILABLE": "no shipped path to this surface on this platform (a compile-time or code-absence fact), not a promise of future coverage"
+  },
+  "axes": "This matrix answers the §65 question 'does the platform give a chance to collect' on the capability axis. It is NOT the §279 coverage-truthfulness matrix, which answers 'what was actually collected' on the collection-surface axis; the same row id never appears in both.",
+  "platforms": ["linux", "darwin", "windows"],
+  "enforcement_plane_token": "none-in-observation-phase",
+  "honesty": [
+    "Every cell names at least one evidence pointer resolvable in the shipped tree; an unresolvable pointer fails the checker, so no cell can be hollow.",
+    "Collection cells from the coverage matrix must never be borrowed here to impersonate enforcement capability: the §65 File Pre-Action example is UNAVAILABLE everywhere because no shipped interception path exists (the inverse of the hollow-cell ban is the inflated-cell ban).",
+    "CI three-platform build+test jobs carry a partial contract/API shape only; presenting them as real-machine OS-update regression is forbidden — those rows stay declared, not yet verified.",
+    "Platform differences are named per cell. The Agent Adapter is a configuration generator, not a security boundary (a shipped §67 rule restated here on the compatibility axis).",
+    "A platform named by the specification with zero shipped implementation files (harmonyos) is recorded UNAVAILABLE with an explicit declared-gap row; silence and approximation are both banned."
+  ],
+  "unsupported_goos": {
+    "statement": "on any GOOS outside linux, darwin, and windows the whole compatibility surface is UNAVAILABLE: the shipped snapshot returns an explicit unsupported-platform error instead of pretending coverage.",
+    "evidence": [
+      { "file": "internal/discovery/scan_other.go", "token": "unsupported on this platform" }
+    ]
+  },
+  "declared_gaps": [
+    {
+      "id": "gd-compat-harmonyos",
+      "surface": "every row of this matrix on HarmonyOS",
+      "tier": "UNAVAILABLE",
+      "note": "the specification names HarmonyOS with official open capabilities as the implementation path; the shipped tree has zero files for it — recorded as declared, not yet verified, never approximated from other platforms.",
+      "evidence": [
+        { "file": "docs/compatibility-matrix.md", "token": "gd-compat-harmonyos" }
+      ]
+    },
+    {
+      "id": "gd-compat-osupdate",
+      "surface": "every §66 OS-update regression family (Contract / API Compat / Enforcement / Performance / Recovery)",
+      "tier": "UNAVAILABLE",
+      "note": "nothing in the shipped automation is triggered by an OS update; CI build+test carries a partial contract/API shape only; declared, not yet verified, following the evals-coverage-v0 known_gap counting posture.",
+      "evidence": [
+        { "file": "docs/evals-coverage-v0.md", "token": "known_gap" }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "compat.process-enumeration",
+      "class": "os",
+      "covers": "the platform exposing running processes to enumeration at all",
+      "cells": {
+        "linux": { "tier": "FULL", "note": "the platform exposes the process table without privilege for the enumeration itself", "evidence": [{ "file": "internal/discovery/scan_linux.go", "token": "//go:build linux" }] },
+        "darwin": { "tier": "FULL", "note": "the platform's full process listing reaches all pids and users", "evidence": [{ "file": "internal/discovery/scan_darwin.go", "token": "//go:build darwin" }] },
+        "windows": { "tier": "FULL", "note": "the platform's toolhelp snapshot exposes the process list", "evidence": [{ "file": "internal/discovery/scan_windows.go", "token": "//go:build windows" }] }
+      }
+    },
+    {
+      "id": "compat.process-commandline",
+      "class": "os",
+      "covers": "the platform giving command-line text back for enumerated processes",
+      "cells": {
+        "linux": { "tier": "LIMITED", "note": "a cmdline channel exists per process, but other users' processes read back empty", "evidence": [{ "file": "internal/discovery/scan_linux.go", "token": "cmdline" }] },
+        "darwin": { "tier": "LIMITED", "note": "the listing carries an args field, but kernel-level privacy defeats it for protected processes", "evidence": [{ "file": "internal/discovery/scan_darwin.go", "token": "args=" }] },
+        "windows": { "tier": "LIMITED", "note": "a command-line query exists, but protected processes cannot be opened for it", "evidence": [{ "file": "internal/discovery/scan_windows.go", "token": "cmdline" }] }
+      }
+    },
+    {
+      "id": "compat.network-observation",
+      "class": "network",
+      "covers": "the platform giving the runtime a socket/connection view",
+      "cells": {
+        "linux": { "tier": "MONITOR ONLY", "note": "no shipped socket enumerator on any platform; network reaches the runtime only as agent-declared network.intent records arriving from the hook/MCP inflow slots, observed after the fact", "evidence": [{ "file": "internal/schema/event.go", "token": "network.intent" }, { "file": "internal/schema/intentinflow.go", "token": "InflowSourceHookTask" }] },
+        "darwin": { "tier": "MONITOR ONLY", "note": "same shipped shape as linux: declared intents only, completed records only", "evidence": [{ "file": "internal/schema/event.go", "token": "network.intent" }] },
+        "windows": { "tier": "MONITOR ONLY", "note": "same shipped shape as linux: declared intents only, completed records only", "evidence": [{ "file": "internal/schema/event.go", "token": "network.intent" }] }
+      }
+    },
+    {
+      "id": "compat.file-access-observation",
+      "class": "file",
+      "covers": "the platform giving the runtime a file-access event stream",
+      "cells": {
+        "linux": { "tier": "MONITOR ONLY", "note": "the file.access event type ships in the closed schema enum, fed only by agent-reported inflow; no OS-level file watcher ships on any platform", "evidence": [{ "file": "internal/schema/event.go", "token": "file.access" }] },
+        "darwin": { "tier": "MONITOR ONLY", "note": "same shipped shape: declared agent reports, completed records only", "evidence": [{ "file": "internal/schema/event.go", "token": "file.access" }] },
+        "windows": { "tier": "MONITOR ONLY", "note": "same shipped shape: declared agent reports, completed records only", "evidence": [{ "file": "internal/schema/event.go", "token": "file.access" }] }
+      }
+    },
+    {
+      "id": "compat.pre-action-interception",
+      "class": "enforcement",
+      "covers": "the platform giving a pre-action interception slot that could stop an action before it executes",
+      "cells": {
+        "linux": { "tier": "UNAVAILABLE", "note": "no shipped interception path on any platform: matches are recorded as would_block but never enforced — borrowing collection cells to impersonate enforcement here is exactly the inflated-cell ban", "evidence": [{ "file": "internal/schema/event.go", "token": "never enforced" }] },
+        "darwin": { "tier": "UNAVAILABLE", "note": "same shipped fact as linux", "evidence": [{ "file": "internal/schema/event.go", "token": "never enforced" }] },
+        "windows": { "tier": "UNAVAILABLE", "note": "same shipped fact as linux", "evidence": [{ "file": "internal/schema/event.go", "token": "never enforced" }] }
+      }
+    },
+    {
+      "id": "compat.agent-hook-channel",
+      "class": "agent",
+      "covers": "the platform letting agents register lifecycle hooks the runtime can consume",
+      "cells": {
+        "linux": { "tier": "LIMITED", "note": "the shipped adapter generates hook configuration for known agent shapes; whether the hook channel exists at all depends on the agent installing the generated config — the platform does not force it, and the adapter is not a security boundary", "evidence": [{ "file": "internal/adapter/configgen.go", "token": "ClaudeHooksBlock" }, { "file": "internal/adapter/configgen.go", "token": "OpenClawBlock" }] },
+        "darwin": { "tier": "LIMITED", "note": "same shipped shape as linux: generated config, agent-side adoption, no boundary", "evidence": [{ "file": "internal/adapter/configgen.go", "token": "ClaudeHooksBlock" }] },
+        "windows": { "tier": "LIMITED", "note": "same shipped shape as linux: generated config, agent-side adoption, no boundary", "evidence": [{ "file": "internal/adapter/configgen.go", "token": "ClaudeHooksBlock" }] }
+      }
+    },
+    {
+      "id": "compat.mcp-observation",
+      "class": "mcp",
+      "covers": "the runtime sitting on the MCP transport with a completed-record view",
+      "cells": {
+        "linux": { "tier": "MONITOR ONLY", "note": "the relay forwards first and observes completed records; a nil observer degrades it to pure relay, declared in the shipped field comment; nothing here decides", "evidence": [{ "file": "internal/mcpproxy/proxy.go", "token": "Observer receives completed records" }] },
+        "darwin": { "tier": "MONITOR ONLY", "note": "same shipped shape as linux", "evidence": [{ "file": "internal/mcpproxy/proxy.go", "token": "Observer receives completed records" }] },
+        "windows": { "tier": "MONITOR ONLY", "note": "same shipped shape as linux", "evidence": [{ "file": "internal/mcpproxy/proxy.go", "token": "Observer receives completed records" }] }
+      }
+    },
+    {
+      "id": "compat.identity-binding",
+      "class": "identity",
+      "covers": "the platform giving a stable machine identity the agent-id hash can bind to",
+      "cells": {
+        "linux": { "tier": "FULL", "note": "the platform ships dedicated machine-id files that the shipped fingerprint chain reads first", "evidence": [{ "file": "internal/identity/identity.go", "token": "/etc/machine-id" }] },
+        "darwin": { "tier": "LIMITED", "note": "no dedicated machine-id file; the shipped chain falls back to hostname, weaker but still local — named in the shipped code", "evidence": [{ "file": "internal/identity/identity.go", "token": "hostname fallback" }] },
+        "windows": { "tier": "LIMITED", "note": "same fallback fact as darwin: the fingerprint ends at hostname, which the shipped comment records as weaker", "evidence": [{ "file": "internal/identity/identity.go", "token": "hostname fallback" }] }
+      }
+    },
+    {
+      "id": "compat.policy-decision-surface",
+      "class": "policy",
+      "covers": "the deterministic evaluator receiving events and producing outcomes",
+      "cells": {
+        "linux": { "tier": "MONITOR ONLY", "note": "evaluation ships everywhere the collector ships, but every match is an observation record on the audit stream while the enforcement-plane token reads none-in-observation-phase", "evidence": [{ "file": "internal/policy/evaluate.go", "token": "func (ev *Evaluator) Evaluate" }] },
+        "darwin": { "tier": "MONITOR ONLY", "note": "same shipped shape as linux", "evidence": [{ "file": "internal/policy/evaluate.go", "token": "func (ev *Evaluator) Evaluate" }] },
+        "windows": { "tier": "MONITOR ONLY", "note": "same shipped shape as linux", "evidence": [{ "file": "internal/policy/evaluate.go", "token": "func (ev *Evaluator) Evaluate" }] }
+      }
+    },
+    {
+      "id": "compat.audit-replay",
+      "class": "audit",
+      "covers": "the platform letting the runtime persist its own audit trail for later replay",
+      "cells": {
+        "linux": { "tier": "MONITOR ONLY", "note": "event persistence and rotation ship on every supported platform; the trail observes, warns and audits — it never stops anything", "evidence": [{ "file": "internal/auditlog/rotate.go", "token": "func (l *Log) WriteEvent" }] },
+        "darwin": { "tier": "MONITOR ONLY", "note": "same shipped shape as linux", "evidence": [{ "file": "internal/auditlog/rotate.go", "token": "func (l *Log) WriteEvent" }] },
+        "windows": { "tier": "MONITOR ONLY", "note": "same shipped shape as linux", "evidence": [{ "file": "internal/auditlog/rotate.go", "token": "func (l *Log) WriteEvent" }] }
+      }
+    },
+    {
+      "id": "compat.os-update-regression-suite",
+      "class": "compat",
+      "covers": "the §66 contract that every OS update automatically re-runs Contract / API Compat / Enforcement / Performance / Recovery",
+      "cells": {
+        "linux": { "tier": "UNAVAILABLE", "note": "nothing shipped is triggered by an OS update; CI three-platform build+test jobs carry a partial contract/API shape only and must not be presented as real-machine OS-update regression — declared, not yet verified", "evidence": [{ "file": ".github/workflows/build.yml", "token": "windows-latest" }] },
+        "darwin": { "tier": "UNAVAILABLE", "note": "same shipped fact as linux: CI coverage only, no OS-update trigger", "evidence": [{ "file": ".github/workflows/build.yml", "token": "macos-latest" }] },
+        "windows": { "tier": "UNAVAILABLE", "note": "same shipped fact as linux: CI coverage only, no OS-update trigger", "evidence": [{ "file": ".github/workflows/build.yml", "token": "windows-latest" }] }
+      }
+    }
+  ]
+}
