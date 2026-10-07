@@ -2944,3 +2944,75 @@ decision_cache_enforcement_plane: none-in-observation-phase
   pinned-restatement tests, and the reserved-vocabulary scan over
   the emitted record. The ```cache word family joins the wave-end
   census with its siblings.
+
+## 32. External intelligence function contract (slice W10.1)
+
+Section 290 defines the standard external-intelligence interface as
+six named functions over structured data, with one prohibition: free
+text may never become policy directly. Slice W10.1 lands the contract
+surface only - six signatures plus their input/output schema shape,
+written into this document and wired nowhere. There is no
+implementation, no import, and no call site: the default wiring state
+of the whole W10 family is zero-connection, and the failure-fallback
+semantics (section 291) and the poisoning guard (section 292) land as
+their own contract slices (W10.2, W10.3) ahead of the wave-end gate.
+
+The isolation contract applies verbatim: this section adds no
+registry, no writer, no engine, no runtime decision plane, no merge,
+no apply. The intelligence path is never a required path for any file
+operation (section 266); intelligence answers are untrusted auxiliary
+input that may enter analysis only - never straight into policy,
+never enforcement.
+
+Signatures (closed set, six names exactly, per section 290):
+
+* `analyze_intent(input: IntentObservation) -> Analysis`
+* `analyze_plan(input: PlanObservation) -> Analysis`
+* `analyze_context(input: ContextObservation) -> Analysis`
+* `analyze_behavior(input: BehaviorObservation) -> Analysis`
+* `explain_decision(input: DecisionTraceRef) -> Explanation`
+* `recommend_policy(input: PolicyContext) -> Recommendation`
+
+```intel
+intel_function_closed_set: analyze_intent,analyze_plan,analyze_context,analyze_behavior,explain_decision,recommend_policy
+intel_function_count_pin: exactly-six-names-any-add-or-drop-fails-the-contract
+intel_input_gate: one-structured-observation-envelope-per-call-never-free-text-only
+intel_output_closed_forms: analysis,explanation,recommendation-three-structured-shapes-never-raw-text
+intel_analysis_field_order: analysis,confidence_percent,evidence_references,uncertainty,recommendation
+intel_absent_confidence_rule: unstated-confidence-renders-explicit-absent-token-never-invented-zero
+intel_evidence_citation_rule: evidence-references-cite-existing-artifact-digests-64-hex-shape-never-coined-strings
+intel_free_text_policy_ban: free-text-output-never-becomes-policy-directly
+intel_required_path_ban: intelligence-path-is-never-a-required-path-per-section-266
+intel_untrusted_input_rule: answers-enter-analysis-only-never-policy-or-enforcement-directly
+intel_failure_forward: unavailable-or-malformed-answers-change-no-decision-and-the-fallback-contract-continues-in-slice-w10-2
+intel_wiring_state: contract-docs-only-zero-implementation-zero-import-zero-call-site
+intel_enforcement_plane: none-in-observation-phase
+```
+
+* Contract fields: each of the six functions takes exactly one
+  structured observation envelope (`IntentObservation`,
+  `PlanObservation`, `ContextObservation`, `BehaviorObservation`,
+  `DecisionTraceRef`, `PolicyContext`) and returns one of three
+  closed structured shapes - `Analysis`, `Explanation`,
+  `Recommendation` - never free text. The `Analysis` shape carries
+  the five section-290 fields in normative order (analysis statement,
+  `confidence_percent` 0..100 or the explicit absent token - an
+  unstated confidence is never an invented zero, evidence references
+  as a list of 64-hex artifact digests already present in the ledger,
+  an `uncertainty` statement, and a `recommendation`). The
+  `Explanation` shape binds a decision id to rule citations from the
+  audit record; the `Recommendation` shape is a candidate statement
+  under the same citation gate, admissible only as input to a policy
+  evaluation, never as policy itself. While `intel_enforcement_plane`
+  reads the shipped `none-in-observation-phase` token, no
+  decision-plane file (policy, rules, bus, auditlog) may reference
+  these symbols; the contract is documentation-only by construction.
+* Machine checks: six-function closed-set census over this file -
+  exactly six signature lines, the same six names on the
+  `intel_function_closed_set` line, cross-checked against the section
+  290 function block (count reverse-lookup equals six; an add or a
+  drop is RED); the schema docs machine check stays VALID over the
+  amended file; the slice diff touches documentation only (file list
+  filtered to docs/ with zero code files). The ```intel word family
+  joins the wave-end census with its siblings, thirteen keys pinned
+  from disk.
