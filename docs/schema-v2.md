@@ -3378,3 +3378,26 @@ named partial carriers (the rule battery, the replay surface, the CI
 jobs) must not be presented as a red team, and future engine results join
 the evals ledger with the same honest-miss accounting as every other
 detected gap.
+
+## 39. Performance benchmark plan contract (slice W11.4)
+
+The continuous performance-tax measurement requirement (CPU, RAM, disk
+IO, network, decision latency, battery, temperature) lands first as a
+plan: `docs/benchmark-plan.md` carries the closed seven-metric census
+with a three-value instrumentation status vocabulary (PARTIAL / PLANNED
+/ ABSENT - a fourth dialect fails the gate), the pre-pinned §70-§73
+engineering-goal reverse lookup, the four-scenario real-machine follow-up
+batch, and the recorded fast-path seed kept explicitly in
+`estimation-is-not-verified` state.
+
+The contract's honesty rules mirror the coverage and compatibility
+axes and stay disjoint from both (bp. row ids collide with neither):
+an unmeasured goal may never be phrased as an achieved or guaranteed
+number, a CI runner shape may never be presented as real-machine or
+battery evidence, and the declared-absent rows for resource-manager
+signals and performance modes are re-derived from the shipped tree -
+if the symbols appear, the gap rows and the mirror must be upgraded in
+the same PR, and if the gaps are dropped before the symbols ship, the
+gate fails. Until a real benchmark battery runs, engineering goals from
+this plan stay internal contracts and must not surface as marketing
+promises anywhere outside the tree.

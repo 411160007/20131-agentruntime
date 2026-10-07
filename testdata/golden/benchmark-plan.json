@@ -1,0 +1,175 @@
+{
+  "doc": "Performance Benchmark Plan v0 mirror - the §73 continuous-measurement metric census, pre-pinned engineering goals, the recorded Fast Path seed with explicit verification state, and the four real-machine follow-up scenarios batched into this plan. Every status cell is bound to an evidence pointer the checker re-resolves against the shipped tree; absent instrumentation is re-derived by independent symbol search, never read from this file.",
+  "version_lock": "Version lock: this mirror, docs/benchmark-plan.md, scripts/benchplan-check.mjs, internal/discovery/benchplan_check_test.go and docs/schema-v2.md §39 MUST evolve in one PR; the checker re-derives shipped facts (byte accounting symbols, proxy latency accounting, resource-manager and mode symbol absence) from the source tree on every run and fails on any drift - never against this file alone.",
+  "statuses": ["PARTIAL", "PLANNED", "ABSENT"],
+  "status_semantics": {
+    "PARTIAL": "a shipped carrier measures a named slice of this metric; the slice is stated in the row note, the rest stays a declared gap",
+    "PLANNED": "a future carrier is named by this plan but nothing ships yet; a plan word is never a measurement",
+    "ABSENT": "no shipped instrument and no same-platform carrier; recorded as a declared gap, and CI may never be presented as this row's verification"
+  },
+  "axes": "This mirror answers 'how is each performance-tax metric instrumented and judged' on the measurement axis. It is NOT the §65 compatibility capability axis and NOT the §279 coverage-truthfulness collection axis; bp.* row ids are machine-checked disjoint from compat.* and coverage row ids.",
+  "platforms": ["linux", "darwin", "windows"],
+  "enforcement_plane_token": "none-in-observation-phase",
+  "spec_sections": ["70", "71", "72", "73"],
+  "honesty": [
+    "Every metric row names at least one evidence pointer resolvable in the shipped tree; an unresolvable pointer fails the checker, so no row can be hollow.",
+    "Pre-pinned engineering goals are contract targets, not results: no cell may present an unmeasured goal as a verified achievement, and no external promise may cite them before a real benchmark run.",
+    "The recorded fast-path seed is estimation, not verified fact: it carries state 'recorded', a named provenance class, and a re-measure-before-citation requirement; promoting it to a verified claim without a shipped benchmark run fails the gate.",
+    "Absent instrumentation is re-derived from the tree (distinctive resource-manager and mode symbols must be zero while the gap rows stay declared); if code ships later, the mirror must be upgraded in the same PR or the drift check fails.",
+    "CI three-platform jobs carry a partial shape only: battery, thermal, mode, and real-machine rows prove nothing in CI, and presenting shared-runner numbers as promises is forbidden.",
+    "Honest-miss accounting follows the evals known_gap posture: declared, not yet verified, never silently passed."
+  ],
+  "metrics": [
+    {
+      "id": "bp.cpu-idle",
+      "status": "PLANNED",
+      "goal": "idle CPU as low as possible, below 0.5-1 percent",
+      "evidence": [{ "file": "docs/benchmark-plan.md", "token": "idle CPU as low as possible" }]
+    },
+    {
+      "id": "bp.resident-memory",
+      "status": "PLANNED",
+      "goal": "resident memory in the 100-200MB class",
+      "evidence": [{ "file": "docs/benchmark-plan.md", "token": "100-200MB class" }]
+    },
+    {
+      "id": "bp.disk-io",
+      "status": "PARTIAL",
+      "goal": "measure and publish; no numeric ceiling pinned yet",
+      "evidence": [
+        { "file": "internal/auditlog/storageview.go", "token": "TotalBytes" },
+        { "file": "internal/auditlog/governance.go", "token": "rotated" }
+      ]
+    },
+    {
+      "id": "bp.network-overhead",
+      "status": "PARTIAL",
+      "goal": "measure and publish; no numeric ceiling pinned yet",
+      "evidence": [{ "file": "internal/mcpproxy/proxy.go", "token": "ReqBytes" }]
+    },
+    {
+      "id": "bp.decision-latency",
+      "status": "PARTIAL",
+      "goal": "fast path low-millisecond or better",
+      "evidence": [{ "file": "internal/mcpproxy/proxy.go", "token": "latency" }]
+    },
+    {
+      "id": "bp.battery-impact",
+      "status": "ABSENT",
+      "goal": "no target pinned before instrumentation exists",
+      "gap": "gd-perf-battery-thermal",
+      "evidence": [{ "file": "docs/benchmark-plan.md", "token": "gd-perf-battery-thermal" }]
+    },
+    {
+      "id": "bp.temperature-impact",
+      "status": "ABSENT",
+      "goal": "no target pinned before instrumentation exists",
+      "gap": "gd-perf-battery-thermal",
+      "evidence": [{ "file": "docs/benchmark-plan.md", "token": "gd-perf-battery-thermal" }]
+    }
+  ],
+  "seed": {
+    "metric": "bp.decision-latency",
+    "value": "1.467µs/event",
+    "state": "recorded",
+    "provenance": "development-phase judgement-layer measurement, registered in the internal delivery ledger; the internal id stays outside this public tree by policy",
+    "honesty": [
+      "estimation is not verified fact",
+      "must be re-measured by that battery before it may be cited anywhere outside engineering documents"
+    ],
+    "budget_note": "about 1/680 of the one-millisecond budget"
+  },
+  "banned_postures": [
+    "continuous full-disk scanning",
+    "reading all file contents by default",
+    "per-action LLM call",
+    "permanent retention of every log",
+    "always-resident modules",
+    "always-resident agent adapters"
+  ],
+  "adopted_architecture": ["Event Driven", "Lazy Load", "Cache", "Fast Path", "Async Slow Path"],
+  "resource_manager_signals": ["CPU", "RAM", "Disk", "Network", "Battery", "Thermal", "Gaming", "Compile", "Local AI"],
+  "resource_manager_floor": "core safety must never degrade to ineffective",
+  "mode_names": ["Balanced", "Performance", "Security"],
+  "symbol_absence": {
+    "statement": "while the resource-manager and mode gap rows stay declared, these distinctive identifiers must appear nowhere in the shipped Go tree; the checker scans internal/ and cmd/ independently.",
+    "tokens": ["ResourceManager", "PerfMode", "BatteryPercent", "ThermalPressure"]
+  },
+  "batch_scenarios": [
+    {
+      "id": "bp-rm-1",
+      "scenario": "Apple Silicon and Rosetta execution behavior of the unsigned amd64 binary",
+      "carrier": "one arm64 mac",
+      "status": "declared, not yet verified",
+      "ci_partial": true,
+      "evidence": [{ "file": "docs/benchmark-plan.md", "token": "bp-rm-1" }]
+    },
+    {
+      "id": "bp-rm-2",
+      "scenario": "current-macos Gatekeeper user paths (right-click open, quarantine attribute inspection)",
+      "carrier": "one mac on the current supported OS",
+      "status": "declared, not yet verified",
+      "ci_partial": false,
+      "evidence": [{ "file": "docs/benchmark-plan.md", "token": "bp-rm-2" }]
+    },
+    {
+      "id": "bp-rm-3",
+      "scenario": "quarantine-attribute propagation across download-and-unpack paths (browser, curl, wget, Finder)",
+      "carrier": "one mac",
+      "status": "declared, not yet verified",
+      "ci_partial": false,
+      "evidence": [{ "file": "docs/benchmark-plan.md", "token": "bp-rm-3" }]
+    },
+    {
+      "id": "bp-rm-4",
+      "scenario": "direct download experience of release artifacts from mainland networks",
+      "carrier": "real network probe",
+      "status": "declared, not yet verified",
+      "ci_partial": false,
+      "evidence": [{ "file": "docs/benchmark-plan.md", "token": "bp-rm-4" }]
+    }
+  ],
+  "declared_gaps": [
+    {
+      "id": "gd-perf-resource-manager",
+      "surface": "§71 resource-manager signal reading and frequency tuning",
+      "status": "ABSENT",
+      "note": "designed, not shipped; every degrade path must later keep the core observation path alive and audit its own decisions.",
+      "evidence": [{ "file": "docs/benchmark-plan.md", "token": "gd-perf-resource-manager" }]
+    },
+    {
+      "id": "gd-perf-modes",
+      "surface": "§72 Balanced / Performance / Security mode switching",
+      "status": "ABSENT",
+      "note": "mode names are contract, not shipped behavior; all current measurement runs in the single shipped observation shape.",
+      "evidence": [{ "file": "docs/benchmark-plan.md", "token": "gd-perf-modes" }]
+    },
+    {
+      "id": "gd-perf-battery-thermal",
+      "surface": "battery and temperature rows of the §73 census",
+      "status": "ABSENT",
+      "note": "CI runners are not battery-powered; no shipped reader exists on any platform; declared, not yet verified, never approximated.",
+      "evidence": [{ "file": "docs/benchmark-plan.md", "token": "gd-perf-battery-thermal" }]
+    },
+    {
+      "id": "gd-perf-realmachine-batch",
+      "surface": "the four real-machine / real-network follow-up scenarios",
+      "status": "ABSENT",
+      "note": "batched into this plan so one pass retires them; until retired, no document may claim real-machine verification of distribution behavior.",
+      "evidence": [
+        { "file": "docs/benchmark-plan.md", "token": "Real-machine follow-up batch" },
+        { "file": "docs/evals-coverage-v0.md", "token": "known_gap" }
+      ]
+    }
+  ],
+  "forbidden_phrases": [
+    "firewall",
+    "防火墙",
+    "所有平台完全一样",
+    "all platforms are equally protected",
+    "guaranteed under",
+    "always below",
+    "promise of future coverage",
+    "verified on real hardware"
+  ]
+}
