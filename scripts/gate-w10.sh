@@ -147,7 +147,7 @@ wn=$(grep -cE '^intel(_(fallback|guard))?_wiring_state: contract-docs-only-zero-
 # the sixth trust tier stays a schema declaration with zero producers outside the schema package
 prod=$(grep -rn 'SrcLLMInterpretation' --include='*.go' internal cmd 2>/dev/null | grep -v '_test\.go' | grep -v 'internal/schema/' | grep -c . || true)
 [ "$prod" -eq 0 ] || { echo "RED: an outside-schema producer/consumer of the sixth tier appeared ($prod hits)"; exit 1; }
-# D-050 zero-cost order: the decision plane carries no model client and no transport
+# zero-cost standing order: the decision plane carries no model client and no transport
 sdk=$(grep -rliE 'openai|anthropic|bedrock|ollama|gemini|inference' --include='*.go' internal/policy internal/rules internal/bus internal/auditlog cmd/hello-collector 2>/dev/null | grep -v '_test\.go' | grep -c . || true)
 [ "$sdk" -eq 0 ] || { echo "RED: a model-client reference entered the decision plane ($sdk files)"; exit 1; }
 net=$(grep -rln '"net/http"' internal/policy internal/rules internal/bus internal/auditlog cmd/hello-collector 2>/dev/null | grep -c . || true)
@@ -157,7 +157,7 @@ n=$(grep -cE '^[a-z_]+_(enforcement|execution)_plane: none-in-observation-phase$
 t2=$(grep -cE '^[a-z_]+_(enforcement|execution)_plane: ' docs/schema-v2.md)
 [ "$n" -eq "$t2" ] || { echo "RED: a declared plane was promoted out of observation stance ($n/$t2)"; exit 1; }
 [ "$n" -ge 25 ] || { echo "RED: plane census $n, want at least 25 none-lines"; exit 1; }
-echo "W10 CONTRACT ANCHORS GREEN (eleven verbatim anchors, three contract-docs-only wiring lines, sixth tier zero producers, D-050 zero SDK/zero network on the decision plane, plane census all-none: $n/$t2 derived from this run)"
+echo "W10 CONTRACT ANCHORS GREEN (eleven verbatim anchors, three contract-docs-only wiring lines, sixth tier zero producers, zero-cost-order zero SDK/zero network on the decision plane, plane census all-none: $n/$t2 derived from this run)"
 
 step '07 tripwire standalone (internal-ledger negative scan)'
 bash scripts/tripwire.sh > "$LOGDIR/gate-w10-tripwire.out" 2>&1 \
