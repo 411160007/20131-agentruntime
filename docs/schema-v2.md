@@ -3223,3 +3223,55 @@ intel_guard_enforcement_plane: none-in-observation-phase
   zero-LLM-import and zero-network closure checks re-run and stay
   clean; the schema docs machine check stays VALID over the amended
   file; the slice diff touches documentation only.
+
+## 35. Impact / blast-radius estimation record shape (slice W11.1)
+
+Impact analysis asks every important action to be estimated as far as
+possible; blast-radius control names eight scope dimensions to compute
+per agent or task. This slice lands the estimation record surface for
+the part that is honestly computable ahead of any enforcement engine:
+from the raw JSON argument bytes of one tool call, two of the eight
+dimensions are derivable as a closed syntactic subset - `file_scope`
+(argument strings shaped as POSIX absolute, "./" or "../" relative,
+"~/"-home-relative, or Windows drive-prefixed paths) and `network_scope`
+(argument strings shaped as URLs whose scheme is one of the six shipped
+transport schemes, recorded as lower-cased bare host or bracketed IPv6
+literal; userinfo is stripped before anything is recorded, because a
+credential-bearing authority would leak the credential scope). Bare
+names, scheme-less host:port text, and non-shipped schemes are
+deliberately not claimed: guessing would turn an estimate into a
+fabrication.
+
+The remaining six dimensions are never silently absent. Every record
+carries the declared-gap list in normative closed order -
+`project_scope, process_scope, database_scope, credential_scope,
+device_scope, subagent_scope` - so the record can never read as a
+complete blast-radius picture. Three honesty fields are
+constructor-pinned and re-checked by validation: the estimate basis
+token `estimated-from-argument-text-only-not-observed-fact` (the scope
+lists state what the argument text says, never an observed fact about
+the world), the outward-phrasing separation
+`never-renders-as-blocked-or-contained` (an estimation speaks about
+predicted reach, never about prevention), and the record-only stance
+with the enforcement-plane token `none-in-observation-phase` - the one
+shipped spelling every earlier wave record already uses, so no second
+dialect can enter.
+
+Grammar rules: the record binds the exact argument bytes it estimated
+through a SHA-256 digest; the three scope lists must be present and are
+sorted and deduplicated (an empty list states "nothing claimable in the
+argument text", null states nothing and is not admissible); every
+entry is re-checked against the closed grammar it came from; a rejected
+build returns no record at all, never a half-filled estimate. Like the
+promotion record, restatements are pinned so a hand-built record must
+carry the identical values or validation rejects it.
+
+Wiring boundary: nothing. The record is not an event type, enters no
+decision-plane file, and is consulted by no evaluator, rule engine,
+bus, or audit writer; while the enforcement-plane token reads
+`none-in-observation-phase` the shape carries no effect, severity, or
+decision input. Machine assertions for this slice live in the schema
+package tests: constructor-pinned tokens, positive and negative
+fixtures for each derivable dimension, declared-gap closed-vocabulary
+mirrors, digest binding, null-list and userinfo refusals, and the
+single-plane-token spelling check across every wave record.
