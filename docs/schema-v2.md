@@ -3016,3 +3016,89 @@ intel_enforcement_plane: none-in-observation-phase
   filtered to docs/ with zero code files). The ```intel word family
   joins the wave-end census with its siblings, thirteen keys pinned
   from disk.
+
+## 33. External intelligence fallback contract (slice W10.2)
+
+Section 291 names what can go wrong on the external-intelligence path and
+what must happen when it does. The failure surface is a closed set of six
+modes - timeout, 429, network failure, malformed output, hallucination
+signal, unsafe recommendation. When any of them fires, 20131 must fall
+back to deterministic local security: the local core keeps deciding with
+zero intelligence input, exactly as it decides today while the whole W10
+family stays wired nowhere. Two degenerate forms are prohibited verbatim:
+"no model, therefore allow everything" is banned, and "no model,
+therefore block everything" is banned. What remains admissible is graded
+handling over the four section-291 axes in normative order - action risk,
+sensitivity, impact, reversibility - which the deterministic policy
+engine already evaluates without asking the intelligence path for help.
+
+This slice lands the contract surface only: no implementation, no
+import, no call site, no detector, no wiring. It inherits the section-32
+isolation contract unchanged (no registry, no writer, no engine, no
+runtime decision plane) and consumes the forward-reference line
+`intel_failure_forward` that slice W10.1 pre-pinned, so the W10.1
+thirteen keys keep their pinned meaning with zero amendment. Detection
+and handling of hallucination signals and unsafe recommendations as
+content - the validation chain that screens what intelligence may
+influence - is the section-292 poisoning guard, which lands as its own
+contract slice (W10.3) and is not borrowed here.
+
+Fallback rules (closed set, six modes exactly, per section 291):
+
+* A timeout, a 429, or a network failure classifies the answer as
+  unavailable for the decision at hand; the deterministic core answer
+  stands untouched, and no retry, queue, or wait slot is defined by this
+  contract (availability posture is future enforcement-phase work).
+* A malformed answer - anything failing the section-32 structured-shape
+  gate - is treated as unavailable, never partially parsed: there is no
+  rule in this contract under which a broken payload influences any
+  decision, because a partially trusted structure is how untrusted data
+  smuggles itself into trusted code.
+* An answer carrying a hallucination signal or an unsafe recommendation
+  is likewise treated as unavailable for that decision; the guard that
+  recognizes such signals is the W10.3 poisoning contract, and until any
+  of it is built and wired, the honest current state is that the product
+  consumes no intelligence answer at all (zero-import, zero-call-site),
+  so every fallback line here describes an already-permanent runtime
+  condition.
+* Graded handling over action risk, sensitivity, impact, and
+  reversibility is the only admissible response shape; uniform allow-all
+  or block-all reactions to intelligence absence are contract violations
+  by construction, and the Phase 0 observation plane records would_block
+  outcomes either way without enforcing them.
+
+```intel
+intel_fallback_mode_closed_set: timeout,429,network-failure,malformed-output,hallucination-signal,unsafe-recommendation
+intel_fallback_mode_count_pin: exactly-six-modes-any-add-or-drop-fails-the-contract
+intel_fallback_target: deterministic-local-security-core-continues-with-zero-intelligence-input
+intel_fallback_ban_allow_all: intelligence-absent-never-means-allow-all
+intel_fallback_ban_block_all: intelligence-absent-never-means-block-all
+intel_fallback_graded_axes: action-risk,sensitivity,impact,reversibility-four-axes-in-normative-order
+intel_fallback_malformed_equals_unavailable: structurally-invalid-answer-classifies-as-unavailable-never-partially-parsed
+intel_fallback_hallucination_forward: hallucination-and-unsafe-answer-guard-lands-in-slice-w10-3-not-borrowed-here
+intel_fallback_decision_plane_zero_llm_import: no-decision-plane-file-imports-or-embeds-any-model-client-or-inference-transport
+intel_fallback_decision_plane_zero_network: decision-plane-dependency-closure-contains-no-network-package
+intel_fallback_wiring_state: contract-docs-only-zero-implementation-zero-import-zero-call-site
+intel_fallback_enforcement_plane: none-in-observation-phase
+```
+
+* Clause coverage (contract line ↔ section 291 clause, every clause of
+  the source text answered exactly once): the six-mode enumeration maps
+  to `intel_fallback_mode_closed_set` plus its count pin; "必须回退
+  Deterministic Local Security" maps to `intel_fallback_target`; the two
+  quoted prohibitions map to `intel_fallback_ban_allow_all` and
+  `intel_fallback_ban_block_all`; "必须基于 Action Risk / Sensitivity /
+  Impact / Reversibility 进行分级处理" maps to
+  `intel_fallback_graded_axes`; malformed output handling maps to
+  `intel_fallback_malformed_equals_unavailable`; the remaining two modes
+  map to `intel_fallback_hallucination_forward`, which states the
+  deferral honestly instead of inventing guard mechanics.
+* Machine checks: fallback-key census re-taken from disk (twelve
+  `intel_fallback_` keys pinned; the family grows thirteen to twenty-five
+  and any wave-end count is recomputed mechanically, never hand-copied);
+  decision-plane zero-LLM-import grep over policy, rules, bus, auditlog
+  and the runtime command with plant/remove teeth controls; zero-network
+  closure via the dependency listing of the four decision-plane packages
+  (zero hits on net, net/http, crypto/tls; go.mod stays with zero
+  requires); the schema docs machine check stays VALID over the amended
+  file; the slice diff touches documentation only.
