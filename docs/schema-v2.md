@@ -3401,3 +3401,32 @@ the same PR, and if the gaps are dropped before the symbols ship, the
 gate fails. Until a real benchmark battery runs, engineering goals from
 this plan stay internal contracts and must not surface as marketing
 promises anywhere outside the tree.
+
+## 40. Threat-model v1 family uplift and supply-chain observation contract (slice W11.5)
+
+The specification's untrusted-content, injection/goal-hijacking,
+egress re-check, and intent-deviation families land in
+`docs/threat-model.md` as a pinned five-row uplift (TM-13..TM-17, the
+census is exact: no gap, no sixth uplift row). The uplift is
+documentation-only: the built-in rule table stays pinned at twelve
+rules, every uplifted row carries an explicit `known_gap` marker (the
+TM-15/TM-16 rows additionally anchor shipped detection segments
+without claiming chain-level or transformation-level coverage), and
+no row may phrase itself as prevention while Phase 0 observes.
+
+The family-to-clause map is pinned bidirectionally: TM-14 names
+section 240, TM-15 names section 241, TM-16 names section 238, TM-17
+names section 242; a clause number cited anywhere else in the
+document fails the checker in either direction, and a family row that
+drops its clause fails the reverse lookup.
+
+The supply-chain observation surface is one capability with one set of
+words: package actions (package-manager installs, updates, removals,
+and the registry or tool output they consume) are ordinary recorded
+event classes; the documentation restates the three shipped counter
+tokens parsed from `internal/schema/agencyguard.go` (`event_rate`,
+`step_count`, `parallelism`) — restated, never reimplemented — keeps
+the record-only-no-action stance, inherits the section 21 ban on
+ladder tokens in any Phase 0 record, and states the no-install-gating
+limit as a `known_gap` row rather than silence. If the counters move
+or rename, the section and the checker must upgrade in the same PR.
