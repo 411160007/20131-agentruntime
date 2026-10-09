@@ -119,7 +119,7 @@ function pinSet(label, want, got) {
   }
 }
 
-function check(docText) {
+function check(docText, mapperText = mapperOrNothing()) {
   fail.length = 0;
 
   // 1. version lock
@@ -196,13 +196,29 @@ function check(docText) {
   const idRes = new RegExp('\\bD-[0-9]{3}\\b|\\bE[0-9]{2,3}\\b|\\bT[0-9]{2,3}\\b|\\b' + 'TASK' + 'BOOK\\b|\\b' + 'NIGHT_' + 'TASKS\\b|' + 'ai-' + 'company|' + 'claw' + 'd');
   if (idRes.test(docText)) bad('internal-ledger identifier shape in doc surface');
 
+  // 8. derive-only mapper reverse-lookup: the section-4 landing tool must
+  // import the vocabulary from this doc (single writer source) and must
+  // never carry a second closed-set copy of its own.
+  if (mapperText === null) bad('derive-only mapper script not found at scripts/task-map.mjs');
+  else {
+    if (!mapperText.includes('task-primitive-design.md')) bad('mapper does not reference the design doc as its vocabulary source');
+    if (!mapperText.includes("'task_status_vocabulary'")) bad('mapper does not re-parse the doc status closed set (import posture missing)');
+    if (/['\"]open['\"]\s*,\s*['\"]active['\"]\s*,\s*['\"]completed['\"]/i.test(mapperText)) bad('mapper carries a second status vocabulary copy');
+    if (!/conservation/i.test(mapperText)) bad('mapper conservation gate posture missing');
+  }
+
   return fail;
+}
+function mapperOrNothing() {
+  try { return readFileSync(at('scripts/task-map.mjs'), 'utf8'); } catch { return null; }
 }
 
 // ---------- selftest: injected defects must ALL be caught ----------
 function selftest() {
   const docPath = at(DOC);
   const real = readFileSync(docPath, 'utf8');
+  const mapperReal = mapperOrNothing();
+  if (mapperReal === null) { console.error('SELFTEST RED: mapper file absent — reverse-lookup has nothing to scan'); return 1; }
   const dir = mkdtempSync(path.join(os.tmpdir(), 'taskpr-ctl-'));
   const injected = [
     ['status census drift', (d) => d.replace('task_status_vocabulary: open, active, completed, failed, abandoned, blocked, unknown',
@@ -217,17 +233,23 @@ function selftest() {
     ['mapping rule dropped', (d) => d.replace('- `MR-4` (safety tail)', '- `MR-9` (safety tail)')],
     ['version lock broken', (d) => d.replace(VERSION_LOCK, 'are separate documents')],
     ['shipping claim', (d) => d.replace('not an implementation', 'not an implementation, task records now ship')],
+    // mapper-targeted injection (third slot): a second vocabulary copy in
+    // the derive-only tool must trip the reverse-lookup.
+    ['mapper second vocabulary copy', null, (m) => m.replace('const HINT_DONE',
+      "const SECOND = ['open', 'active', 'completed', 'failed', 'abandoned', 'blocked', 'unknown'];\nconst HINT_DONE")],
   ];
   let caught = 0;
-  for (const [name, mutate] of injected) {
-    const broken = mutate(real);
-    if (broken === real) { console.error(`SELFTEST RED: injection ${name} was a no-op`); continue; }
-    const f = check(broken);
+  for (const [name, docMut, mapMut] of injected) {
+    const brokenDoc = docMut ? docMut(real) : real;
+    const brokenMapper = mapMut ? mapMut(mapperReal) : mapperReal;
+    if (docMut && brokenDoc === real) { console.error(`SELFTEST RED: injection ${name} was a no-op`); continue; }
+    if (mapMut && brokenMapper === mapperReal) { console.error(`SELFTEST RED: injection ${name} was a no-op`); continue; }
+    const f = check(brokenDoc, brokenMapper);
     if (f.length === 0) console.error(`SELFTEST RED: injection ${name} NOT caught`);
     else caught++;
   }
-  // real doc must pass
-  const realFails = check(real);
+  // real doc + real mapper must pass
+  const realFails = check(real, mapperReal);
   rmSync(dir, { recursive: true, force: true });
   if (realFails.length) { console.error('SELFTEST RED: real doc fails:', realFails); return 1; }
   if (caught !== injected.length) { console.error(`SELFTEST RED: ${caught}/${injected.length} injections caught`); return 1; }
