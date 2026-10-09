@@ -74,3 +74,17 @@ cd <extracted> && sha256sum -c CHECKSUM.txt
 
 `scripts/macho-sig-check.mjs` is the in-repo detector used by the release
 gate to machine-assert the signature load command on Mach-O artifacts.
+
+## Cross-surface sync gate
+
+The prose above, `VERSION`, `.github/workflows/build.yml`, and
+`scripts/build-dist.sh` must never drift apart, and a published release's
+asset names plus the website download page must match this contract
+exactly. `scripts/releaseleg-check.mjs` machine-asserts all of it
+(documented matrix == builder target set, CI matrix ⊆ documented matrix,
+single-stamp consumption everywhere, name-contract tokens everywhere,
+signing branch A/B shapes intact, live asset set == expected set with
+the Intel pair all-or-none, download page links == live set). Run it
+with `--assets <release.json>` (and optionally `--site <page.html>`)
+after every release assembly; `--selftest` proves the gate catches
+injected drift.

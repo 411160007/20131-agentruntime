@@ -39,6 +39,10 @@ jobs:
         run: bash scripts/tripwire.sh --selftest
       - name: tripwire
         run: bash scripts/tripwire.sh
+      - name: release-surface sync checker selftest (control)
+        run: node scripts/releaseleg-check.mjs --selftest
+      - name: release-surface sync checker (offline surfaces)
+        run: node scripts/releaseleg-check.mjs
 
   cross:
     runs-on: ${{ matrix.os }}
