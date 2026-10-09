@@ -44,6 +44,38 @@ grep -q 'BUILD-DIST-OK' "$TMPDIR/gate-d5-build.out"
 grep -q "VERSION=${VERSION}" "$TMPDIR/gate-d5-build.out" || { echo 'RED: build ignored the VERSION file'; exit 1; }
 echo 'BUILD-DIST OK (10 binaries built from the single stamp, 10 archives packaged)'
 
+step '02b release assembly branches: A needs verified signed bytes, B skips Intel honestly'
+SAVE="$TMPDIR/save-intel"; FSIGN="$TMPDIR/fakesign"; BAD="$TMPDIR/fakebad"
+mkdir -p "$SAVE" "$FSIGN" "$BAD"
+cp "dist/hello-collector-${VERSION}-darwin-amd64" "dist/agent-collector-${VERSION}-darwin-amd64" "$SAVE/"
+printf '\xcf\xfa\xed\xfe\x07\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x01\x00\x00\x00\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1d\x00\x00\x00\x10\x00\x00\x00\x30\x00\x00\x00\x08\x00\x00\x00\xfa\xde\x0c\xc0\x00\x00\x00\x00' > "$TMPDIR/fake-signed"
+cp "$TMPDIR/fake-signed" "$FSIGN/hello-collector-${VERSION}-darwin-amd64"
+cp "$TMPDIR/fake-signed" "$FSIGN/agent-collector-${VERSION}-darwin-amd64"
+cp LICENSE "$BAD/hello-collector-${VERSION}-darwin-amd64"
+cp "$TMPDIR/fake-signed" "$BAD/agent-collector-${VERSION}-darwin-amd64"
+if bash scripts/build-dist.sh --package-only --release-branch=A --signed-dir="$TMPDIR/no-such-dir" >/dev/null 2>&1; then echo 'RED: branch A accepted a missing signed dir'; exit 1; fi
+if bash scripts/build-dist.sh --package-only --release-branch=A --signed-dir="$BAD" >/dev/null 2>&1; then echo 'RED: branch A accepted unsigned bytes'; exit 1; fi
+echo 'ASSEMBLY NEGATIVES OK (missing dir + unsigned bytes rejected)'
+bash scripts/build-dist.sh --package-only --release-branch=A --signed-dir="$FSIGN" > "$TMPDIR/relA.out" 2>&1 || { tail -20 "$TMPDIR/relA.out"; echo 'RED: branch A assembly failed'; exit 1; }
+grep -q 'BRANCH=A(intel-signed)' "$TMPDIR/relA.out"
+[ "$(ls dist/release | grep -c 'darwin-amd64.tar.gz')" = 2 ] || { echo 'RED: branch A did not ship the Intel pair'; exit 1; }
+rm -rf "$TMPDIR/unpackA"; mkdir -p "$TMPDIR/unpackA"
+tar -xzf "dist/release/hello-collector-${VERSION}-darwin-amd64.tar.gz" -C "$TMPDIR/unpackA"
+cmp "$TMPDIR/unpackA/hello-collector-${VERSION}-darwin-amd64" "$TMPDIR/fake-signed" || { echo 'RED: archive does not hold the verified signed bytes'; exit 1; }
+echo 'BRANCH A OK (signed-bytes gate, Intel pair shipped, archive bytes == signed bytes)'
+cp "$SAVE/hello-collector-${VERSION}-darwin-amd64" "$SAVE/agent-collector-${VERSION}-darwin-amd64" dist/
+bash scripts/build-dist.sh --package-only --release-branch=B > "$TMPDIR/relB.out" 2>&1 || { tail -20 "$TMPDIR/relB.out"; echo 'RED: branch B assembly failed'; exit 1; }
+grep -q 'BRANCH=B(skip-amd64)' "$TMPDIR/relB.out"
+[ "$(ls dist/release | grep -c 'darwin-amd64')" = 0 ] || { echo 'RED: branch B still shipped Intel archives'; exit 1; }
+[ "$(ls dist/release | grep -cE '^(hello|agent)-.*\.(tar\.gz|exe\.zip)$')" = 8 ] || { echo 'RED: branch B release set is not the core 8'; exit 1; }
+grep -q 'BRANCH-B-INTEL-SKIP' dist/INTEL-SKIP-NOTE.txt || { echo 'RED: honest skip note missing'; exit 1; }
+[ "$(wc -l < dist/release/SHA256SUMS.txt)" = 8 ] || { echo 'RED: branch B SUMS does not cover exactly the shipped set'; exit 1; }
+echo 'BRANCH B OK (Intel omitted honestly, core 8 + matching SUMS, note outside dist/release)'
+bash scripts/build-dist.sh --package-only > /dev/null 2>&1 || { echo 'RED: default repackage after assembly controls failed'; exit 1; }
+[ "$(ls dist/release | grep -c 'darwin-amd64.tar.gz')" = 2 ] || { echo 'RED: state restore incomplete'; exit 1; }
+[ "$(wc -l < dist/release/SHA256SUMS.txt)" = 10 ] || { echo 'RED: restored SUMS wrong'; exit 1; }
+echo 'STATE RESTORED (raw Intel bytes back, default full matrix re-packaged)'
+
 step '03 artifact matrix: exact inventory + name contract'
 expected_raw=()
 for target in linux-amd64 linux-arm64 darwin-arm64 darwin-amd64 windows-amd64; do

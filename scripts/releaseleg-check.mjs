@@ -5,7 +5,8 @@
 //   1. VERSION file                 — the single stamp source
 //   2. docs/distribution.md         — the authoritative contract prose
 //   3. .github/workflows/build.yml  — CI build + darwin signing branches
-//   4. scripts/build-dist.sh        — the release builder
+//   4. scripts/build-dist.sh        — the release builder incl. its Intel
+//      release-assembly branches (A: signed bytes gate, B: honest skip)
 //   5. live release assets (JSON)   — GitHub release API response, optional
 //   6. website download page (HTML) — snapshot file, optional
 // Any drift between surfaces is RED. --selftest injects named corruptions,
@@ -48,6 +49,7 @@ function parseDocs(text) {
     intelHonestNote: /pending verification/.test(text),
     signingBranchNote: /signing branch/.test(text),
     checkerNamed: /scripts\/releaseleg-check\.mjs/.test(text),
+    assemblyNamed: (text.match(/--release-branch=[AB]/g) || []).length >= 2,
   };
 }
 
@@ -80,6 +82,11 @@ function parseBuilder(text) {
     zipRule: /arcname="\$\{bin\}-\$\{VERSION\}-\$\{os\}-\$\{arch\}\.exe\.zip"/.test(text),
     ld: /-X main\.version=\$\{VERSION\}/.test(text),
     sums: /sha256sum \*\.tar\.gz \*\.exe\.zip > SHA256SUMS\.txt/.test(text),
+    signedDirGate: /branch A needs --signed-dir/.test(text),
+    allOrNone: /Intel pair is all-or-none/.test(text),
+    sigVerify: /macho-sig-check\.mjs --present "\$sb"/.test(text),
+    bSkipNote: /BRANCH-B-INTEL-SKIP:/.test(text),
+    bSkipArchive: /\[ "\$RELEASE" = B \] && \[ "\$GOOS\/\$GOARCH" = "darwin\/amd64" \]/.test(text),
   };
 }
 
@@ -114,7 +121,13 @@ function checkSurfaces({ version, docs, wf, builder }) {
   // A6 signing two-branch plan intact
   if (!wf.signArm || !wf.signAmd) red(rules, 'A6 signing job no longer builds both darwin arches');
   if (!wf.branchA || !wf.branchB) red(rules, 'A6 signing branch A/B shapes missing (skip path unauditable)');
-  if (!rules.some((r) => r[0] === 'RED')) rules.push(['OK', `A1-A6 GREEN: release contract synced across VERSION/docs/workflow/builder (${version})`]);
+  // A9 Intel release assembly is a real builder path, not prose: branch A
+  // gates on the signature detector, branch B omits the archives honestly,
+  // and the docs name both commands.
+  if (!builder.signedDirGate || !builder.allOrNone || !builder.sigVerify) red(rules, 'A9 builder branch A shapes missing (signed-dir requirement / all-or-none pair / signature verification before packaging)');
+  if (!builder.bSkipArchive || !builder.bSkipNote) red(rules, 'A9 builder branch B shapes missing (Intel archives omitted / honest skip note)');
+  if (!docs.assemblyNamed) red(rules, 'A9 docs no longer name the release-assembly branch commands');
+  if (!rules.some((r) => r[0] === 'RED')) rules.push(['OK', `A1-A6+A9 GREEN: release contract synced across VERSION/docs/workflow/builder (${version})`]);
   return rules;
 }
 
@@ -199,6 +212,11 @@ function selftest(repoRoot) {
   sc('C10 signing branch B shape gone', { wf: mut(real.wf, 'BRANCH=B(skip-amd64)', 'BRANCH=X', 'c10') });
   sc('C11 CI builds undocumented target', { wf: mut(real.wf, 'goos: windows\n            goarch: amd64', 'goos: windows\n            goarch: arm64', 'c11') });
   sc('C11b workflow tag assert removed', { wf: mut(real.wf, 'test "v$(cat VERSION)" = "${GITHUB_REF_NAME}"', ':', 'c11b') });
+  sc('C16 builder drops the signature gate on branch A bytes', { builder: mut(real.builder, 'macho-sig-check.mjs --present "$sb"', 'test -f "$sb"', 'c16') });
+  sc('C17 builder branch B note disappears', { builder: mut(real.builder, 'BRANCH-B-INTEL-SKIP:', 'BRANCH-C-NOTE:', 'c17') });
+  sc('C18 builder silently packages Intel on branch B (no archive skip)', { builder: mut(real.builder, '[ "$RELEASE" = B ] && [ "$GOOS/$GOARCH" = "darwin/amd64" ]', '[ -n "" ]', 'c18') });
+  sc('C19 builder branch A accepts a missing signed dir', { builder: mut(real.builder, 'branch A needs --signed-dir', 'branch A optionally takes a dir', 'c19') });
+  sc('C20 docs stop naming the release-assembly commands', { docs: mut(real.docs, '--release-branch=', '--release-lane=', 'c20') });
 
   const V = '9.9.9';
   const fullSet = [...expectedCoreAssets(V), `${BINS[0]}-${V}-darwin-amd64.tar.gz`, `${BINS[1]}-${V}-darwin-amd64.tar.gz`].map((name) => ({ name }));
@@ -215,7 +233,7 @@ function selftest(repoRoot) {
   const posB = checkLive({ assetsJson: fullSet.filter((a) => !/-darwin-amd64\.tar\.gz$/.test(a.name)), version: V });
   if (posB.some((r) => r[0] === 'RED') || !posB.some((r) => r[0] === 'WARN')) { console.log('MISS P02 honest skip must be GREEN with WARN'); bad++; } else console.log('pass  P02 honest Intel-skip shape GREEN + WARN');
   if (bad) { console.log(`SELFTEST FAIL (${bad} controls)`); process.exit(1); }
-  console.log('SELFTEST OK (1 control pristine + 15 injected catches + 2 positive shapes)');
+  console.log('SELFTEST OK (1 control pristine + 21 injected catches + 2 positive shapes)');
 }
 
 // ---------- main ----------

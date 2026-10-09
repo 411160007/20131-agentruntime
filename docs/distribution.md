@@ -42,6 +42,26 @@ residue — including in documentation prose about the retirement itself.
 | darwin/amd64 (Intel) | shipped via the CI signing branch | Go does **not** sign amd64 cross builds; a macOS CI runner adds an ad-hoc `codesign -s -` signature. If that branch goes red the release omits Intel builds with an honest note. Intel compatibility on real hardware is still pending verification. |
 | windows/amd64 | shipped | |
 
+## Release assembly (Intel signing branches)
+
+The raw cross-built Intel binary is never shipped on its own. Release
+assembly goes through an explicit branch decision in the builder:
+
+- `bash scripts/build-dist.sh --release-branch=A --signed-dir DIR` —
+  `DIR` holds the CI `darwin-amd64-signed` artifact bytes; each binary
+  must pass `scripts/macho-sig-check.mjs --present` and the pair is
+  all-or-none (one signed binary alone is RED). The verified signed
+  bytes replace the raw Intel binaries before packaging.
+- `bash scripts/build-dist.sh --package-only --release-branch=B` — the
+  Intel archives are omitted from `dist/release/` and an honest
+  `BRANCH-B-INTEL-SKIP` note is written to `dist/INTEL-SKIP-NOTE.txt`
+  (outside the release dir; it is never uploaded as a release asset).
+
+Only files under `dist/release/` are release assets; the external
+`SHA256SUMS.txt` there covers exactly the shipped set. Running the
+builder without `--release-branch` keeps the full-matrix local dev
+behaviour and is not a release assembly path.
+
 ## Signing honesty (read this before first run)
 
 We ship **ad-hoc signatures only**. There is no paid Developer ID and no
@@ -83,7 +103,10 @@ asset names plus the website download page must match this contract
 exactly. `scripts/releaseleg-check.mjs` machine-asserts all of it
 (documented matrix == builder target set, CI matrix ⊆ documented matrix,
 single-stamp consumption everywhere, name-contract tokens everywhere,
-signing branch A/B shapes intact, live asset set == expected set with
+signing branch A/B shapes intact, Intel release-assembly branches real in
+the builder (signed-dir requirement, all-or-none pair, signature
+verification before packaging, honest skip path) and named in the docs,
+live asset set == expected set with
 the Intel pair all-or-none, download page links == live set). Run it
 with `--assets <release.json>` (and optionally `--site <page.html>`)
 after every release assembly; `--selftest` proves the gate catches
