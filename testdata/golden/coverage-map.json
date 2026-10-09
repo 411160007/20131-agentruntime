@@ -1,16 +1,16 @@
 {
-  "doc": "Evaluation coverage map v0 — the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (129 cases across ten evaluation dimensions).",
+  "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (139 cases across ten evaluation dimensions).",
   "corpus": {
-    "normal": 72,
-    "danger": 57,
-    "total": 129,
-    "labels": 129
+    "normal": 75,
+    "danger": 64,
+    "total": 139,
+    "labels": 139
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
-    "A pending class does NOT invalidate any shipped case: all 129 golden cases keep their current labels and thresholds unchanged.",
+    "A pending class does NOT invalidate any shipped case: all previously shipped golden cases keep their current labels and thresholds unchanged.",
     "Pending rows name the primitive rules (and their real matching cases) that catch parts of the class today, plus the build-order slices that carry the missing semantics.",
-    "Every detection here is a would_block record on the audit stream; Phase 0 observes, warns and audits — it never stops anything (see threat-model.md)."
+    "Every detection here is a would_block record on the audit stream; Phase 0 observes, warns and audits \u2014 it never stops anything (see threat-model.md)."
   ],
   "known_gap_uncovered": {
     "cases": [
@@ -32,8 +32,8 @@
         "g7-x10"
       ],
       "w_points": [
-        "W1 — evidence trust order: content of untrusted provenance gets a declared source_class (low tier), never decides alone (machine-judged trust battery already shipped in the runner)",
-        "W3 — intent contract: intent mutations sourced from untrusted content are recorded as UNTRUSTED-marked observations (observe-only in Phase 0)"
+        "W1 \u2014 evidence trust order: content of untrusted provenance gets a declared source_class (low tier), never decides alone (machine-judged trust battery already shipped in the runner)",
+        "W3 \u2014 intent contract: intent mutations sourced from untrusted content are recorded as UNTRUSTED-marked observations (observe-only in Phase 0)"
       ],
       "note": "No dedicated injection-semantics matcher ships today. The five injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.",
       "cases": []
@@ -46,8 +46,8 @@
         "g7-b09"
       ],
       "w_points": [
-        "W3 — intent contract v0 with the four-way action taxonomy (DIRECT/INFERRED/UNCERTAIN/UNRELATED) records task-goal drift",
-        "W5 — behavior-chain Intent Deviation dimension upgrades drift from narrative to structured observation"
+        "W3 \u2014 intent contract v0 with the four-way action taxonomy (DIRECT/INFERRED/UNCERTAIN/UNRELATED) records task-goal drift",
+        "W5 \u2014 behavior-chain Intent Deviation dimension upgrades drift from narrative to structured observation"
       ],
       "note": "One corpus case (task drift into an agent ssh key) is caught downstream by credential primitives; goal-semantics detection awaits the intent slices.",
       "cases": []
@@ -72,6 +72,7 @@
         "g7-s12",
         "g7-x06",
         "g7-x08",
+        "g8-d05",
         "gd-08",
         "gd-13",
         "gd-14"
@@ -92,6 +93,7 @@
         "g7-q07",
         "g7-s09",
         "g7-x08",
+        "g8-d05",
         "gd-13",
         "gd-14"
       ]
@@ -101,8 +103,8 @@
       "status": "pending",
       "rules": [],
       "w_points": [
-        "W1.2 — collection-mount grading: tool/skill invocations enter as Tool/MCP metadata tier (self-described fields never raise the tier)",
-        "W4 — nine data-action vocabulary re-adjudicates EXECUTE/SHARE per action, independent of skill naming"
+        "W1.2 \u2014 collection-mount grading: tool/skill invocations enter as Tool/MCP metadata tier (self-described fields never raise the tier)",
+        "W4 \u2014 nine data-action vocabulary re-adjudicates EXECUTE/SHARE per action, independent of skill naming"
       ],
       "note": "No skill-vocabulary matcher ships; eval-named tools are the closest primitive today.",
       "cases": [],
@@ -139,6 +141,8 @@
         "g7-s04",
         "g7-s12",
         "g7-x07",
+        "g8-d04",
+        "g8-d06",
         "gd-01",
         "gd-02",
         "gd-03",
@@ -160,6 +164,7 @@
       "cases": [
         "g7-q08",
         "g7-s10",
+        "g8-d01",
         "gd-15",
         "gd-16"
       ]
@@ -170,10 +175,10 @@
       "rules": [],
       "primitive_cases": [],
       "w_points": [
-        "W2 — persistence/profile schema family (section 289 contracts) creates the typed surface a poisoning observation needs",
-        "W12 — memory-security and learning-safety design slice (sections 262-265) defines detection semantics before any enforcement claim"
+        "W2 \u2014 persistence/profile schema family (section 289 contracts) creates the typed surface a poisoning observation needs",
+        "W12 \u2014 memory-security and learning-safety design slice (sections 262-265) defines detection semantics before any enforcement claim"
       ],
-      "note": "Nothing in today's corpus demonstrates this class; no existing case is invalidated — the class is simply not yet observable by shipped vocabulary.",
+      "note": "Nothing in today's corpus demonstrates this class; no existing case is invalidated \u2014 the class is simply not yet observable by shipped vocabulary.",
       "cases": []
     },
     {
@@ -182,8 +187,8 @@
       "rules": [],
       "primitive_cases": [],
       "w_points": [
-        "W5/W6 carrier slice — delegation becomes a first-class observation record (parent/child/reason/scope/TTL, observe-only): delegation never inherits trust automatically until enforcement lands in later phases",
-        "W6 — least-agency step-count and parallelism counters record fan-out patterns typical of A2A abuse"
+        "W5/W6 carrier slice \u2014 delegation becomes a first-class observation record (parent/child/reason/scope/TTL, observe-only): delegation never inherits trust automatically until enforcement lands in later phases",
+        "W6 \u2014 least-agency step-count and parallelism counters record fan-out patterns typical of A2A abuse"
       ],
       "note": "Delegation shapes exist on the normal side of the corpus (delegated subtask session, webhook-bootstrapped agent detected as allow); no abuse-side golden case ships yet.",
       "cases": []
@@ -193,8 +198,8 @@
       "status": "pending",
       "rules": [],
       "w_points": [
-        "W11 — supply-chain observation v0 (documentation surface + coverage truthfulness matrix) defines what is and is not seen",
-        "W1.2 — fetch-and-run events grade by collection mount, keeping remote-payload provenance in the record"
+        "W11 \u2014 supply-chain observation v0 (documentation surface + coverage truthfulness matrix) defines what is and is not seen",
+        "W1.2 \u2014 fetch-and-run events grade by collection mount, keeping remote-payload provenance in the record"
       ],
       "note": "Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules.",
       "cases": [],
@@ -224,6 +229,7 @@
         "g7-s05",
         "g7-s06",
         "g7-x10",
+        "g8-d07",
         "gd-06",
         "gd-07",
         "gd-09"
@@ -244,6 +250,7 @@
         "g7-r07",
         "g7-r08",
         "g7-s11",
+        "g8-d03",
         "gd-17"
       ]
     },
@@ -252,8 +259,8 @@
       "status": "pending",
       "rules": [],
       "w_points": [
-        "W6 — least-agency guard records capability growth per session/step (rate, steps, parallelism counters; observation only, no kill-switch in Phase 0)",
-        "W4 — capability vocabulary migrates from the shipped 11-word set toward the nine data-action classes, making escalation diffs machine-readable"
+        "W6 \u2014 least-agency guard records capability growth per session/step (rate, steps, parallelism counters; observation only, no kill-switch in Phase 0)",
+        "W4 \u2014 capability vocabulary migrates from the shipped 11-word set toward the nine data-action classes, making escalation diffs machine-readable"
       ],
       "note": "Sudoers writes and world-writable masquerade runs are caught as primitives; the escalation-as-trajectory semantics (capability growth over time) awaits the least-agency slice.",
       "cases": [],
@@ -273,8 +280,8 @@
       "status": "pending",
       "rules": [],
       "w_points": [
-        "W4 — data-boundary engine: READ-allowed never implies EXPORT-allowed; EXPORT is an independently re-adjudicated action class",
-        "W7 — evidence export envelope (manifest + hashes) keeps exfiltration observations themselves complete and tamper-evident"
+        "W4 \u2014 data-boundary engine: READ-allowed never implies EXPORT-allowed; EXPORT is an independently re-adjudicated action class",
+        "W7 \u2014 evidence export envelope (manifest + hashes) keeps exfiltration observations themselves complete and tamper-evident"
       ],
       "note": "Credential-store reads (the typical exfiltration source step) are caught as primitives; payload-crossing-boundary semantics need the data-action vocabulary.",
       "cases": [],
@@ -303,8 +310,8 @@
       "status": "pending",
       "rules": [],
       "w_points": [
-        "W4 — trust-domain mapping for net.outbound: egress intent events grade against the nine-class action vocabulary (EXPORT/SHARE)",
-        "W10 — external-intelligence contract (zero-wired by default) could later enrich destination reputation without ever gating the deterministic core"
+        "W4 \u2014 trust-domain mapping for net.outbound: egress intent events grade against the nine-class action vocabulary (EXPORT/SHARE)",
+        "W10 \u2014 external-intelligence contract (zero-wired by default) could later enrich destination reputation without ever gating the deterministic core"
       ],
       "note": "Outbound network intent is flagged as a class today (all four network-shaped dangers detected 4/4) but as generic egress visibility, not as confirmed data leaving with a payload; the egress semantics arrive with the boundary slice.",
       "cases": [],
@@ -328,6 +335,7 @@
         "g7-c07",
         "g7-q09",
         "g7-s07",
+        "g8-d02",
         "gd-10"
       ]
     }
@@ -366,11 +374,12 @@
     },
     {
       "name": "Git",
-      "count": 3,
+      "count": 4,
       "cases": [
         "g7-f03",
         "g7-u05",
-        "g7-x04"
+        "g7-x04",
+        "g8-n02"
       ],
       "note": ""
     },
@@ -386,9 +395,10 @@
     },
     {
       "name": "Docker",
-      "count": 1,
+      "count": 2,
       "cases": [
-        "g7-f05"
+        "g7-f05",
+        "g8-n01"
       ],
       "note": ""
     },
@@ -439,10 +449,11 @@
     },
     {
       "name": "Testing",
-      "count": 2,
+      "count": 3,
       "cases": [
         "g7-b05",
-        "g7-f02"
+        "g7-f02",
+        "g8-n03"
       ],
       "note": ""
     },

@@ -3,20 +3,20 @@
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "readings_source": "parsed from `go test ./internal/rules -run TestGoldenEvals` EVAL SUMMARY / missed lines at ledger build time; gate-w0 re-runs and cross-checks — never hand-copied",
   "corpus": {
-    "normal": 72,
-    "danger": 57,
-    "total": 129,
-    "labels": 129,
+    "normal": 75,
+    "danger": 64,
+    "total": 139,
+    "labels": 139,
     "dims": {
-      "agent_behavior": 9,
+      "agent_behavior": 10,
       "compatibility": 8,
-      "functional": 27,
+      "functional": 28,
       "localization": 8,
       "performance": 8,
-      "security_regression": 10,
+      "security_regression": 12,
       "recovery": 8,
-      "security": 32,
-      "ux": 9,
+      "security": 37,
+      "ux": 10,
       "untrusted": 10
     },
     "dim_floor": 8,
@@ -29,13 +29,13 @@
     "normal_alerts_max": 1
   },
   "readings": {
-    "detection_hit": 55,
-    "detection_total": 57,
-    "detection_pct": "96.5",
+    "detection_hit": 62,
+    "detection_total": 64,
+    "detection_pct": "96.9",
     "worst_fp": "0.0000",
     "credential_fp": "0.0000",
     "normal_alerts": 0,
-    "normal_total": 72,
+    "normal_total": 75,
     "missed": [
       "gd-19",
       "gd-20"
