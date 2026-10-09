@@ -15,13 +15,39 @@
 # Archives embed: the binary, LICENSE, NOTICE, CHECKSUM.txt (binary sha256).
 # darwin/amd64 ships ONLY through the signed path described in
 # docs/distribution.md; this builder always produces the raw cross-compiled
-# binary, and the release assembly decides which darwin-amd64 bytes go out.
+# binary, and the release assembly decides which darwin-amd64 bytes go out
+# through an explicit branch choice (see --release-branch below). The
+# builder never packages an unsigned Intel binary into dist/release/.
 #
 # Usage:
-#   bash scripts/build-dist.sh [version]            # full build + package
+#   bash scripts/build-dist.sh [version]            # full build + package (dev default: full matrix)
 #   bash scripts/build-dist.sh --package-only       # repackage binaries in dist/
+#   bash scripts/build-dist.sh --release-branch=A --signed-dir DIR   # Intel pair from signed bytes
+#   bash scripts/build-dist.sh --package-only --release-branch=B      # omit Intel archives, honest skip note
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+# Release assembly branch: A = package the CI-signed darwin/amd64 bytes
+# (each must pass scripts/macho-sig-check.mjs --present; the pair is
+# all-or-none), B = omit the Intel archives from dist/release/ and write an
+# honest BRANCH-B-INTEL-SKIP note outside the release dir. Empty = dev
+# default (package the full cross matrix as before, for local builds/gates).
+RELEASE=''
+SIGNED_DIR=''
+ARGS=()
+for a in "$@"; do
+  case "$a" in
+    --release-branch=A) RELEASE=A ;;
+    --release-branch=B) RELEASE=B ;;
+    --release-branch=*) echo "RED: illegal --release-branch value '$a' (expect A(signed)|B(skip-amd64))" >&2; exit 1 ;;
+    --signed-dir=*) SIGNED_DIR="${a#--signed-dir=}" ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
+if [ "${#ARGS[@]}" -gt 0 ]; then set -- "${ARGS[@]}"; else set --; fi
+if [ -n "$SIGNED_DIR" ] && [ "$RELEASE" != A ]; then
+  echo 'RED: --signed-dir is only valid with --release-branch=A' >&2; exit 1
+fi
 
 if [ "${1:-}" = "--package-only" ]; then
   MODE=package
@@ -101,9 +127,24 @@ PY
   echo "packaged dist/release/${arcname}"
 }
 
+if [ "$RELEASE" = A ]; then
+  [ -n "$SIGNED_DIR" ] || { echo 'RED: branch A needs --signed-dir with the CI darwin-amd64-signed bytes'; exit 1; }
+  for bin in hello-collector agent-collector; do
+    sb="$SIGNED_DIR/${bin}-${VERSION}-darwin-amd64"
+    [ -f "$sb" ] || { echo "RED: branch A missing signed binary $sb (Intel pair is all-or-none)" >&2; exit 1; }
+    node scripts/macho-sig-check.mjs --present "$sb" > /dev/null \
+      || { echo "RED: $sb judged unsigned by macho-sig-check.mjs --present (branch A ships signed bytes only)" >&2; exit 1; }
+  done
+  for bin in hello-collector agent-collector; do
+    cp "$SIGNED_DIR/${bin}-${VERSION}-darwin-amd64" "dist/${bin}-${VERSION}-darwin-amd64"
+    echo "assembled signed bytes: dist/${bin}-${VERSION}-darwin-amd64"
+  done
+fi
+
 for target in $TARGETS; do
   GOOS="${target%/*}"
   GOARCH="${target#*/}"
+  if [ "$RELEASE" = B ] && [ "$GOOS/$GOARCH" = "darwin/amd64" ]; then continue; fi
   for bin in hello-collector agent-collector; do
     package_one "$bin" "$GOOS" "$GOARCH"
   done
@@ -112,6 +153,20 @@ done
 ( cd dist && sha256sum hello-collector-* agent-collector-* > SHA256SUMS.txt )
 ( cd dist/release && sha256sum *.tar.gz *.exe.zip > SHA256SUMS.txt )
 rm -rf dist/.stage
+
+if [ "$RELEASE" = B ]; then
+  printf '%s\n' \
+    'BRANCH-B-INTEL-SKIP: darwin/amd64 (Intel) is not part of this release set.' \
+    'The CI signing branch did not produce verified signed bytes; the builder' \
+    'never packages unsigned Intel binaries. See docs/distribution.md.' \
+    'This note lives OUTSIDE dist/release/ and is never a release asset.' \
+    > dist/INTEL-SKIP-NOTE.txt
+  echo 'BRANCH=B(skip-amd64): Intel archives omitted, honest note at dist/INTEL-SKIP-NOTE.txt'
+fi
+if [ "$RELEASE" = A ]; then
+  echo 'BRANCH=A(intel-signed): Intel pair assembled from verified signed bytes'
+fi
+if [ "$RELEASE" != B ]; then rm -f dist/INTEL-SKIP-NOTE.txt; fi
 
 ls dist/release/
 cat dist/release/SHA256SUMS.txt
