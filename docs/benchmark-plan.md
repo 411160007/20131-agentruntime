@@ -36,7 +36,7 @@ on this platform class, recorded as a declared gap.
 | `bp.resident-memory` | PLANNED | resident memory in the 100-200MB class | process RSS sampler in the battery, run under the shipped collector binary; not built yet |
 | `bp.disk-io` | PARTIAL | measure and publish; no numeric ceiling pinned yet (an honestly open goal, not an invented number) | shipped audit-log byte census `TotalBytes` and rotation accounting give the write-side volume directly |
 | `bp.network-overhead` | PARTIAL | measure and publish; no numeric ceiling pinned yet | shipped MCP proxy byte counters `ReqBytes` / `RespBytes` cover the proxy surface only; nothing else claims a network measurement |
-| `bp.decision-latency` | PARTIAL | fast path low-millisecond or better (contract number; recorded seed in §6 below) | shipped proxy latency accounting (`latency`), honest only for first-seen requests as the code names; end-to-end decision bench not built |
+| `bp.decision-latency` | PARTIAL | fast path low-millisecond or better (contract number; recorded seed in §6 below) | shipped proxy latency accounting (`latency`), honest only for first-seen requests as the code names; the end-to-end decision bench carrier now ships as `scripts/bench-replay-e2e.mjs` (startup-inclusive replay-corpus timing; readings stay in the `recorded` posture of §6 and must be re-measured by the CI benchmark battery before citation) |
 | `bp.battery-impact` | ABSENT | no target pinned before instrumentation exists | no shipped battery reader; gap `gd-perf-battery-thermal` - CI runners are not battery-powered, so CI can never fake this row |
 | `bp.temperature-impact` | ABSENT | no target pinned before instrumentation exists | no shipped thermal reader; same gap row, declared not yet verified |
 
@@ -103,6 +103,15 @@ measurement, not by the future CI benchmark battery, and it must be
 re-measured by that battery before it may be cited anywhere outside
 engineering documents. The contract number stays the pre-pinned target
 in §1 (`bp.decision-latency`).
+
+Recorded end-to-end reading through the replay carrier (same honesty
+posture as the seed above - state `recorded`, estimation is not verified
+fact): median 9.73 ms wall for 129 golden-corpus events judged end to end
+by the shipped collector binary, startup-inclusive, about 75.4 µs per
+event on a linux/amd64 development container (one build, one run of 15
+repetitions, 2026-10-09). Reproduce with
+`node scripts/bench-replay-e2e.mjs --binary <collector> --policy <candidate.json> --reps 15`;
+the reading is engineering-plan material only, never a published promise.
 
 ## 7. Real-machine follow-up batch (four scenarios, closed census 4/4)
 

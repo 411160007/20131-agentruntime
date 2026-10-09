@@ -51,7 +51,7 @@
       "id": "bp.decision-latency",
       "status": "PARTIAL",
       "goal": "fast path low-millisecond or better",
-      "evidence": [{ "file": "internal/mcpproxy/proxy.go", "token": "latency" }]
+      "evidence": [{ "file": "internal/mcpproxy/proxy.go", "token": "latency" }, { "file": "scripts/bench-replay-e2e.mjs", "token": "state=recorded" }, { "file": "docs/benchmark-plan.md", "token": "Recorded end-to-end reading" }]
     },
     {
       "id": "bp.battery-impact",
