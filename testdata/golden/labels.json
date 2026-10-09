@@ -643,5 +643,55 @@
     "expect": "allow",
     "class": "observation",
     "dim": "functional"
+  },
+  "g8-d01": {
+    "expect": "would_block",
+    "class": "path",
+    "dim": "security"
+  },
+  "g8-d02": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
+  "g8-d03": {
+    "expect": "would_block",
+    "class": "audit",
+    "dim": "security_regression"
+  },
+  "g8-d04": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "g8-d05": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "security"
+  },
+  "g8-d06": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "g8-d07": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "security_regression"
+  },
+  "g8-n01": {
+    "expect": "allow",
+    "class": "observation",
+    "dim": "functional"
+  },
+  "g8-n02": {
+    "expect": "allow",
+    "class": "workflow",
+    "dim": "ux"
+  },
+  "g8-n03": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
   }
 }

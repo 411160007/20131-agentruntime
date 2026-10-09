@@ -1,10 +1,10 @@
 {
-  "doc": "Evaluation coverage map v0 — the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (129 cases across ten evaluation dimensions).",
+  "doc": "Evaluation coverage map v0 — the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (139 cases across ten evaluation dimensions).",
   "corpus": {
-    "normal": 72,
-    "danger": 57,
-    "total": 129,
-    "labels": 129
+    "normal": 75,
+    "danger": 64,
+    "total": 139,
+    "labels": 139
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -72,6 +72,7 @@
         "g7-s12",
         "g7-x06",
         "g7-x08",
+        "g8-d05",
         "gd-08",
         "gd-13",
         "gd-14"
@@ -92,6 +93,7 @@
         "g7-q07",
         "g7-s09",
         "g7-x08",
+        "g8-d05",
         "gd-13",
         "gd-14"
       ]
@@ -139,6 +141,8 @@
         "g7-s04",
         "g7-s12",
         "g7-x07",
+        "g8-d04",
+        "g8-d06",
         "gd-01",
         "gd-02",
         "gd-03",
@@ -160,6 +164,7 @@
       "cases": [
         "g7-q08",
         "g7-s10",
+        "g8-d01",
         "gd-15",
         "gd-16"
       ]
@@ -224,6 +229,7 @@
         "g7-s05",
         "g7-s06",
         "g7-x10",
+        "g8-d07",
         "gd-06",
         "gd-07",
         "gd-09"
@@ -244,6 +250,7 @@
         "g7-r07",
         "g7-r08",
         "g7-s11",
+        "g8-d03",
         "gd-17"
       ]
     },
@@ -328,6 +335,7 @@
         "g7-c07",
         "g7-q09",
         "g7-s07",
+        "g8-d02",
         "gd-10"
       ]
     }
@@ -366,11 +374,12 @@
     },
     {
       "name": "Git",
-      "count": 3,
+      "count": 4,
       "cases": [
         "g7-f03",
         "g7-u05",
-        "g7-x04"
+        "g7-x04",
+        "g8-n02"
       ],
       "note": ""
     },
@@ -386,9 +395,10 @@
     },
     {
       "name": "Docker",
-      "count": 1,
+      "count": 2,
       "cases": [
-        "g7-f05"
+        "g7-f05",
+        "g8-n01"
       ],
       "note": ""
     },
@@ -439,10 +449,11 @@
     },
     {
       "name": "Testing",
-      "count": 2,
+      "count": 3,
       "cases": [
         "g7-b05",
-        "g7-f02"
+        "g7-f02",
+        "g8-n03"
       ],
       "note": ""
     },

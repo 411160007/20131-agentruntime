@@ -80,7 +80,7 @@ function check(root, evalOut) {
   if (Object.keys(rc.dims).length !== 10) fail(`dimension table has ${Object.keys(rc.dims).length} dims, want 10`);
   if (!/Version lock:/.test(ledger.version_lock)) fail("ledger missing version-lock field");
 
-  console.log(`LEDGER OK (detection ${r.detection_hit}/${r.detection_total} = ${r.detection_pct}%, worst_fp ${r.worst_fp}, credential_fp ${r.credential_fp}, alerts ${r.normal_alerts}/${r.normal_total}, missed=[${r.missed}] carried as declared known gaps; corpus ${C.normal}+${C.danger}=129 re-count identical, 10 dims >= floor ${C.dim_floor})`);
+  console.log(`LEDGER OK (detection ${r.detection_hit}/${r.detection_total} = ${r.detection_pct}%, worst_fp ${r.worst_fp}, credential_fp ${r.credential_fp}, alerts ${r.normal_alerts}/${r.normal_total}, missed=[${r.missed}] carried as declared known gaps; corpus ${C.normal}+${C.danger}=${C.total} re-count identical, 10 dims >= floor ${C.dim_floor})`);
 }
 
 if (process.argv.includes("--selftest")) {
