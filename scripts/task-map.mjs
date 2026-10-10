@@ -416,10 +416,12 @@ function selftest(vocab) {
     // turns on on-disk data — both MR-3 evidence sources must promote
     // from disk, never only from selftest-control streams. The join
     // corpus is a labels-and-hint fixture stream, deliberately NOT part
-    // of the 139-case rules census families (it carries intent hint lines
+    // of the rules-corpus census families (it carries intent hint lines
     // in the legacy untyped form; the intent recorder slice widened the
-    // shipped event schema with the typed intent.record form, the old
-    // untyped positional hint keeps working per the zero-break precedent).
+    // shipped event schema with the typed intent.record form and the
+    // corpus migration carries typed hint lines inside the normal
+    // rules-corpus stream itself, the old untyped positional hint keeps
+    // working per the zero-break precedent).
     {
       const labels = importEvals('testdata/golden/labels.json', root);
       const joinLabels = importEvals('testdata/join/hint-pair-labels.json', root);
@@ -437,6 +439,21 @@ function selftest(vocab) {
       expectTrue('encounter surface promotes via eval_assertion from disk', rd.dr2.evidence_sources.eval_assertion >= 1);
       expectTrue('encounter surface earns a non-zero numerator', rd.dr2.numerator >= 1);
       expectTrue('earned numerator keeps its envelope identity', rd.dr3_envelope.total === rd.dr1.live_excluded + rd.dr1.denominator && rd.dr3_envelope.printed_ratio !== '0/'.concat(String(rd.dr1.denominator)));
+    }
+    // 6c. the rules-corpus streams alone must earn their numerator from
+    // the typed hint carried on disk (corpus migration posture): the
+    // printed ratio over the rules census is no longer a structural zero.
+    {
+      const rlabels = importEvals('testdata/golden/labels.json', root);
+      const m0 = new Map();
+      for (const f of ['testdata/golden/normal.jsonl', 'testdata/golden/danger.jsonl']) {
+        const p = path.join(root, f);
+        m0.set(p, mapFile(p, vocab, rlabels));
+      }
+      gateOrThrow(m0, vocab);
+      const rd0 = readings(m0, vocab);
+      expectTrue('rules-corpus numerator earned from typed hint on disk', rd0.dr2.numerator >= 1);
+      expectTrue('rules-corpus earned ratio keeps its envelope identity', rd0.dr3_envelope.total === rd0.dr1.live_excluded + rd0.dr1.denominator && rd0.dr2.numerator < rd0.dr3_envelope.total);
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });

@@ -1,10 +1,10 @@
 {
-  "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (139 cases across ten evaluation dimensions).",
+  "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (140 cases across ten evaluation dimensions).",
   "corpus": {
-    "normal": 75,
+    "normal": 76,
     "danger": 64,
-    "total": 139,
-    "labels": 139
+    "total": 140,
+    "labels": 140
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -470,11 +470,12 @@
   ],
   "observation_infrastructure": {
     "name": "Observation infrastructure (residual bucket, not a task class)",
-    "count": 32,
+    "count": 33,
     "cases": [
       "g7-b04",
       "g7-c04",
       "g7-f06",
+      "g7-i01",
       "g7-p01",
       "g7-p02",
       "g7-p03",
