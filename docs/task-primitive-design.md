@@ -109,7 +109,13 @@ stream, so old files keep their exact bytes and meaning.
   lease-revocation record `section 24`, closes the interval as
   `completed` candidate; a candidate is confirmed only with outcome
   evidence, else it stays `unknown` — completion is earned, not
-  assumed.
+  assumed. Outcome evidence has two sources: `later_turn` (a turn
+  appended after the candidate position) and `eval_assertion` (one or
+  more in-scope turns covered by assertion rows whose expectation
+  equals the observed decision, with zero conflicts). A conflicting
+  assertion never promotes. Both sources are view-layer readings over
+  shipped records; the provenance tag is emitted by the mapper only,
+  never into any stream.
 - `MR-4` (safety tail): if the last in-scope `policy.decision`
   `[shipped]` is `would_block` `[shipped]` and no later decision in the
   interval resolves it, the interval is `blocked`. `allow` decisions
@@ -179,7 +185,7 @@ counts recovered; recovery never promotes `unknown` by itself.
 | Gap | Why v0 does not close it | Landing shape |
 |---|---|---|
 | boundary detection beyond session/turn | `lease_expiry_edge` is reserved; no shipped token exists to key on | recorder slice after this contract |
-| outcome evidence sources | `completed` needs outcome evidence; today only decisions and eval corpora exist to join | evals linkage slice |
+| outcome evidence sources | join v0 landed in the derive-only mapper: later-turn and eval-assertion evidence both promote, conflicts never; what remains open is coverage, not mechanism — shipped corpora carry asserted turns only on hint-free intervals, so the real ratio stays 0/1 with its envelope until asserted turns meet hinted intervals | intent schema follow-up widens hint capture |
 | intent↔task binding strength | `goal_hint` keys on intent first field; free-text completion statements are weak evidence | intent schema follow-up |
 | recovery join | `section 248` task-level recovery needs `task_refs` emitted | Phase 1 enforcement wedge plan |
 | multi-agent task sharing | one lease per agent per task assumed; shared tasks unmodeled | deferred, no v0 pretense |
@@ -197,3 +203,7 @@ counts recovered; recovery never promotes `unknown` by itself.
   `boundary_signal_vocabulary` four tokens, `task_field_vocabulary`
   four tokens, mapping rules `MR-1`..`MR-5` five rules, denominator
   rules `DR-1`..`DR-3` three rules. Any census drift is red.
+- evidence provenance tags (`later_turn`, `eval_assertion`, `none`) are
+  view-layer metadata of the mapper output, not a fifth vocabulary;
+  they are never written into any stream and no second copy of an
+  assertion corpus may live in tool source.

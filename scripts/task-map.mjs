@@ -13,7 +13,15 @@
 //
 // Usage:
 //   node scripts/task-map.mjs <file.jsonl> [more.jsonl ...]
+//   node scripts/task-map.mjs <file.jsonl ...> --evals <labels.json>
 //   node scripts/task-map.mjs --selftest
+//
+// --evals joins an assertion corpus (event id -> {expect, class, dim}) as
+// the second outcome-evidence source of MR-3, read-only and derive-only:
+// an asserted turn whose observed decision equals the assertion is a
+// verified outcome for that turn; a mismatch (conflict) never promotes.
+// The join never writes into any stream and never fabricates completion.
+// Without --evals the mapper behaves exactly as its single-source form.
 //
 // Machine judgement gate: the conservation checks below exit non-zero on
 // any violation (state census mismatch, unknown status token, task_id
@@ -53,8 +61,27 @@ function importVocab() {
 const HINT_DONE = /\b(ship|shipped|complete|completed|done|finished|landed|merged|delivered)\b/i;
 const HINT_FAIL = /\b(fail|failed|unable|could not|abort|aborted)\b/i;
 
+// ---------- eval assertion corpus import (runtime parse, never copied) ----------
+function importEvals(spec, rootDir) {
+  if (!spec) return null;
+  const p = path.isAbsolute(spec) ? spec : path.resolve(rootDir, spec);
+  let raw;
+  try { raw = readFileSync(p, 'utf8'); } catch { console.error('EVAL SOURCE RED: cannot read ' + p); process.exit(2); }
+  let obj;
+  try { obj = JSON.parse(raw); } catch { console.error('EVAL SOURCE RED: ' + p + ' is not valid JSON'); process.exit(2); }
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+    console.error('EVAL SOURCE RED: ' + p + ' is not an assertion object keyed by event id'); process.exit(2);
+  }
+  const out = new Map();
+  for (const [id, v] of Object.entries(obj)) {
+    if (!v || typeof v.expect !== 'string') { console.error(`EVAL SOURCE RED: assertion ${id} carries no expect string`); process.exit(2); }
+    out.set(id, v.expect);
+  }
+  return out;
+}
+
 // ---------- mapping MR-1..MR-5 ----------
-function mapStream(file, vocab) {
+function mapStream(file, vocab, labels) {
   const text = readFileSync(file, 'utf8');
   const lines = text.split('\n').filter((l) => l.trim() !== '');
   const intervals = [];            // all intervals in stream position order
@@ -82,7 +109,7 @@ function mapStream(file, vocab) {
       const ordinal = intervals.filter((i) => i.agent === agent).length + 1;
       const iv = {
         task_id: agent + ':' + ordinal, agent, ordinal, file, startPos: pos,
-        state: vocab.statuses[0], turns: [], decisions: [], hint: null, hintPos: -1,
+        state: vocab.statuses[0], turns: [], turnObs: [], decisions: [], hint: null, hintPos: -1,
         boundary: vocab.boundary[0], // session_start_edge
         lastType: 'session.start',
       };
@@ -96,7 +123,9 @@ function mapStream(file, vocab) {
     if (type === 'turn.stop') totalTurnStops++;
     if (!iv) { if (type === 'turn.stop') orphanTurns++; else orphanEvents++; return; }
     if (type === 'turn.stop') { // MR-2 turn folding
-      iv.turns.push(String(e.id || `${iv.task_id}#${iv.turns.length}`));
+      const turnId = String(e.id || `${iv.task_id}#${iv.turns.length}`);
+      iv.turns.push(turnId);
+      iv.turnObs.push({ id: turnId, observed: String(e.decision || '') });
       if (iv.hint && pos > iv.hintPos) iv.hintHadLaterTurn = true; // MR-3 outcome evidence
       iv.state = vocab.statuses[1]; // active
       iv.boundary = vocab.boundary[1]; // turn_stop_sequence
@@ -108,9 +137,24 @@ function mapStream(file, vocab) {
     scopedEvents++;
   });
 
-  for (const iv of intervals) resolveInterval(iv, vocab); // MR-3..MR-5
+  for (const iv of intervals) { joinEvals(iv, labels); resolveInterval(iv, vocab); } // MR-3..MR-5
   const counters = { lines: lines.length, badLines, intentLines, totalTurnStops, scopedTurnStops, orphanTurns, orphanEvents, scopedEvents };
   return { intervals, counters };
+}
+
+// eval join: per-interval coverage over in-scope turns only. Ids asserted
+// in the corpus but absent from this stream are corpus-side facts, never
+// counted here (no fabrication path).
+function joinEvals(iv, labels) {
+  const cov = { matched: 0, conflict: 0, unasserted: 0 };
+  if (labels) {
+    for (const t of iv.turnObs) {
+      if (!labels.has(t.id)) cov.unasserted++;
+      else if (labels.get(t.id) === t.observed) cov.matched++;
+      else cov.conflict++;
+    }
+  } else for (const t of iv.turnObs) cov.unasserted++;
+  iv.eval = cov;
 }
 
 function resolveInterval(iv, vocab) {
@@ -119,15 +163,20 @@ function resolveInterval(iv, vocab) {
   const lastDecision = iv.decisions.length ? iv.decisions[iv.decisions.length - 1] : null;
   const hintIsDone = iv.hint && HINT_DONE.test(iv.hint) && !HINT_FAIL.test(iv.hint);
   const hintIsFail = iv.hint && HINT_FAIL.test(iv.hint);
-  // MR-3 evidence: a turn.stop strictly after the hint position confirms
-  // the candidate; without it the candidate stays unknown (earned, not assumed).
-  const hintEvidence = Boolean(iv.hintHadLaterTurn);
+  // MR-3 evidence, two sources, both earned-not-assumed:
+  //   later_turn    — a turn.stop strictly after the hint position;
+  //   eval_assertion — asserted in-scope turns with zero conflicts (a
+  //                   mismatched assertion never promotes).
+  const laterTurnEvidence = Boolean(iv.hintHadLaterTurn);
+  const evalEvidence = Boolean(iv.eval && iv.eval.matched >= 1 && iv.eval.conflict === 0);
+  const hintEvidence = laterTurnEvidence || evalEvidence;
+  iv.evidence = laterTurnEvidence ? 'later_turn' : evalEvidence ? 'eval_assertion' : 'none';
   // MR-4 safety tail: last in-scope decision would_block wins unless a
   // terminal candidate with outcome evidence already closed the interval.
   if (hintIsDone && hintEvidence && lastDecision !== 'would_block') { iv.state = completed; return; }
   if (hintIsFail && hintEvidence) { iv.state = failed; return; }
-  if (lastDecision === 'would_block') { iv.state = blocked; return; }
-  if (iv.hint) { iv.state = unknown; return; } // candidate without evidence
+  if (lastDecision === 'would_block') { iv.evidence = 'none'; iv.state = blocked; return; }
+  if (iv.hint) { iv.state = unknown; return; } // candidate without sufficient evidence (conflict or unverifiable wording) stays unknown
   if (!done) { iv.state = unknown; return; }    // MR-5 opened-but-never-turned
   if (iv.lastType === 'turn.stop') { iv.state = abandoned; return; } // MR-5 stream end
   iv.state = active; // live: interval truncated mid-flight
@@ -164,6 +213,26 @@ function checkConservation(results, vocab) {
     if (counters.scopedEvents + counters.orphanTurns + counters.orphanEvents + counters.intentLines + counters.badLines !== counters.lines) {
       v.push(`${file}: line coverage conservation failed`);
     }
+    // eval join conservation: every in-scope turn is exactly one of
+    // matched/conflict/unasserted, and no terminal promotion rides on
+    // zero evidence.
+    let covSum = 0;
+    for (const iv of intervals) {
+      covSum += iv.eval.matched + iv.eval.conflict + iv.eval.unasserted;
+      if (iv.eval.matched + iv.eval.conflict + iv.eval.unasserted !== iv.turns.length) {
+        v.push(`${file}: eval coverage on ${iv.task_id} ${iv.eval.matched}+${iv.eval.conflict}+${iv.eval.unasserted} != ${iv.turns.length} turns`);
+      }
+      const terminalEarned = iv.state === vocab.statuses[2] || iv.state === vocab.statuses[3];
+      if (terminalEarned && iv.evidence === 'none') {
+        v.push(`${file}: ${iv.task_id} reached ${iv.state} with evidence=none (promotion requires a source)`);
+      }
+      if (terminalEarned && iv.turns.length === 0) {
+        v.push(`${file}: ${iv.task_id} reached ${iv.state} with zero in-scope turns`);
+      }
+    }
+    if (covSum !== counters.scopedTurnStops) {
+      v.push(`${file}: eval coverage census ${covSum} != scoped turn.stops ${counters.scopedTurnStops}`);
+    }
     seenTotal += intervals.length;
   }
   return { violations: v, seenTotal };
@@ -177,13 +246,20 @@ function readings(results, vocab) {
   for (const iv of all) if (c[iv.state] !== undefined) c[iv.state]++;
   const denominator = c[completed] + c[failed] + c[abandoned] + c[blocked] + c[unknown];
   const numerator = c[completed]; // earned completions only (outcome-evidenced)
+  const earned = all.filter((iv) => iv.state === completed || iv.state === failed);
+  const evidence_sources = { later_turn: 0, eval_assertion: 0 };
+  for (const iv of earned) if (iv.evidence in evidence_sources) evidence_sources[iv.evidence]++;
+  const cov = { matched: 0, conflict: 0, unasserted: 0 };
+  for (const iv of all) { cov.matched += iv.eval.matched; cov.conflict += iv.eval.conflict; cov.unasserted += iv.eval.unasserted; }
+  const turnsTotal = cov.matched + cov.conflict + cov.unasserted;
   const fmt = (x) => (denominator === 0 ? 'n/a (empty denominator)' : `${x}/${denominator}`);
   return {
     total_intervals: all.length,
     per_state: c,
     dr1: { denominator, live_excluded: c[open] + c[active], posture: 'terminal intervals (incl. terminal unknown) count once; live intervals are reported beside the ratio, never merged into it' },
-    dr2: { numerator, ceiling_note: `ratio ${fmt(numerator)} — ceiling equals the unknown share (${fmt(c[unknown])}) until outcome-evidence coverage grows` },
+    dr2: { numerator, ceiling_note: `ratio ${fmt(numerator)} — ceiling equals the unknown share (${fmt(c[unknown])}) until outcome-evidence coverage grows`, evidence_sources },
     dr3_envelope: { total: all.length, live: c[open] + c[active], unknown: c[unknown], blocked: c[blocked], printed_ratio: fmt(numerator), rule: 'a ratio printed without this envelope is an unverifiable number' },
+    eval_coverage: { ...cov, turns_total: turnsTotal, rule: 'matched counts assertions whose expect equals the observed decision; conflicts never promote; coverage is corroboration visibility, not causation' },
   };
 }
 
@@ -195,7 +271,7 @@ function selftest(vocab) {
   const dir = mkdtempSync(path.join(tmpdir(), 'taskmap-ctl-'));
   let caught = 0, assertions = 0;
   const caughtNames = [], missedNames = [];
-  const INJECTIONS = 4;
+  const INJECTIONS = 6;
   const expectRed = (name, fn) => {
     assertions++;
     try { fn(); missedNames.push(name); console.error(`SELFTEST RED: injection ${name} was NOT caught`); }
@@ -263,11 +339,64 @@ function selftest(vocab) {
       const t5 = mapFile(evF, vocab);
       expectTrue('hint without later-turn evidence stays unknown', t5.intervals[0].state === vocab.statuses[6]);
     }
-    // 6. real corpora must pass the conservation gate untouched
+    // 5b. eval join, second evidence source: hint candidate with an
+    // asserted matched turn and NO later turn promotes as eval_assertion.
+    {
+      const jf = path.join(dir, 'eval-join.jsonl');
+      writeFileSync(jf, [ev('session.start', 'e1', 'E'), ev('turn.stop', 'e2', 'E'),
+        JSON.stringify({ goal: 'the release slice is complete' })].join('\n') + '\n');
+      const lf = path.join(dir, 'eval-join-labels.json');
+      writeFileSync(lf, JSON.stringify({ e2: { expect: 'allow', class: 'behavior', dim: 'agent_behavior' } }));
+      const t6 = mapFile(jf, vocab, importEvals(lf, dir));
+      const iv6 = t6.intervals[0];
+      expectTrue('eval-asserted candidate promotes without later turn', iv6.state === vocab.statuses[2]);
+      expectTrue('promotion tagged eval_assertion', iv6.evidence === 'eval_assertion');
+      expectTrue('coverage counts the matched turn', iv6.eval.matched === 1 && iv6.eval.conflict === 0);
+      // conflict never promotes: same stream, mismatched assertion
+      const lf2 = path.join(dir, 'eval-join-conflict.json');
+      writeFileSync(lf2, JSON.stringify({ e2: { expect: 'would_block', class: 'behavior', dim: 'agent_behavior' } }));
+      const t7 = mapFile(jf, vocab, importEvals(lf2, dir));
+      expectTrue('conflicting assertion keeps candidate unknown', t7.intervals[0].state === vocab.statuses[6]);
+      expectTrue('conflict is accounted in coverage', t7.intervals[0].eval.conflict === 1);
+      // fabricated ids asserted but not present: zero join, no crash
+      const lf3 = path.join(dir, 'eval-join-phantom.json');
+      writeFileSync(lf3, JSON.stringify({ e2: { expect: 'allow' }, 'zz-phantom-9': { expect: 'allow' } }));
+      const t8 = mapFile(jf, vocab, importEvals(lf3, dir));
+      expectTrue('phantom assertions stay outside interval coverage', t8.intervals[0].eval.matched === 1 && t8.intervals[0].eval.unasserted === 0);
+    }
+    // 5c. negative control: promotion stamped without any evidence source
+    expectRed('earned terminal without evidence source', () => {
+      const t = mapFile(gf, vocab);
+      t.intervals[1].state = vocab.statuses[2]; // B:1 (no turns) forged completed
+      t.intervals[1].evidence = 'none';
+      gateOrThrow(new Map([[gf, t]]), vocab);
+    });
+    // 5d. negative control: eval coverage census tampering trips the gate
+    expectRed('eval coverage census drift', () => {
+      const t = mapFile(gf, vocab, new Map([['a2', 'allow']]));
+      t.intervals[0].eval.matched += 1; // inflate without a matching turn
+      gateOrThrow(new Map([[gf, t]]), vocab);
+    });
+    // 6. real corpora must pass the conservation gate untouched (single source)
     for (const f of ['testdata/golden/normal.jsonl', 'testdata/golden/danger.jsonl']) {
       const p = path.join(root, f);
       const t = mapFile(p, vocab);
       gateOrThrow(new Map([[p, t]]), vocab);
+    }
+    // 6b. real corpora joined against the shipped assertion corpus must
+    // stay conservation-green and demonstrate live join teeth (at least
+    // one in-scope turn is asserted and matched — a floor, not a census).
+    {
+      const labels = importEvals('testdata/golden/labels.json', root);
+      const m = new Map();
+      for (const f of ['testdata/golden/normal.jsonl', 'testdata/golden/danger.jsonl']) {
+        const p = path.join(root, f);
+        m.set(p, mapFile(p, vocab, labels));
+      }
+      gateOrThrow(m, vocab);
+      const rd = readings(m, vocab);
+      expectTrue('real-corpus join has teeth (matched >= 1)', rd.eval_coverage.matched >= 1);
+      expectTrue('real-corpus join stays conflict-free on shipped labels', rd.eval_coverage.conflict === 0);
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -278,8 +407,8 @@ function selftest(vocab) {
 }
 
 // helpers used by both main and selftest
-function mapFile(f, vocab) {
-  return mapStream(f, vocab);
+function mapFile(f, vocab, labels) {
+  return mapStream(f, vocab, labels);
 }
 function gateOrThrow(results, vocab) {
   const g = checkConservation(results, vocab);
@@ -289,15 +418,21 @@ function gateOrThrow(results, vocab) {
 // ---------- main ----------
 const argv = process.argv.slice(2);
 if (argv[0] === '--selftest') process.exit(selftest(importVocab()));
-if (!argv.length) { console.error('usage: task-map.mjs <file.jsonl ...> | --selftest'); process.exit(2); }
+let labels = null;
+const files = [];
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === '--evals') { labels = importEvals(argv[++i], root); continue; }
+  files.push(argv[i]);
+}
+if (!files.length) { console.error('usage: task-map.mjs <file.jsonl ...> [--evals <labels.json>] | --selftest'); process.exit(2); }
 const vocab = importVocab();
 const results = new Map();
-for (const f of argv) results.set(f, mapFile(path.resolve(root, f), vocab));
+for (const f of files) results.set(f, mapFile(path.resolve(root, f), vocab, labels));
 const g = checkConservation(results, vocab);
 if (g.violations.length) { console.error('CONSERVATION GATE RED:\n  ' + g.violations.join('\n  ')); process.exit(1); }
 const rd = readings(results, vocab);
 const table = [...results.values()].flatMap((r) => r.intervals).map((iv) => ({
   task_id: iv.task_id, state: iv.state, turns: iv.turns.length, boundary: iv.boundary,
-  hint: iv.hint || null, decisions: iv.decisions,
+  hint: iv.hint || null, decisions: iv.decisions, evidence: iv.evidence, eval: iv.eval,
 }));
-console.log(JSON.stringify({ derive_only: true, emitted: false, vocabulary_source: 'docs/task-primitive-design.md', tasks: table, readings: rd, conservation: 'GREEN' }, null, 2));
+console.log(JSON.stringify({ derive_only: true, emitted: false, vocabulary_source: 'docs/task-primitive-design.md', eval_join: labels ? 'active' : 'single-source', tasks: table, readings: rd, conservation: 'GREEN' }, null, 2));
