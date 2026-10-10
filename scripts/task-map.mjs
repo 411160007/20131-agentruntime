@@ -93,7 +93,7 @@ function mapStream(file, vocab, labels) {
   lines.forEach((raw, pos) => {
     let e;
     try { e = JSON.parse(raw); } catch { badLines++; return; }
-    const isIntent = !e.type && typeof e.goal === 'string';
+    const isIntent = (typeof e.goal === 'string' && (!e.type || e.type === 'intent.record'));
     if (isIntent) {
       intentLines++;
       if (lastOpened && !lastOpened.hint) {
@@ -304,6 +304,31 @@ function selftest(vocab) {
     const rd = readings(new Map([[gf, r1]]), vocab);
     expectTrue('reading envelope conserved', rd.total_intervals === rd.dr1.live_excluded + rd.dr1.denominator);
 
+    // 1b. typed intent.record parity: the intent recorder form accepted by
+    // the shipped schema binds the hint exactly like the legacy untyped
+    // positional line (same interval, same boundary, same earned state).
+    {
+      const typedF = path.join(dir, 'typed-hint-parity.jsonl');
+      writeFileSync(typedF, [
+        ev('session.start', 'p1', 'P'),
+        JSON.stringify({ v: 1, ts: '2026-10-09T00:00:00Z', id: 'p2', agent_id: 'P', stage: 'observation', type: 'intent.record', decision: 'allow', severity: 0, summary: 'intent recorded', goal: 'ship the typed hint', attrs: {} }),
+        ev('turn.stop', 'p3', 'P'),
+      ].join('\n') + '\n');
+      const t1 = mapFile(typedF, vocab);
+      const ivP = t1.intervals.find((iv) => iv.task_id === 'P:1');
+      expectTrue('typed intent.record binds as hint', ivP && ivP.hint === 'ship the typed hint');
+      expectTrue('typed hint earns the same terminal state', ivP && ivP.state === vocab.statuses[2]);
+      const legacyF = path.join(dir, 'typed-hint-legacy.jsonl');
+      writeFileSync(legacyF, [
+        ev('session.start', 'p1', 'P'),
+        JSON.stringify({ goal: 'ship the typed hint' }),
+        ev('turn.stop', 'p3', 'P'),
+      ].join('\n') + '\n');
+      const t1b = mapFile(legacyF, vocab);
+      const ivL = t1b.intervals.find((iv) => iv.task_id === 'P:1');
+      expectTrue('legacy untyped hint form stays intact (zero-break)', JSON.stringify({ s: ivL.state, h: ivL.hint, b: ivL.boundary }) === JSON.stringify({ s: ivP.state, h: ivP.hint, b: ivP.boundary }));
+    }
+
     // 2. negative control: wild status value injected post-map
     expectRed('wild status token', () => {
       const t = mapFile(gf, vocab);
@@ -391,9 +416,10 @@ function selftest(vocab) {
     // turns on on-disk data — both MR-3 evidence sources must promote
     // from disk, never only from selftest-control streams. The join
     // corpus is a labels-and-hint fixture stream, deliberately NOT part
-    // of the 139-case rules census families (it carries intent hint lines,
-    // which the shipped event schema rejects by design until the intent
-    // recorder slice lands).
+    // of the 139-case rules census families (it carries intent hint lines
+    // in the legacy untyped form; the intent recorder slice widened the
+    // shipped event schema with the typed intent.record form, the old
+    // untyped positional hint keeps working per the zero-break precedent).
     {
       const labels = importEvals('testdata/golden/labels.json', root);
       const joinLabels = importEvals('testdata/join/hint-pair-labels.json', root);

@@ -140,7 +140,7 @@ function check(docText, mapperText = mapperOrNothing()) {
   const valMirror = parseValidatorMirror();
   const contract = parseApiContract();
   if (goTypes.size < 10) bad(`event.go parser degenerate (${goTypes.size} types)`);
-  if (valMirror.size !== 12) bad(`validate-jsonl mirror parsed ${valMirror.size} types, want 12`);
+  if (valMirror.size !== 13) bad(`validate-jsonl mirror parsed ${valMirror.size} types, want 13`);
   if (contract.size < 10) bad(`api-v0 contract parser degenerate (${contract.size} types)`);
   const intentVocab = parseIntentFieldVocab();
   if (intentVocab[0] !== 'goal') bad(`intent_field_vocabulary first token is ${intentVocab[0]}, want goal`);

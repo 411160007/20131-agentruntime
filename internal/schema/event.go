@@ -44,6 +44,11 @@ const (
 	// agent-facing adapter surface.
 	TypeSessionStart EventType = "session.start"
 	TypeTurnStop     EventType = "turn.stop"
+	// Additive v1 vocabulary (intent recorder slice, contract note in
+	// docs/api-v0.md): a stated-intent hint recorded beside a session.
+	// Carries the optional Goal field, which is required for this type;
+	// observation-only, never a decision of its own.
+	TypeIntentRecord EventType = "intent.record"
 )
 
 // AllEventTypes lists every valid EventType in declaration order.
@@ -56,6 +61,7 @@ func AllEventTypes() []string {
 		string(TypeCollectorStart), string(TypeCollectorStop),
 		string(TypeAgentDetected), string(TypeAgentScan),
 		string(TypeSessionStart), string(TypeTurnStop),
+		string(TypeIntentRecord),
 	}
 }
 
@@ -71,7 +77,8 @@ func (t EventType) Valid() bool {
 	switch t {
 	case TypeCommandProposed, TypeToolCall, TypeFileAccess, TypeNetworkIntent,
 		TypePolicyDecision, TypeEnforceAction, TypeCollectorStart, TypeCollectorStop,
-		TypeAgentDetected, TypeAgentScan, TypeSessionStart, TypeTurnStop:
+		TypeAgentDetected, TypeAgentScan, TypeSessionStart, TypeTurnStop,
+		TypeIntentRecord:
 		return true
 	}
 	return false
@@ -263,6 +270,9 @@ func (s Severity) Valid() bool { return s >= SevInfo && s <= SevCritical }
 //     DataAction); absent = unclassified legacy; record-only, never
 //     decides.
 //   - Summary: short human-readable text, no secrets.
+//   - Goal: optional stated-intent text (see intent_field_vocabulary,
+//     docs/schema-v2.md section 14); absent on every other type; the
+//     intent.record type requires it. Observation-only, never decides.
 //   - Attrs: optional flat string map for details (paths, tool names...);
 //     the reserved keys "cap" and "res_class", when present, must be
 //     members of the capability and resource-sensitivity vocabularies.
@@ -279,6 +289,7 @@ type Event struct {
 	Tier        Tier              `json:"tier,omitempty"`
 	SourceClass SourceClass       `json:"source_class,omitempty"`
 	DataAction  DataAction        `json:"data_action,omitempty"`
+	Goal        string            `json:"goal,omitempty"`
 	Attrs       map[string]string `json:"attrs,omitempty"`
 }
 
@@ -316,6 +327,12 @@ func (e *Event) Validate() error {
 	}
 	if e.Summary == "" || len(e.Summary) > 512 {
 		return fmt.Errorf("schema: event %s: summary empty or >512 bytes", e.ID)
+	}
+	if e.Goal != "" && len(e.Goal) > 512 {
+		return fmt.Errorf("schema: event %s: goal >512 bytes", e.ID)
+	}
+	if e.Type == TypeIntentRecord && e.Goal == "" {
+		return fmt.Errorf("schema: event %s: intent.record without a goal statement", e.ID)
 	}
 	if !e.Tier.Valid() {
 		return fmt.Errorf("schema: event %s: unknown tier %q", e.ID, string(e.Tier))
