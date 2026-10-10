@@ -57,8 +57,19 @@ stages: proposed, evaluated, enforcement, action, observation
 ```
 
 ```contract
-types: command.proposed, tool.call, file.access, network.intent, policy.decision, enforce.action, collector.start, collector.stop, agent.detected, agent.scan, session.start, turn.stop
+types: command.proposed, tool.call, file.access, network.intent, policy.decision, enforce.action, collector.start, collector.stop, agent.detected, agent.scan, session.start, turn.stop, intent.record
 ```
+
+Additive compatibility note (intent recorder slice): `intent.record`
+extends the vocabulary without renaming or re-grammaring anything
+frozen above. It is a stated-intent hint recorded beside a session: the
+line carries the optional `goal` field (required for this type, ≤512
+bytes, first token of `intent_field_vocabulary`, docs/schema-v2.md
+section 14) and follows the unchanged field rules for everything else;
+its `decision` is always the observation-phase value the recorder
+stored beside it, never a judgement of its own. Pre-extension readers
+filtering on the older twelve types simply ignore the new one. No prior
+meaning changed.
 
 Additive compatibility note (platform adapter surface): `session.start`
 and `turn.stop` extend the vocabulary without renaming or re-grammaring

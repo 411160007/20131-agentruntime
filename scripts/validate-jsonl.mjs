@@ -13,6 +13,7 @@ const TYPES = [
   'command.proposed', 'tool.call', 'file.access', 'network.intent',
   'policy.decision', 'enforce.action', 'collector.start', 'collector.stop',
   'agent.detected', 'agent.scan', 'session.start', 'turn.stop',
+  'intent.record',
 ];
 const DECISIONS = ['allow', 'ask', 'would_block'];
 // TIER mirrors the Go schema Tier enum (internal/schema/event.go); the
@@ -66,6 +67,8 @@ function lineErrors(e) {
   if (e.source_class !== undefined && !SOURCE_CLASS.includes(e.source_class)) errs.push(`source_class=${JSON.stringify(e.source_class)}`);
   if (e.data_action !== undefined && !DATA_ACTIONS.includes(e.data_action)) errs.push(`data_action=${JSON.stringify(e.data_action)}`);
   if (typeof e.summary !== 'string' || e.summary.length === 0 || Buffer.byteLength(e.summary) > 512) errs.push('summary invalid');
+  if (e.goal !== undefined && (typeof e.goal !== 'string' || Buffer.byteLength(e.goal) > 512)) errs.push('goal invalid');
+  if (e.type === 'intent.record' && (typeof e.goal !== 'string' || e.goal === '')) errs.push('intent.record requires non-empty goal');
   if (e.attrs !== undefined) {
     if (typeof e.attrs !== 'object' || e.attrs === null || Array.isArray(e.attrs)) errs.push('attrs not a map');
     else for (const [k, v] of Object.entries(e.attrs)) {
