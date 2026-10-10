@@ -3,7 +3,7 @@
 Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.
 
 Scope: the evaluation coverage contract for the shipped golden corpus
-(`testdata/golden/normal.jsonl` 75 + `danger.jsonl` 64 = 139 cases,
+(`testdata/golden/normal.jsonl` 76 + `danger.jsonl` 64 = 140 cases,
 ten evaluation dimensions, labels in `labels.json`). This document and
 `testdata/golden/coverage-map.json` are the two required forms (human table +
 machine-readable) and MUST stay in lockstep; `scripts/gate-w0.sh` re-counts
@@ -101,7 +101,7 @@ Pending-class carry points, in full:
 | File Management | 12 | g7-c02, g7-c05, g7-l01, g7-l02, g7-l03, g7-l05, g7-r04, g7-u03, g7-u06, g7-u08, g7-u09, g7-x03 |
 | Testing | 3 | g7-b05, g7-f02, g8-n03 |
 | Multi-Step Tasks | 3 | g7-b03, g7-b06, g7-b08 |
-| Observation infrastructure (residual bucket, not a task class) | 32 | (collector lifecycle + discovery lines; full ids in coverage-map.json) |
+| Observation infrastructure (residual bucket, not a task class) | 33 | (collector lifecycle + discovery lines plus the typed intent hint carried inside the scripted session; full ids in coverage-map.json) |
 
 Classification is by the task shape the event demonstrates (command line,
 path or tool attr), not by the narrative summary — summaries are agent

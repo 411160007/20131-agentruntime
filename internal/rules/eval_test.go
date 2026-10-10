@@ -408,14 +408,17 @@ func bool2i(b bool) int {
 // types it was redacted from, and expanded normals stay inside the
 // benign work vocabulary (network.intent can never be a normal case by
 // construction of the built-in rule set; policy.decision/enforce.action
-// are output shapes and must not be smuggled in as inputs).
+// are output shapes and must not be smuggled in as inputs). The typed
+// intent.record line joins the benign vocabulary as a recorder input
+// shape: it states intent, validates without a matching rule, and by
+// schema contract never decides anything itself.
 func TestGoldenFreshness(t *testing.T) {
 	workTypes := map[schema.EventType]bool{
 		schema.TypeCommandProposed: true, schema.TypeToolCall: true,
 		schema.TypeFileAccess: true, schema.TypeCollectorStart: true,
 		schema.TypeCollectorStop: true, schema.TypeAgentDetected: true,
 		schema.TypeAgentScan: true, schema.TypeSessionStart: true,
-		schema.TypeTurnStop: true,
+		schema.TypeTurnStop: true, schema.TypeIntentRecord: true,
 	}
 	for _, e := range loadGolden(t, "normal.jsonl") {
 		if strings.HasPrefix(e.ID, "gn-") {

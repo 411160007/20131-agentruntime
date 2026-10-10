@@ -693,5 +693,10 @@
     "expect": "allow",
     "class": "behavior",
     "dim": "agent_behavior"
+  },
+  "g7-i01": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
   }
 }
