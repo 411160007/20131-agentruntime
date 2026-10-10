@@ -205,6 +205,12 @@ function check(docText, mapperText = mapperOrNothing()) {
     if (!mapperText.includes("'task_status_vocabulary'")) bad('mapper does not re-parse the doc status closed set (import posture missing)');
     if (/['\"]open['\"]\s*,\s*['\"]active['\"]\s*,\s*['\"]completed['\"]/i.test(mapperText)) bad('mapper carries a second status vocabulary copy');
     if (!/conservation/i.test(mapperText)) bad('mapper conservation gate posture missing');
+    // eval-join posture: the second evidence source must arrive as a
+    // runtime-imported source with the conflict rule, never as an
+    // embedded copy of the assertion corpus.
+    if (!mapperText.includes("'--evals'")) bad('mapper carries no eval-join import posture (--evals)');
+    if (!/conflict/.test(mapperText)) bad('mapper eval join lacks the conflict rule (mismatched assertions must never promote)');
+    if (/\{\s*['\"]gn-\d+['\"]\s*:\s*\{[^}]*expect/i.test(mapperText)) bad('mapper embeds a second copy of the assertion corpus');
   }
 
   return fail;
@@ -237,6 +243,9 @@ function selftest() {
     // the derive-only tool must trip the reverse-lookup.
     ['mapper second vocabulary copy', null, (m) => m.replace('const HINT_DONE',
       "const SECOND = ['open', 'active', 'completed', 'failed', 'abandoned', 'blocked', 'unknown'];\nconst HINT_DONE")],
+    ['mapper second assertion-corpus copy', null, (m) => m.replace('const HINT_DONE',
+      "const SECOND_LABELS = { 'gn-01': { expect: 'allow' } };\nconst HINT_DONE")],
+    ['mapper eval conflict rule dropped', null, (m) => m.replace(/conflict/g, 'xonflict')],
   ];
   let caught = 0;
   for (const [name, docMut, mapMut] of injected) {
