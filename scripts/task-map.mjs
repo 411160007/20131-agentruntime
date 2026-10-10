@@ -386,17 +386,31 @@ function selftest(vocab) {
     // 6b. real corpora joined against the shipped assertion corpus must
     // stay conservation-green and demonstrate live join teeth (at least
     // one in-scope turn is asserted and matched — a floor, not a census).
+    // The encounter surface: the shipped join corpus (testdata/join) is
+    // replayed beside the rules corpora so hinted intervals meet asserted
+    // turns on on-disk data — both MR-3 evidence sources must promote
+    // from disk, never only from selftest-control streams. The join
+    // corpus is a labels-and-hint fixture stream, deliberately NOT part
+    // of the 139-case rules census families (it carries intent hint lines,
+    // which the shipped event schema rejects by design until the intent
+    // recorder slice lands).
     {
       const labels = importEvals('testdata/golden/labels.json', root);
+      const joinLabels = importEvals('testdata/join/hint-pair-labels.json', root);
+      const merged = new Map([...labels, ...joinLabels]);
       const m = new Map();
-      for (const f of ['testdata/golden/normal.jsonl', 'testdata/golden/danger.jsonl']) {
+      for (const f of ['testdata/golden/normal.jsonl', 'testdata/golden/danger.jsonl', 'testdata/join/hint-pair.jsonl']) {
         const p = path.join(root, f);
-        m.set(p, mapFile(p, vocab, labels));
+        m.set(p, mapFile(p, vocab, merged));
       }
       gateOrThrow(m, vocab);
       const rd = readings(m, vocab);
       expectTrue('real-corpus join has teeth (matched >= 1)', rd.eval_coverage.matched >= 1);
       expectTrue('real-corpus join stays conflict-free on shipped labels', rd.eval_coverage.conflict === 0);
+      expectTrue('encounter surface promotes via later_turn from disk', rd.dr2.evidence_sources.later_turn >= 1);
+      expectTrue('encounter surface promotes via eval_assertion from disk', rd.dr2.evidence_sources.eval_assertion >= 1);
+      expectTrue('encounter surface earns a non-zero numerator', rd.dr2.numerator >= 1);
+      expectTrue('earned numerator keeps its envelope identity', rd.dr3_envelope.total === rd.dr1.live_excluded + rd.dr1.denominator && rd.dr3_envelope.printed_ratio !== '0/'.concat(String(rd.dr1.denominator)));
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });
