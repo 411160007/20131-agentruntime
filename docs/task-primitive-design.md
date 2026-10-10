@@ -185,7 +185,7 @@ counts recovered; recovery never promotes `unknown` by itself.
 | Gap | Why v0 does not close it | Landing shape |
 |---|---|---|
 | boundary detection beyond session/turn | `lease_expiry_edge` is reserved; no shipped token exists to key on | recorder slice after this contract |
-| outcome evidence sources | join v0 landed in the derive-only mapper: later-turn and eval-assertion evidence both promote, conflicts never; what remains open is coverage, not mechanism — shipped corpora carry asserted turns only on hint-free intervals, so the real ratio stays 0/1 with its envelope until asserted turns meet hinted intervals | intent schema follow-up widens hint capture |
+| outcome evidence sources | join v0 landed in the derive-only mapper: later-turn and eval-assertion evidence both promote, conflicts never; coverage grew with the shipped join corpus (testdata/join/hint-pair.jsonl with its own label ledger): asserted turns now meet hinted intervals on on-disk data and both evidence sources promote from disk, machine-pinned in the mapper selftest; the rules-corpus streams stay asserted-turns-on-hint-free-intervals until an intent recorder slice lands, so their printed ratio keeps its envelope | intent schema follow-up widens hint capture |
 | intent↔task binding strength | `goal_hint` keys on intent first field; free-text completion statements are weak evidence | intent schema follow-up |
 | recovery join | `section 248` task-level recovery needs `task_refs` emitted | Phase 1 enforcement wedge plan |
 | multi-agent task sharing | one lease per agent per task assumed; shared tasks unmodeled | deferred, no v0 pretense |

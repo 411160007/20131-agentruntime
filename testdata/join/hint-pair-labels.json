@@ -1,0 +1,14 @@
+{
+  "hp-a03": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior",
+    "note": "asserted turn inside a hinted interval, later-turn form of the encounter surface"
+  },
+  "hp-b02": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior",
+    "note": "asserted turn inside a hinted interval, eval-assertion form of the encounter surface"
+  }
+}
