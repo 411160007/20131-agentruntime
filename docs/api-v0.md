@@ -57,7 +57,11 @@ stages: proposed, evaluated, enforcement, action, observation
 ```
 
 ```contract
-types: command.proposed, tool.call, file.access, network.intent, policy.decision, enforce.action, collector.start, collector.stop, agent.detected, agent.scan, session.start, turn.stop, intent.record
+types: command.proposed, tool.call, file.access, network.intent, policy.decision, enforce.action, collector.start, collector.stop, agent.detected, agent.scan, session.start, turn.stop, intent.record, task.record
+```
+
+```contract
+task_statuses: open, active, completed, failed, abandoned, blocked, unknown
 ```
 
 Additive compatibility note (intent recorder slice): `intent.record`
@@ -70,6 +74,23 @@ its `decision` is always the observation-phase value the recorder
 stored beside it, never a judgement of its own. Pre-extension readers
 filtering on the older twelve types simply ignore the new one. No prior
 meaning changed.
+
+Additive compatibility note (task record-form slice): `task.record` and
+the optional `task_id` / `task_status` fields extend the vocabulary and
+field shapes without renaming or re-grammaring anything frozen above.
+A `task.record` line materializes the task lifecycle object as a
+record: it requires `task_id` in the positional
+`session-id:ordinal` shape and `task_status` as a member of the
+task_statuses closed set above; any other type may carry the two
+fields additively, and absence on any type is the legacy default that
+validates and replays exactly as before. The fields are observation-
+only — they never decide, and this slice changes no emission path: no
+shipped component writes `task.record` lines yet, so every existing
+stream keeps its bytes and meaning (the derive-only mapper of
+`docs/task-primitive-design.md` section 4 remains the way to read task
+views over older streams). Pre-extension readers filtering on the
+older thirteen types simply ignore the new one. No prior meaning
+changed.
 
 Additive compatibility note (platform adapter surface): `session.start`
 and `turn.stop` extend the vocabulary without renaming or re-grammaring

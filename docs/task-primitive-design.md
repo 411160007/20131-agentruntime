@@ -132,6 +132,13 @@ mutable text, so replay never renumbers.
 
 ## 5. Event-layer additive field shapes (reserved, not emitted)
 
+Record-form landing status (schema side): `task_id` and `task_status`
+are shipped validator-visible additive fields (Go enum + validator
+mirror + contract doc, three-source lockstep per the stage-1 precedent
+of `intent.record`); `task_boundary` and `task_refs` stay reserved, not
+emitted; no shipped emission path writes `task.record` lines yet, so
+the derive-only posture of section 4 is unchanged on live streams.
+
 The future recorder (a later slice, gated by this contract) would add
 per-event additive fields under the same `schema_version` discipline
 as the `session.start` / `turn.stop` precedent:
@@ -152,9 +159,12 @@ Old-reader compatibility predicate (the W1.2 precedent restated as a
 rule, not a slogan): an event line missing all four fields must
 validate, evaluate, and replay exactly as before; a line carrying them
 must validate under the same grammar with additive-only acceptance; no
-existing token is renamed or re-grammared. Until the recorder slice
-lands, the correct way to obtain task views is the derive-only mapper
-of section 4 over the shipped stream.
+existing token is renamed or re-grammared. The validator-visible pair
+`task_id` / `task_status` carries the record-form fields of the
+section-3 closed set; the remaining two names below stay reserved
+until the recorder slice lands them in all sources together. Until
+then, the correct way to obtain task views over existing streams
+remains the derive-only mapper of section 4, computed at read time.
 
 ## 6. Denominator and North Star reading
 
@@ -194,6 +204,11 @@ counts recovered; recovery never promotes `unknown` by itself.
 
 - version lock: this document and `scripts/task-primitive-check.mjs`
   are one contract; both carry this exact sentence.
+- record-form landing v1: `task_id` and `task_status` validate as
+  additive shipped fields across the three sources; `task_boundary`
+  and `task_refs` remain reserved vocabulary; the runtime field that
+  would produce task records into a stream is not wired anywhere —
+  the recorder emission slice is what remains, not the field shapes.
 - known gap registration (verbatim posture): the North Star ratio
   denominator does not exist in shipped code today; this file is the
   contract proposal that makes it buildable, not an implementation.
