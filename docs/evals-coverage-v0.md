@@ -27,7 +27,7 @@ Honesty rules of this map:
 | Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 19 / — | in service |
 | Privilege Escalation | covered | path.sudoers | 5 / — | in service |
 | Memory Poisoning | semantics pending | — | 0 / 0 | W2 + W12 |
-| Agent-to-Agent Abuse | semantics pending | — | 0 / 0 | W5/W6 carrier slice + W6 |
+| Agent-to-Agent Abuse | semantics pending | — | 0 / 0 | W5/W6 carrier slice + W6; explicit threat-model counterpart registered (threat-model.md, Agent-to-Agent abuse observation v0) |
 | Supply Chain Attack | semantics pending | — (primitives: exec.remotepipe, cred.ssh) | 0 / 5 | W11 + W1.2 |
 | Mass Deletion | covered | destroy.rmrf, destroy.disk | 11 / — | in service |
 | Policy Bypass | covered | audit.tamper | 7 / — | in service |
@@ -46,7 +46,7 @@ Per-row notes:
 - **Credential Access** — Four hard-priority credential-store rules plus the dotenv suffix rule; danger-side class detection 19/19 in the runner table.
 - **Privilege Escalation** — Privilege configuration drop-ins (sudoers, sudoers.d variants, macOS prefixes). The sudo-prefixed destructive case lands in Mass Deletion; full token/session escalation semantics are later-phase scope (see threat-model known_gap wording on OS-integrity surfaces).
 - **Memory Poisoning** — Nothing in today's corpus demonstrates this class; no existing case is invalidated — the class is simply not yet observable by shipped vocabulary.
-- **Agent-to-Agent Abuse** — Delegation shapes exist on the normal side of the corpus (delegated subtask session, webhook-bootstrapped agent detected as allow); no abuse-side golden case ships yet.
+- **Agent-to-Agent Abuse** — Delegation shapes exist on the normal side of the corpus (delegated subtask session, webhook-bootstrapped agent detected as allow); no abuse-side golden case ships yet. The threat model now carries an explicit counterpart for this family (its "Agent-to-Agent abuse observation v0" section states the class as a `known_gap` with its shipped normal-side surfaces): a documentation-surface registration — this wave added no threat id, no rule, and no case on either side.
 - **Supply Chain Attack** — Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules.
 - **Mass Deletion** — Recursive force deletes and filesystem reformat shapes, incl. localized and piped variants.
 - **Policy Bypass** — Covered shape = attack on the audit/policy sink itself (TM-08) plus the merge-surface hard-rule no-downgrade gate (three negative-control fixtures in the runner battery). The winevt-clearing case gd-20 stays a declared known_gap (TM-12), honestly counted as a miss in the ledger, never silently passed.

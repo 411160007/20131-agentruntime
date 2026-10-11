@@ -6,6 +6,12 @@ record semantics stated below. The uplift ships **documentation rows
 only**: the built-in rule table stays at 12 rules and Phase 0 stays
 observe-only. No uplifted row claims prevention.
 
+Registration addendum (this wave): the agent-to-agent abuse family
+gains an explicit observation section below - a documentation-surface
+registration in the same shape as the supply-chain section. It adds
+no threat id, no rule, and no golden case; the numbered-row census
+stays exactly the seventeen rows TM-01..TM-17.
+
 Scope: Phase 0 of the 20131 Agent Security Runtime — a local,
 observe-only agent-behaviour monitor (discovery + audit + judgement
 layer). This document enumerates what we watch for, which surface
@@ -85,6 +91,63 @@ row all name the same object — the counting surface shipped in the
 W5/W6 slices (agencyguard counters and the decision/limit record
 shapes) and this documentation surface; no fourth owner exists and
 none may be created without updating this section and its checker.
+
+## Agent-to-Agent abuse observation v0 (documentation surface)
+The evaluation coverage map (docs/evals-coverage-v0.md) carries
+"Agent-to-Agent Abuse" as a pending class counted 0 / 0: delegation
+shapes exist on the normal side of the corpus (a delegated subtask
+session and a webhook-bootstrapped agent, both detected as allow),
+and no abuse-side golden case ships. Until this section the threat
+model had no explicit counterpart for that class - the gap lived in
+one document and was silent in the other. This section closes the
+silence as a stated `known_gap`, in the same shape the supply-chain
+observation above uses.
+
+What ships today is normal-side observation shape only:
+
+- The delegation observation record (schema-v2 section 20): parent,
+  child, reason, delegated capability, data scope, authority source,
+  TTL, outcome - recorded per delegation and carrying no authority
+  of its own. The specification's agent-to-agent security clause
+  (section 283) names those fields; the delegation inequality of
+  section 236 - one agent's capability is never another agent's
+  capability - is what the record shape exists to make auditable.
+- The agency guard counters (schema-v2 section 21), restated
+  verbatim from the shipped source `internal/schema/agencyguard.go`:
+  `event_rate`, `step_count`, and `parallelism`. They record the
+  fan-out and step-growth shapes typical of agent-to-agent abuse,
+  record-only-no-action: a ceiling comparison changes which record
+  is appended and nothing else, ladder tokens may never appear in a
+  Phase 0 record, and no counter grades trust between agents.
+
+The explicit `known_gap`:
+
+- Cross-agent trust propagation is not modeled. When one agent's
+  output - a task description, a delegated payload, a relayed tool
+  result - becomes another agent's input, Phase 0 records both sides
+  and never grades the relay. Delegation never inherits authority
+  automatically: the untrusted-content boundary (row TM-14) and the
+  injection-into-goal-hijacking chain (row TM-15) govern content
+  arriving at a single agent; when the "content" is another agent's
+  utterance the same boundary must still hold, and v0 holds it
+  structurally - Phase 0 takes no decision input from model-supplied
+  content at all - rather than through any shipped inter-agent
+  semantics.
+- No chain model crosses the agent boundary (the same no-inference
+  stance rows TM-15 and TM-17 keep for single-agent chains), and no
+  abuse-side detection vocabulary exists for this class. Every
+  finding on the delegation and counter surfaces stays a
+  `would_block` record on the audit stream; detection values remain
+  the closed set {allow, would_block} and this document changes
+  neither.
+
+Upgrade path, registered not shipped: abuse-side semantics for this
+class land when the least-agency upgrade and a future golden wave
+give the coverage map real cases - an expansion that must lockstep
+the map table, labels, and the rule vocabulary in one PR per that
+map's version lock. Until then, anything in either document claiming
+agent-to-agent detection beyond record shape is a bug, and this
+section is where the gate vocabulary would hunt it.
 
 ## Merge-surface limitation (stated, not hidden)
 
