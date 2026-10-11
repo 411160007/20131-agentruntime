@@ -31,6 +31,7 @@ func TestAPIDocContractMatchesGoEnums(t *testing.T) {
 		{"res_classes", AllResourceClasses()},
 		{"source_classes", AllSourceClasses()},
 		{"data_actions", AllDataActions()},
+		{"task_statuses", AllTaskStatuses()},
 		{"rule_fields", AllMatchFields()},
 		{"rule_ops", AllMatchOps()},
 	}

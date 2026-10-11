@@ -49,6 +49,13 @@ const (
 	// Carries the optional Goal field, which is required for this type;
 	// observation-only, never a decision of its own.
 	TypeIntentRecord EventType = "intent.record"
+	// Additive v1 vocabulary (task record-form slice, contract note in
+	// docs/api-v0.md): the task lifecycle object materialized as a
+	// record shape. Carries TaskID and TaskStatus, both required for
+	// this type; observation-only, never a decision of its own. This
+	// slice lands the schema side only — no shipped emission path
+	// writes this line yet; see docs/task-primitive-design.md section 5.
+	TypeTaskRecord EventType = "task.record"
 )
 
 // AllEventTypes lists every valid EventType in declaration order.
@@ -61,7 +68,7 @@ func AllEventTypes() []string {
 		string(TypeCollectorStart), string(TypeCollectorStop),
 		string(TypeAgentDetected), string(TypeAgentScan),
 		string(TypeSessionStart), string(TypeTurnStop),
-		string(TypeIntentRecord),
+		string(TypeIntentRecord), string(TypeTaskRecord),
 	}
 }
 
@@ -78,7 +85,77 @@ func (t EventType) Valid() bool {
 	case TypeCommandProposed, TypeToolCall, TypeFileAccess, TypeNetworkIntent,
 		TypePolicyDecision, TypeEnforceAction, TypeCollectorStart, TypeCollectorStop,
 		TypeAgentDetected, TypeAgentScan, TypeSessionStart, TypeTurnStop,
-		TypeIntentRecord:
+		TypeIntentRecord, TypeTaskRecord:
+		return true
+	}
+	return false
+}
+
+// TaskStatus is the seven-token lifecycle closed set defined by
+// docs/task-primitive-design.md (task_status_vocabulary). It is an
+// ADDITIVE v1 field: a record with no "task_status" key is valid and
+// means legacy-unclassified, so every line written before the task
+// record form existed still validates and still replays identically.
+// Absent-key posture mirrors SourceClass; wild values are rejected,
+// never silently accepted. Observation-only: no judgement path here
+// consumes it, and no token grants enforcement existence to any plane.
+type TaskStatus string
+
+const (
+	TaskOpen      TaskStatus = "open"
+	TaskActive    TaskStatus = "active"
+	TaskCompleted TaskStatus = "completed"
+	TaskFailed    TaskStatus = "failed"
+	TaskAbandoned TaskStatus = "abandoned"
+	TaskBlocked   TaskStatus = "blocked"
+	TaskUnknown   TaskStatus = "unknown"
+)
+
+// AllTaskStatuses lists every TaskStatus value in declaration order.
+// scripts/validate-jsonl.mjs mirrors this list (second source) and
+// docs/api-v0.md restates it (third source); the sync tests fail if
+// the three sources diverge.
+func AllTaskStatuses() []string {
+	return []string{
+		string(TaskOpen), string(TaskActive), string(TaskCompleted),
+		string(TaskFailed), string(TaskAbandoned), string(TaskBlocked),
+		string(TaskUnknown),
+	}
+}
+
+// Valid reports whether s is a legal task status. The empty string is
+// the absent-key legacy default (unclassified, valid on every type
+// except task.record, which requires a real member).
+func (s TaskStatus) Valid() bool {
+	switch s {
+	case "", TaskOpen, TaskActive, TaskCompleted, TaskFailed,
+		TaskAbandoned, TaskBlocked, TaskUnknown:
+		return true
+	}
+	return false
+}
+
+// validTaskID checks the positional task identity shape of
+// docs/task-primitive-design.md section 4: session_id + ":" + ordinal.
+// The session part reuses validID; the ordinal is 1-9 plain digits.
+// No content hash of mutable text ever lands in this shape.
+func validTaskID(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] != ':' {
+			continue
+		}
+		if i == 0 || !validID(s[:i]) {
+			return false
+		}
+		rest := s[i+1:]
+		if len(rest) == 0 || len(rest) > 9 {
+			return false
+		}
+		for j := 0; j < len(rest); j++ {
+			if rest[j] < '0' || rest[j] > '9' {
+				return false
+			}
+		}
 		return true
 	}
 	return false
@@ -273,6 +350,10 @@ func (s Severity) Valid() bool { return s >= SevInfo && s <= SevCritical }
 //   - Goal: optional stated-intent text (see intent_field_vocabulary,
 //     docs/schema-v2.md section 14); absent on every other type; the
 //     intent.record type requires it. Observation-only, never decides.
+//   - TaskID/TaskStatus: optional task record-form fields (see
+//     task_status_vocabulary, docs/task-primitive-design.md section 3);
+//     absent = legacy-unclassified on every other type; the task.record
+//     type requires both. Observation-only, never decides.
 //   - Attrs: optional flat string map for details (paths, tool names...);
 //     the reserved keys "cap" and "res_class", when present, must be
 //     members of the capability and resource-sensitivity vocabularies.
@@ -290,6 +371,8 @@ type Event struct {
 	SourceClass SourceClass       `json:"source_class,omitempty"`
 	DataAction  DataAction        `json:"data_action,omitempty"`
 	Goal        string            `json:"goal,omitempty"`
+	TaskID      string            `json:"task_id,omitempty"`
+	TaskStatus  TaskStatus        `json:"task_status,omitempty"`
 	Attrs       map[string]string `json:"attrs,omitempty"`
 }
 
@@ -333,6 +416,20 @@ func (e *Event) Validate() error {
 	}
 	if e.Type == TypeIntentRecord && e.Goal == "" {
 		return fmt.Errorf("schema: event %s: intent.record without a goal statement", e.ID)
+	}
+	if !e.TaskStatus.Valid() {
+		return fmt.Errorf("schema: event %s: unknown task_status %q", e.ID, string(e.TaskStatus))
+	}
+	if e.TaskID != "" && !validTaskID(e.TaskID) {
+		return fmt.Errorf("schema: event %s: task_id %q not in positional session:ordinal shape", e.ID, e.TaskID)
+	}
+	if e.Type == TypeTaskRecord {
+		if e.TaskStatus == "" {
+			return fmt.Errorf("schema: event %s: task.record without a task_status", e.ID)
+		}
+		if !validTaskID(e.TaskID) {
+			return fmt.Errorf("schema: event %s: task.record without a positional task_id", e.ID)
+		}
 	}
 	if !e.Tier.Valid() {
 		return fmt.Errorf("schema: event %s: unknown tier %q", e.ID, string(e.Tier))

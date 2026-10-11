@@ -14,6 +14,15 @@ const TYPES = [
   'policy.decision', 'enforce.action', 'collector.start', 'collector.stop',
   'agent.detected', 'agent.scan', 'session.start', 'turn.stop',
   'intent.record',
+  'task.record',
+];
+// TASK_STATUS mirrors the Go schema TaskStatus enum
+// (internal/schema/event.go, closed set of docs/task-primitive-design.md
+// task_status_vocabulary) in declaration order. Absent key =
+// legacy-unclassified; the field is record-only and no judgement path
+// here consumes it. The task.record type requires a vocabulary member.
+const TASK_STATUS = [
+  'open', 'active', 'completed', 'failed', 'abandoned', 'blocked', 'unknown',
 ];
 const DECISIONS = ['allow', 'ask', 'would_block'];
 // TIER mirrors the Go schema Tier enum (internal/schema/event.go); the
@@ -46,6 +55,9 @@ const CAPS = [
 ];
 const RES_CLASSES = ['low', 'medium', 'high'];
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+// TASK_ID_RE mirrors validTaskID in internal/schema/event.go: positional
+// identity session_id + ":" + ordinal (docs/task-primitive-design.md §4).
+const TASK_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}:[0-9]{1,9}$/;
 const SCHEMA_VERSION = 1;
 
 function lineErrors(e) {
@@ -69,6 +81,12 @@ function lineErrors(e) {
   if (typeof e.summary !== 'string' || e.summary.length === 0 || Buffer.byteLength(e.summary) > 512) errs.push('summary invalid');
   if (e.goal !== undefined && (typeof e.goal !== 'string' || Buffer.byteLength(e.goal) > 512)) errs.push('goal invalid');
   if (e.type === 'intent.record' && (typeof e.goal !== 'string' || e.goal === '')) errs.push('intent.record requires non-empty goal');
+  if (e.task_status !== undefined && !TASK_STATUS.includes(e.task_status)) errs.push(`task_status=${JSON.stringify(e.task_status)}`);
+  if (e.task_id !== undefined && !(typeof e.task_id === 'string' && TASK_ID_RE.test(e.task_id))) errs.push(`task_id=${JSON.stringify(e.task_id)}`);
+  if (e.type === 'task.record') {
+    if (typeof e.task_status !== 'string' || !TASK_STATUS.includes(e.task_status)) errs.push('task.record requires a vocabulary task_status');
+    if (typeof e.task_id !== 'string' || !TASK_ID_RE.test(e.task_id)) errs.push('task.record requires a positional task_id');
+  }
   if (e.attrs !== undefined) {
     if (typeof e.attrs !== 'object' || e.attrs === null || Array.isArray(e.attrs)) errs.push('attrs not a map');
     else for (const [k, v] of Object.entries(e.attrs)) {

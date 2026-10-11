@@ -66,8 +66,13 @@ const DENOM = ['DR-1', 'DR-2', 'DR-3'];
 // shipped tokens the doc marks [shipped] and claims section 2 grounding for
 const SHIPPED_CLAIMED = ['session.start', 'turn.stop', 'policy.decision', 'goal',
   'allow', 'ask', 'would_block'];
-// tokens that must exist ONLY as reserved vocabulary — absent from shipped sources
-const PROPOSED_ONLY = [...FIELDS, 'lease_expiry_edge'];
+// tokens that must exist ONLY as reserved vocabulary — absent from shipped
+// sources; task_id and task_status moved to the shipped side with the
+// record-form slice (they are validated additive fields now).
+const PROPOSED_ONLY = ['task_boundary', 'task_refs', 'lease_expiry_edge'];
+const LANDED_FIELDS = ['task_id', 'task_status'];
+const LANDING_SENTENCE = 'are shipped validator-visible additive fields';
+const RESERVED_PAIR = '`task_boundary` and `task_refs` stay reserved';
 
 const fail = [];
 const bad = (msg) => fail.push(msg);
@@ -140,7 +145,7 @@ function check(docText, mapperText = mapperOrNothing()) {
   const valMirror = parseValidatorMirror();
   const contract = parseApiContract();
   if (goTypes.size < 10) bad(`event.go parser degenerate (${goTypes.size} types)`);
-  if (valMirror.size !== 13) bad(`validate-jsonl mirror parsed ${valMirror.size} types, want 13`);
+  if (valMirror.size !== 14) bad(`validate-jsonl mirror parsed ${valMirror.size} types, want 14`);
   if (contract.size < 10) bad(`api-v0 contract parser degenerate (${contract.size} types)`);
   const intentVocab = parseIntentFieldVocab();
   if (intentVocab[0] !== 'goal') bad(`intent_field_vocabulary first token is ${intentVocab[0]}, want goal`);
@@ -168,6 +173,34 @@ function check(docText, mapperText = mapperOrNothing()) {
   for (const tok of PROPOSED_ONLY) {
     if (shippedBlob.includes(tok)) bad(`reserved token ${tok} already present in shipped sources (isolation red)`);
     if (!docText.includes(tok)) bad(`doc does not declare reserved token ${tok}`);
+  }
+
+  // 4b. record-form landing cross-check: the landed field pair must be
+  // present in EVERY shipped source individually, the validator's
+  // TASK_STATUS closed set and the api-v0 task_statuses contract line
+  // must equal the doc vocabulary token-for-token, and the
+  // task.record type must restate across all three type sets.
+  if (!docText.includes(LANDING_SENTENCE)) bad('record-form landing sentence missing from doc');
+  if (!docText.includes(RESERVED_PAIR)) bad('reserved-pair posture sentence missing from doc');
+  if (!docText.includes('`task.record`')) bad('doc fails to restate the task.record type');
+  for (const src of [EVENT_GO, VALIDATOR, APIV0]) {
+    const blob = readFileSync(at(src), 'utf8');
+    for (const tok of LANDED_FIELDS) {
+      if (!blob.includes(tok)) bad(`landed field ${tok} missing from shipped source ${src}`);
+    }
+    if (!blob.includes('task.record')) bad(`task.record type missing from shipped source ${src}`);
+  }
+  const valSrc = readFileSync(at(VALIDATOR), 'utf8');
+  const vm = valSrc.match(/const TASK_STATUS = \[([^\]]+)\]/);
+  const valStatuses = vm ? [...vm[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]) : [];
+  if (valStatuses.join(',') !== STATUS.join(',')) {
+    bad(`validator TASK_STATUS mirror [${valStatuses.join(',')}] diverges from the doc closed set`);
+  }
+  const apiSrc = readFileSync(at(APIV0), 'utf8');
+  const am = apiSrc.match(/^task_statuses: (.+)$/m);
+  const apiStatuses = am ? am[1].split(/,\s*/).map((s) => s.trim()) : [];
+  if (apiStatuses.join(',') !== STATUS.join(',')) {
+    bad(`api-v0 task_statuses contract [${apiStatuses.join(',')}] diverges from the doc closed set`);
   }
 
   // 5. Phase 0 invariants pinned in the doc
@@ -246,6 +279,8 @@ function selftest() {
     ['mapper second assertion-corpus copy', null, (m) => m.replace('const HINT_DONE',
       "const SECOND_LABELS = { 'gn-01': { expect: 'allow' } };\nconst HINT_DONE")],
     ['mapper eval conflict rule dropped', null, (m) => m.replace(/conflict/g, 'xonflict')],
+    ['record-form landing sentence removed', (d) => d.replace(LANDING_SENTENCE, 'are proposed field shapes')],
+    ['reserved pair smuggled as landed', (d) => d.replace(RESERVED_PAIR, '`task_boundary` and `task_refs` are shipped too')],
   ];
   let caught = 0;
   for (const [name, docMut, mapMut] of injected) {
@@ -281,4 +316,4 @@ if (process.argv[2] === '--diff-base') process.exit(diffBase(process.argv[3]));
 
 const fails = check(readFileSync(at(DOC), 'utf8'));
 if (fails.length) { fails.forEach((f) => console.error('RED: ' + f)); process.exit(1); }
-console.log('TASK-PRIMITIVE CHECK GREEN (3 shipped tokens cross three sources; 5 proposed tokens isolated; censuses pinned 7/4/4+5+3; Phase 0 closed set + honesty anchors present)');
+console.log('TASK-PRIMITIVE CHECK GREEN (3 shipped tokens + 2 landed task fields cross three sources; 3 proposed tokens isolated; status closed sets equal in doc/validator/contract; censuses pinned 7/4/4+5+3; Phase 0 closed set + honesty anchors present)');

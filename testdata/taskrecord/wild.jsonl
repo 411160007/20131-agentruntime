@@ -1,0 +1,4 @@
+{"v":1,"ts":"2026-10-11T14:56:00.000Z","id":"trk-b01","agent_id":"agi-d7normal","stage":"observation","type":"task.record","decision":"allow","severity":0,"summary":"wild task_status outside the closed set","task_id":"sess-d7n:1","task_status":"succeeded"}
+{"v":1,"ts":"2026-10-11T14:56:01.000Z","id":"trk-b02","agent_id":"agi-d7normal","stage":"observation","type":"task.record","decision":"allow","severity":0,"summary":"task.record without a positional task_id","task_status":"completed"}
+{"v":1,"ts":"2026-10-11T14:56:02.000Z","id":"trk-b03","agent_id":"agi-d7normal","stage":"observation","type":"turn.stop","decision":"allow","severity":0,"summary":"task_id not in session:ordinal shape","task_id":"sess-d7n:def","task_status":"active"}
+{"v":1,"ts":"2026-10-11T14:56:03.000Z","id":"trk-b04","agent_id":"agi-d7normal","stage":"observation","type":"task.record","decision":"allow","severity":0,"summary":"task.record without a task_status","task_id":"sess-d7n:3"}
