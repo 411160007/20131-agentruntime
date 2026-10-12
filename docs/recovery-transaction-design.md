@@ -141,10 +141,10 @@ so recovery data can never starve evidence retention (or vice versa).
 | clause | subject | disposition in this design surface |
 |---|---|---|
 | spec section 246 | Transaction Runtime | covered (§1: closed step set + verify/commit invariant as design rule) |
-| spec section 247 | Recovery Truthfulness | deferred: the four-class closed vocabulary is already shipped in the recovery schema (docs/schema-v2.md section 7) — local_reversible, local_partial, external_compensation, non_reversible; the outward marketing-truthfulness document is its own follow-up slice |
+| spec section 247 | Recovery Truthfulness | covered: the four-class closed vocabulary ships in the recovery schema (docs/schema-v2.md section 7) — local_reversible, local_partial, external_compensation, non_reversible; the outward marketing-truthfulness follow-up slice has since shipped as docs/recovery-honesty-grading.md (W12.2: four grades in normative order, per-face table, closed forbidden-marketing clause list) — the deferral row is retired on this reconcile, no new semantics |
 | spec section 248 | Task-Level Recovery | covered (§3: change-set census design) |
 | spec section 249 | Recovery Fabric | covered (§4: six mechanisms, five levels, independent quota as design rows) |
-| spec section 250 | Security Time Machine | registered: the causal chain User→Intent→Authority→Agent→Plan→Action→Capability→Resource→Policy→Risk→Decision→Outcome→Recovery maps onto shipped record families (events, decisions, traces, profiles); historical/decision/policy replay build on the existing read-only CLI family (status, audit-tail, timeline, report, evidence); Policy Diff and full Incident Reconstruction are registered design rows, not shipped |
+| spec section 250 | Security Time Machine | registered: the causal chain User→Intent→Authority→Agent→Plan→Action→Capability→Resource→Policy→Risk→Decision→Outcome→Recovery maps onto shipped record families (events, decisions, traces, profiles); historical/decision/policy replay build on the existing read-only CLI family (status, audit-tail, timeline, report, evidence); Policy Diff and full Incident Reconstruction are registered design rows, not shipped; the dedicated single-column register has since shipped as docs/time-machine-v0.md (causal chain link-by-link + the six supported operations as a read-only assembly over shipped record families) — this consolidated row stays the inherited cross-reference and is reconciled there, never duplicated |
 
 ## 6. Honesty constraints (verbatim-bound)
 
