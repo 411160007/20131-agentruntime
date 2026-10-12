@@ -138,6 +138,22 @@
       }
     },
     {
+      "id": "agent.hook-event-intake",
+      "class": "agent",
+      "covers": "the receiver face that maps agent CLI hook callbacks (PreToolUse / PostToolUse / SessionStart / Stop) onto the frozen audit event vocabulary",
+      "shared_evidence": [
+        { "file": "cmd/agent-collector/main.go", "token": "never disturb the agent" },
+        { "file": "cmd/agent-collector/d6.go", "token": "adapter.HookEvent" },
+        { "file": "internal/adapter/hooks.go", "token": "hook_event_name outside the supported face" },
+        { "file": "internal/adapter/configgen.go", "token": "ClaudeHooksBlock renders the hooks value" }
+      ],
+      "cells": {
+        "linux": { "tier": "MONITOR ONLY", "note": "one shipped receiver code path with no per-GOOS branch; it fail-opens on unknown, oversized, or unparseable payloads (record nothing, zero stdout, exit 0) and never blocks the agent", "evidence": [{ "file": "internal/adapter/hooks.go", "token": "NEVER writes anything to stdout" }] },
+        "darwin": { "tier": "MONITOR ONLY", "note": "same shipped code path; coverage is mount-shaped, not platform-shaped — a session feeds the face only after its agent CLI mounted the recorder configuration", "evidence": [{ "file": "internal/adapter/configgen.go", "token": "receiverCommand(bin)" }] },
+        "windows": { "tier": "MONITOR ONLY", "note": "same shipped code path; the four-event face and the fail-open contract are uniform, while the mount depends on the agent CLI shapes the shipped generator writes for (claude-code and openclaw; the codex mount prints its known gap)", "evidence": [{ "file": "cmd/agent-collector/main.go", "token": "case \"hook\":" }] }
+      }
+    },
+    {
       "id": "mcp-server-detection",
       "class": "mcp",
       "covers": "detection of MCP servers (direct fingerprints, parent-chain lineage, orphaned siblings)",

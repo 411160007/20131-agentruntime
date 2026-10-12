@@ -60,6 +60,10 @@ function load(root) {
   wantEvidence(json.rows); wantEvidence(json.unsupported_goos);
   files.set("internal/discovery/discovery.go", readIf(root, "internal/discovery/discovery.go"));
   files.set("cmd/agent-collector/run.go", readIf(root, "cmd/agent-collector/run.go"));
+  // fixed loads for the shipped-surface enumeration (they must resolve
+  // even after a matrix edit drops the row that referenced them)
+  files.set("cmd/agent-collector/main.go", readIf(root, "cmd/agent-collector/main.go"));
+  files.set("internal/adapter/hooks.go", readIf(root, "internal/adapter/hooks.go"));
   const decision = [];
   for (const d of DECISION_DIRS) for (const f of listGo(root, d)) decision.push([f, readIf(root, f)]);
   // non-test shipped go files for the counter census
@@ -115,6 +119,21 @@ function check(b) {
     }
   }
   for (const c of SPEC_CLASSES) if (!seenClass.has(c)) fail("spec class " + c + " has no row — the matrix may not silently drop a covered class");
+  // shipped-surface enumeration (reverse direction): the hook receiver
+  // face is shipped collection code (agent CLI hook intake, routed by
+  // the binary's subcommand table); once it ships, some matrix row must
+  // name an evidence pointer into internal/adapter/hooks.go — dropping
+  // the surface from the matrix goes red here, never silently.
+  const mainSrc = b.files.get("cmd/agent-collector/main.go") || "";
+  const hooksSrc = b.files.get("internal/adapter/hooks.go") || "";
+  if (mainSrc.includes('case "hook"') && hooksSrc.includes("func HookEvent")) {
+    const namesHookFace = (r) =>
+      (r.shared_evidence || [])
+        .concat(Object.values(r.cells).flatMap((c) => c.evidence))
+        .some((e) => e.file === "internal/adapter/hooks.go");
+    if (!json.rows.some(namesHookFace))
+      fail("shipped hook-receiver surface is not named by any matrix row — upgrade the matrix in the same PR, never silently");
+  }
   // evidence pointers must resolve in the shipped tree (no hollow anchors)
   const resolve = (ev, where) => {
     for (const e of ev) {
@@ -203,6 +222,10 @@ function selftest() {
     ["marketing-equality phrasing", (b) => { b.docs += "\nAll platforms are equally protected, always.\n"; }],
     ["second plane dialect", (b) => { b.docs += "\nsee none-in-observation-phase-v2\n"; }],
     ["class silently dropped", (b) => { b.json.rows = b.json.rows.filter((r) => r.class !== "capability"); }],
+    ["shipped hook surface dropped", (b) => {
+      b.json.rows = b.json.rows.filter((r) => r.id !== "agent.hook-event-intake");
+      b.docs = b.docs.split("\n").filter((l) => !l.includes("`agent.hook-event-intake`")).join("\n");
+    }],
     ["decision-plane reach", (b) => { b.decision.push(["internal/policy/evil.go", "// coverage-truthfulness leaked into the evaluator"]); }],
     ["schema section gutted", (b) => { b.schemaV2 = b.schemaV2.replace(/^## 36\..*$/m, "## 36. placeholder"); }],
   ];
