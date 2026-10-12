@@ -62,6 +62,7 @@ not FULL.
 | `agent.claude-code-detection` | agent | LIMITED | LIMITED | LIMITED | one shared fingerprint table (cli + inspector rules, windows launcher suffixes included); detection degrades wherever cmdline visibility degrades, per the OS-specific mechanism above |
 | `agent.codex-detection` | agent | LIMITED | LIMITED | LIMITED | one shared fingerprint table (cli rule incl. command-runner/exec shapes); degradation follows the same per-OS paths |
 | `agent.openclaw-detection` | agent | LIMITED | LIMITED | LIMITED | one shared fingerprint table (product name, npm package, gateway launch form; a bare "gateway" token is far too broad to key on); degradation follows the same per-OS paths |
+| `agent.hook-event-intake` | agent | MONITOR ONLY | MONITOR ONLY | MONITOR ONLY | one shipped receiver code path with no per-GOOS branch: it maps the four-event face (PreToolUse / PostToolUse / SessionStart / Stop) onto the frozen vocabulary, fail-opens on unknown, oversized, or unparseable payloads (record nothing, zero stdout, exit 0) and never blocks the mounted agent; coverage is mount-shaped, not platform-shaped — claude-code and openclaw mount shapes ship from the generator, the codex mount prints its known gap |
 | `mcp-server-detection` | mcp | LIMITED | LIMITED | LIMITED | direct binary fingerprints plus the parent-chain rule that needs lineage; orphaned-server accounting rides the same snapshot — all bounded by the rows above |
 | `tool.call-observation` | tool | MONITOR ONLY | MONITOR ONLY | MONITOR ONLY | the local relay forwards first and observes completed records on every platform; a nil observer degrades it to pure relay, declared in the shipped field comment; nothing here decides |
 | `capability.classification` | capability | MONITOR ONLY | MONITOR ONLY | MONITOR ONLY | one closed vocabulary table on every platform; it expresses capability use, does not enforce grants, and pins transitivity off — input fields degrade with the detection rows |
@@ -71,7 +72,9 @@ the machine form; pointer anchors per row:
 `internal/discovery/` (snapshot, fingerprints, stats, hidden predicates),
 `cmd/agent-collector/run.go` (counter wiring and event attributes),
 `internal/mcpproxy/proxy.go` (relay/observer), `internal/schema/capability.go`
-(vocabulary and Phase 0 boundary).
+(vocabulary and Phase 0 boundary), and `internal/adapter/` with
+`cmd/agent-collector/d6.go` (hook receiver, fail-open contract, mount
+generator).
 
 ## Counters behind the accounting rows
 
