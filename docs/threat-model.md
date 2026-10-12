@@ -180,3 +180,46 @@ and proxy execution points. When that happens this document gains a
 from `known_gap` toward integrity-attested surfaces. Until then,
 anything in this repo claiming prevention is a bug the gate
 vocabulary greps already hunt for.
+
+## MCP/Tool response storage privacy observation v0 (documentation surface)
+
+Three source clauses of the Master Directive bind how a tool or MCP
+response may be handled on the storage side (spec sections 75, 240,
+and 272):
+
+- Spec section 75 (privacy, local-first): uploading the full prompt,
+  the full Tool Response, or private data is never a default; cloud
+  analysis runs default-redacted.
+- Spec section 240 (untrusted content): Tool Response and MCP Result
+  enter as UNTRUSTED content — they may not raise authority, grant
+  capability, disable protection, change intent, or lower risk.
+- Spec section 272 (logging privacy): full private Tool Responses are
+  not kept by default; the preferred record shape is event metadata,
+  hashes, classification, decision, source, and correlation id, and
+  any richer retention requires an explicit security need plus
+  minimisation first.
+
+Shipped observation surface, honestly bounded:
+
+- No response-body-class field exists on any shipped record schema.
+  The field census over the schema package finds zero body/payload
+  fields; the only fields named `response` are constructor-pinned
+  closed-set verdict strings (the agency-guard and cost-guard ladder
+  records echo their own record-only reaction, not any tool output).
+  Default-not-store therefore holds *by construction* — there is no
+  column to store a private response into.
+- The reserved MCP evaluation slot observes the tool shape (name and
+  argument surface), never response content — the same boundary
+  TM-14 states for untrusted-content judgement.
+- The evidence-export profile is a hash-and-metadata attestation
+  (integrity hash required); it exports attestations, not payloads.
+
+Known_gap, registered not hidden: the full form of section 272 — a
+classification pipeline that would allow an explicitly approved,
+minimised retention of a private response under a stated security
+need, plus the section 75 default-redaction pipeline for any future
+cloud analysis — is not implemented in Phase 0 and is not scheduled
+before the enforcement phases. This section claims only the
+by-construction default-not-store shape, not a redaction engine.
+No threat id, no rule, and no golden case was added on either side
+by this documentation-surface registration.
