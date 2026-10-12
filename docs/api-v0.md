@@ -84,11 +84,14 @@ record: it requires `task_id` in the positional
 task_statuses closed set above; any other type may carry the two
 fields additively, and absence on any type is the legacy default that
 validates and replays exactly as before. The fields are observation-
-only — they never decide, and this slice changes no emission path: no
-shipped component writes `task.record` lines yet, so every existing
-stream keeps its bytes and meaning (the derive-only mapper of
-`docs/task-primitive-design.md` section 4 remains the way to read task
-views over older streams). Pre-extension readers filtering on the
+only — they never decide, and this slice changes no collector emission
+path: no runtime component writes `task.record` lines into shipped
+streams, so every existing stream keeps its bytes and meaning (the
+derive-only mapper of `docs/task-primitive-design.md` section 4 remains
+the way to read task views over older streams; the tooling-side
+emission script `scripts/task-record-emit.mjs` restates derived
+intervals as `task.record` lines in a separate side stream and never
+writes onto an input). Pre-extension readers filtering on the
 older thirteen types simply ignore the new one. No prior meaning
 changed.
 

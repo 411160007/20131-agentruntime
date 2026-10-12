@@ -124,7 +124,7 @@ function pinSet(label, want, got) {
   }
 }
 
-function check(docText, mapperText = mapperOrNothing()) {
+function check(docText, mapperText = mapperOrNothing(), emitterText = emitterOrNothing()) {
   fail.length = 0;
 
   // 1. version lock
@@ -246,10 +246,26 @@ function check(docText, mapperText = mapperOrNothing()) {
     if (/\{\s*['\"]gn-\d+['\"]\s*:\s*\{[^}]*expect/i.test(mapperText)) bad('mapper embeds a second copy of the assertion corpus');
   }
 
+  // 8b. emission reverse-lookup: the tooling-side recorder must consume
+  // the derive-only mapper (single MR implementation), gate its output
+  // through the validator mirror, and carry no second closed set and no
+  // second mapping of its own.
+  if (emitterText === null) bad('emission script not found at scripts/task-record-emit.mjs');
+  else {
+    if (!emitterText.includes('task-map.mjs')) bad('emitter does not consume the derive-only mapper (second mapping red)');
+    if (!emitterText.includes('validate-jsonl.mjs')) bad('emitter skips the validator mirror gate');
+    if (/['\"]open['\"]\s*,\s*['\"]active['\"]\s*,\s*['\"]completed['\"]/i.test(emitterText)) bad('emitter carries a second status vocabulary copy');
+    if (!emitterText.includes('side stream')) bad('emitter lacks the side-stream posture (it must never write onto input streams)');
+    if (!/deterministic|byte-identical/i.test(emitterText)) bad('emitter lacks the determinism contract sentence');
+  }
+
   return fail;
 }
 function mapperOrNothing() {
   try { return readFileSync(at('scripts/task-map.mjs'), 'utf8'); } catch { return null; }
+}
+function emitterOrNothing() {
+  try { return readFileSync(at('scripts/task-record-emit.mjs'), 'utf8'); } catch { return null; }
 }
 
 // ---------- selftest: injected defects must ALL be caught ----------
@@ -257,7 +273,9 @@ function selftest() {
   const docPath = at(DOC);
   const real = readFileSync(docPath, 'utf8');
   const mapperReal = mapperOrNothing();
+  const emitterReal = emitterOrNothing();
   if (mapperReal === null) { console.error('SELFTEST RED: mapper file absent — reverse-lookup has nothing to scan'); return 1; }
+  if (emitterReal === null) { console.error('SELFTEST RED: emitter file absent — 8b has nothing to scan'); return 1; }
   const dir = mkdtempSync(path.join(os.tmpdir(), 'taskpr-ctl-'));
   const injected = [
     ['status census drift', (d) => d.replace('task_status_vocabulary: open, active, completed, failed, abandoned, blocked, unknown',
@@ -281,19 +299,27 @@ function selftest() {
     ['mapper eval conflict rule dropped', null, (m) => m.replace(/conflict/g, 'xonflict')],
     ['record-form landing sentence removed', (d) => d.replace(LANDING_SENTENCE, 'are proposed field shapes')],
     ['reserved pair smuggled as landed', (d) => d.replace(RESERVED_PAIR, '`task_boundary` and `task_refs` are shipped too')],
+    // emitter-targeted injections (fourth slot): the recorder must stay
+    // a consumer of the single mapping implementation, never a copy.
+    ['emitter second vocabulary copy', null, null, (e) => e.replace('const MAPPER =',
+      "const SECOND = ['open', 'active', 'completed', 'failed', 'abandoned', 'blocked', 'unknown'];\nconst MAPPER =")],
+    ['emitter re-implements the mapping', null, null, (e) => e.split('task-map.mjs').join('no-mapper-here')],
+    ['emitter side-stream posture dropped', null, null, (e) => e.split('side stream').join('same stream')],
   ];
   let caught = 0;
-  for (const [name, docMut, mapMut] of injected) {
+  for (const [name, docMut, mapMut, emMut] of injected) {
     const brokenDoc = docMut ? docMut(real) : real;
     const brokenMapper = mapMut ? mapMut(mapperReal) : mapperReal;
+    const brokenEmitter = emMut ? emMut(emitterReal) : emitterReal;
     if (docMut && brokenDoc === real) { console.error(`SELFTEST RED: injection ${name} was a no-op`); continue; }
     if (mapMut && brokenMapper === mapperReal) { console.error(`SELFTEST RED: injection ${name} was a no-op`); continue; }
-    const f = check(brokenDoc, brokenMapper);
+    if (emMut && brokenEmitter === emitterReal) { console.error(`SELFTEST RED: injection ${name} was a no-op`); continue; }
+    const f = check(brokenDoc, brokenMapper, brokenEmitter);
     if (f.length === 0) console.error(`SELFTEST RED: injection ${name} NOT caught`);
     else caught++;
   }
   // real doc + real mapper must pass
-  const realFails = check(real, mapperReal);
+  const realFails = check(real, mapperReal, emitterReal);
   rmSync(dir, { recursive: true, force: true });
   if (realFails.length) { console.error('SELFTEST RED: real doc fails:', realFails); return 1; }
   if (caught !== injected.length) { console.error(`SELFTEST RED: ${caught}/${injected.length} injections caught`); return 1; }

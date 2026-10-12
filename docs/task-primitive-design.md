@@ -136,8 +136,13 @@ Record-form landing status (schema side): `task_id` and `task_status`
 are shipped validator-visible additive fields (Go enum + validator
 mirror + contract doc, three-source lockstep per the stage-1 precedent
 of `intent.record`); `task_boundary` and `task_refs` stay reserved, not
-emitted; no shipped emission path writes `task.record` lines yet, so
-the derive-only posture of section 4 is unchanged on live streams.
+emitted. No shipped runtime component writes `task.record` lines into a
+collector stream, so live streams keep their exact bytes. Emission v0
+landed on the tooling side only: `scripts/task-record-emit.mjs`
+materializes the mapper's derived intervals as `task.record` lines in a
+separate side stream — it consumes the section-4 mapping as the single
+implementation, carries no second closed set, gates every emitted line
+through the validator mirror, and never writes onto an input stream.
 
 The future recorder (a later slice, gated by this contract) would add
 per-event additive fields under the same `schema_version` discipline
@@ -206,9 +211,14 @@ counts recovered; recovery never promotes `unknown` by itself.
   are one contract; both carry this exact sentence.
 - record-form landing v1: `task_id` and `task_status` validate as
   additive shipped fields across the three sources; `task_boundary`
-  and `task_refs` remain reserved vocabulary; the runtime field that
-  would produce task records into a stream is not wired anywhere —
-  the recorder emission slice is what remains, not the field shapes.
+  and `task_refs` remain reserved vocabulary.
+- record-form landing v2 (emission side): `scripts/task-record-emit.mjs`
+  produces `task.record` lines as a side stream consumed from the
+  derive-only mapper, machine-checked by the emission reverse-lookup of
+  `scripts/task-primitive-check.mjs`; the collector runtime pipeline is
+  byte-identical and unwired, live streams and golden fixtures keep
+  their exact bytes, and runtime wiring stays reserved for a later
+  slice.
 - known gap registration (verbatim posture): the North Star ratio
   denominator does not exist in shipped code today; this file is the
   contract proposal that makes it buildable, not an implementation.
