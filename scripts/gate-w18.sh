@@ -13,7 +13,7 @@
 # cleanup, out-of-repo log directory, PATH fallback, closed-set re-parsing
 # at run time, inherited chain, tripwire closer).
 #
-# E52 RE-PIN DECLARATION (the standing reason this wave's diff face is
+# RE-PIN DECLARATION (the standing reason this wave's diff face is
 # wider than the previous one): the wave legitimately moves golden corpus
 # bytes because it ships the EXPORT judgement row plus nine new direct
 # danger cases. The golden shape fenced here is exactly:
@@ -26,10 +26,11 @@
 #   - thresholds.json ledger readings are re-nailed from this wave's own
 #     fresh eval-runner output because the denominator moved with the
 #     added cases (68 to 73 danger, 144 to 149 total).
-# Evidence paths for the re-pin: ai-company/reports/20131-w1-ticket2-20261013.md
-# (sections 3-4), ai-company/reports/20131-w4-nextclass2-20261014.md
-# (sections 3-4), and the PR#86 fix commit f874761 recorded in
-# ai-company/queue/NIGHT_TASKS.md. The W15/W16/W17 pins inside the
+# Evidence for the re-pin: the wave handoff rows recorded in the build
+# ledger for the engine slice, the corpus slice and the injection-chain
+# slice, plus the gate-fix merge commit f874761 sitting in this branch's
+# base history (ledger file paths deliberately stay off the product
+# face). The W15/W16/W17 pins inside the
 # inherited gates stay exactly as they were. Any red exits non-zero.
 set -euo pipefail
 cd "$(dirname "$0")/.."
