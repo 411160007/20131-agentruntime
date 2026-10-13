@@ -1,10 +1,10 @@
 {
-  "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (144 cases across ten evaluation dimensions).",
+  "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (149 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 76,
-    "danger": 68,
-    "total": 144,
-    "labels": 144
+    "danger": 73,
+    "total": 149,
+    "labels": 149
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -29,13 +29,18 @@
         "g7-x07",
         "g7-x08",
         "g7-x09",
-        "g7-x10"
+        "g7-x10",
+        "gd-25",
+        "gd-26",
+        "gd-27",
+        "gd-28",
+        "gd-29"
       ],
       "w_points": [
         "W1 \u2014 evidence trust order: content of untrusted provenance gets a declared source_class (low tier), never decides alone (machine-judged trust battery already shipped in the runner)",
         "W3 \u2014 intent contract: intent mutations sourced from untrusted content are recorded as UNTRUSTED-marked observations (observe-only in Phase 0)"
       ],
-      "note": "No dedicated injection-semantics matcher ships today. The five injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.",
+      "note": "No dedicated injection-semantics matcher ships today. The ten injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf \u2014 the five direct attempts gd-25 to gd-29 mirror each shipped primitive effect), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.",
       "cases": []
     },
     {
@@ -75,7 +80,9 @@
         "g8-d05",
         "gd-08",
         "gd-13",
-        "gd-14"
+        "gd-14",
+        "gd-25",
+        "gd-27"
       ]
     },
     {
@@ -95,7 +102,8 @@
         "g7-x08",
         "g8-d05",
         "gd-13",
-        "gd-14"
+        "gd-14",
+        "gd-27"
       ]
     },
     {
@@ -115,7 +123,8 @@
         "g7-s09",
         "g7-x08",
         "gd-13",
-        "gd-14"
+        "gd-14",
+        "gd-27"
       ]
     },
     {
@@ -149,7 +158,8 @@
         "gd-04",
         "gd-05",
         "gd-09",
-        "gd-18"
+        "gd-18",
+        "gd-26"
       ]
     },
     {
@@ -208,7 +218,8 @@
         "g7-q06",
         "g7-s12",
         "g7-x06",
-        "gd-08"
+        "gd-08",
+        "gd-25"
       ]
     },
     {
@@ -232,7 +243,8 @@
         "g8-d07",
         "gd-06",
         "gd-07",
-        "gd-09"
+        "gd-09",
+        "gd-29"
       ]
     },
     {
@@ -302,18 +314,21 @@
         "gd-04",
         "gd-05",
         "gd-09",
-        "gd-18"
+        "gd-18",
+        "gd-26"
       ]
     },
     {
       "name": "Network Exfiltration",
       "status": "pending",
-      "rules": ["egress.export"],
+      "rules": [
+        "egress.export"
+      ],
       "w_points": [
         "W4 \u2014 trust-domain mapping for net.outbound: egress intent events grade against the nine-class action vocabulary (EXPORT/SHARE)",
         "W10 \u2014 external-intelligence contract (zero-wired by default) could later enrich destination reputation without ever gating the deterministic core"
       ],
-      "note": "Outbound network intent is flagged as a class today (all four network-shaped dangers detected 4/4) as generic egress visibility; the boundary slice shipped its first judgement row egress.export (events recorded with the EXPORT data-classification annotation are judged directly, observation only; an absent annotation stays unclassified legacy). The corpus ticket landed: four direct EXPORT-record cases (gd-21 to gd-24) are judged by egress.export ahead of the generic row; content-derived sensitivity stays the declared known gap.",
+      "note": "Outbound network intent is flagged as a class today (all five network-shaped primitive dangers detected 5/5) as generic egress visibility; the boundary slice shipped its first judgement row egress.export (events recorded with the EXPORT data-classification annotation are judged directly, observation only; an absent annotation stays unclassified legacy). The corpus ticket landed: four direct EXPORT-record cases (gd-21 to gd-24) are judged by egress.export ahead of the generic row; content-derived sensitivity stays the declared known gap.",
       "cases": [
         "gd-21",
         "gd-22",
@@ -324,7 +339,8 @@
         "g7-s08",
         "g7-x09",
         "gd-11",
-        "gd-12"
+        "gd-12",
+        "gd-28"
       ]
     },
     {
@@ -514,3 +530,4 @@
     "note": "Dogfood-harvested collector lifecycle and discovery lines (startup, scan cycles, detected agents, session/turn markers). They belong to the product's own observation surface, not to an agent task category; kept as an explicit bucket so the twelve task classes never absorb them silently."
   }
 }
+
