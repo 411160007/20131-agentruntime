@@ -49,7 +49,7 @@ echo 'DUAL TRACK GREEN (claim-only allow; native-backed would_block; forged-stam
 
 step '02 decision values stay inside the Phase 0 closed set on the shipped table'
 nwb=$(node -e 'const s=require("node:fs").readFileSync("internal/rules/rules.go","utf8");console.log((s.match(/"effect": "would_block"/g)||[]).length)')
-[ "$nwb" -eq 12 ] || { echo "RED: built-in effects $nwb/12 would_block"; exit 1; }
+[ "$nwb" -eq 13 ] || { echo "RED: built-in effects $nwb/13 would_block"; exit 1; }
 if grep -rnE '"decision": ?"(block|denied|deny)"' --include='*.go' internal/rules/ | grep -v _test; then
   echo 'RED: blocking vocabulary appeared in the judgement package'; exit 1
 fi

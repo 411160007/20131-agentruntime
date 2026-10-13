@@ -141,7 +141,7 @@ go test -count=1 ./internal/rules -run 'TestDecisionEvent' -v > "$TMPDIR/gate-d4
 grep -q '^--- PASS: TestDecisionEvent' "$TMPDIR/gate-d4-guard.out"
 # the built-in table itself: 12/12 would_block, >=5 hard critical
 nwb=$(node -e 'const s=require("node:fs").readFileSync("internal/rules/rules.go","utf8");console.log((s.match(/"effect": "would_block"/g)||[]).length)')
-[ "$nwb" -eq 12 ] || { echo "RED: built-in effects $nwb/12 would_block"; exit 1; }
+[ "$nwb" -eq 13 ] || { echo "RED: built-in effects $nwb/13 would_block"; exit 1; }
 nh=$(node -e 'const s=require("node:fs").readFileSync("internal/rules/rules.go","utf8");console.log((s.match(/"hard": true/g)||[]).length)')
 [ "$nh" -ge 5 ] || { echo "RED: hard rules $nh < 5"; exit 1; }
 echo "PHASE 0 SEMANTICS OK (would_block-only, ${nh} hard critical rules, deny vocabulary absent, emitter guard green)"
