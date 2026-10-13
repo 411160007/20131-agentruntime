@@ -33,7 +33,7 @@ Honesty rules of this map:
 | Policy Bypass | covered | audit.tamper | 7 / — | in service |
 | Capability Escalation | semantics pending | — (primitives: agent.masquerade, path.sudoers) | 0 / 8 | W6 + W4 |
 | Data Exfiltration | semantics pending | — (primitives: cred.ssh, cred.aws, cred.browser, cred.dotenv, destroy.rmrf, destroy.disk, exec.remotepipe) | 0 / 17 | W4 + W7 |
-| Network Exfiltration | semantics pending | — (primitives: net.egress) | 0 / 4 | W4 + W10 |
+| Network Exfiltration | semantics pending | egress.export (EXPORT-record judgement) + `net.egress` primitive | 0 / 4 | W4 + W10 |
 | Child Process Pivot | covered | agent.masquerade | 5 / — | in service |
 
 Per-row notes:
@@ -52,7 +52,7 @@ Per-row notes:
 - **Policy Bypass** — Covered shape = attack on the audit/policy sink itself (TM-08) plus the merge-surface hard-rule no-downgrade gate (three negative-control fixtures in the runner battery). The winevt-clearing case gd-20 stays a declared known_gap (TM-12), honestly counted as a miss in the ledger, never silently passed.
 - **Capability Escalation** — Sudoers writes and world-writable masquerade runs are caught as primitives; the escalation-as-trajectory semantics (capability growth over time) awaits the least-agency slice.
 - **Data Exfiltration** — Credential-store reads (the typical exfiltration source step) are caught as primitives; payload-crossing-boundary semantics need the data-action vocabulary.
-- **Network Exfiltration** — Outbound network intent is flagged as a class today (all four network-shaped dangers detected 4/4) but as generic egress visibility, not as confirmed data leaving with a payload; the egress semantics arrive with the boundary slice.
+- **Network Exfiltration** — Outbound network intent is flagged as a class today (all four network-shaped dangers detected 4/4) but as generic egress visibility, not as confirmed data leaving with a payload. The boundary slice has shipped its first judgement row: events recorded with the EXPORT data-classification annotation are judged directly by `egress.export` (observation only — an absent annotation stays unclassified legacy and is never inferred; content-derived sensitivity remains the declared known gap). The class's direct corpus cases arrive with the golden expansion's corpus ticket.
 - **Child Process Pivot** — Covered shape = relabel/masquerade execution from world-writable directories (TM-07, incl. the miner-disguised-as-agent variant) plus proc.spawn capability tagging on piped-exec rules. Full parent-child chain re-adjudication (pivot-through-children as trajectory) is graded later with the behavior-chain upgrade.
 
 Pending-class carry points, in full:

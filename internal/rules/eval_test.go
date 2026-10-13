@@ -379,6 +379,10 @@ func TestEvidenceTrustOrder(t *testing.T) {
 	native := map[string]bool{
 		"agent_id": true, "type": true, "tool": true,
 		"path": true, "domain": true, "cmdline": true, "exe": true,
+		// data_action is a producer-filled typed record field (added
+		// with the boundary-slice row egress.export); its ABSENCE is
+		// unclassified-legacy and never inferred.
+		"data_action": true,
 	}
 	p, err := Builtin()
 	if err != nil {

@@ -64,6 +64,15 @@ const (
 	DataActionEnforcementPlane = "none-in-observation-phase"
 )
 
+// MatchableDataValue projects the optional typed data-classification
+// record field onto the rule-matching surface. It lives in the schema
+// module on purpose: decision-plane files reach the value through this
+// accessor without ever naming the vocabulary symbols above, which is
+// exactly what the Phase 0 stance in the header comment requires.
+// An empty result means the field is absent - unclassified legacy,
+// never filled in by guessing, never matching a rule.
+func (e *Event) MatchableDataValue() string { return string(e.DataAction) }
+
 // AllDataActions lists the nine vocabulary members in normative order.
 // scripts/validate-jsonl.mjs mirrors this list as the independent second
 // source of truth and docs/api-v0.md as the third; the sync tests fail
