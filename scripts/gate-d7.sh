@@ -238,7 +238,7 @@ echo "RECORDING PLANE CARRIES $rp SPEC-VERBATIM TOKEN LINE(S) - carried, never c
 go test -count=1 ./internal/rules -run 'TestDecisionEvent' -v > "$TMPDIR/gate-d7-guard.out" 2>&1 || { cat "$TMPDIR/gate-d7-guard.out"; exit 1; }
 grep -q '^--- PASS: TestDecisionEvent' "$TMPDIR/gate-d7-guard.out"
 nwb=$(node -e 'const s=require("node:fs").readFileSync("internal/rules/rules.go","utf8");console.log((s.match(/"effect": "would_block"/g)||[]).length)')
-[ "$nwb" -eq 12 ] || { echo "RED: built-in effects $nwb/12 would_block"; exit 1; }
+[ "$nwb" -eq 13 ] || { echo "RED: built-in effects $nwb/13 would_block"; exit 1; }
 echo 'PHASE 0 SEMANTICS OK (would_block-only emitter set, deny vocabulary absent)'
 
 step '10 frozen contract + license + tripwire (controls first)'
