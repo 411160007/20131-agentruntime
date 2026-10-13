@@ -82,9 +82,9 @@ echo "CHECKERS GREEN (map lockstep, ledger re-nailed against this run's eval out
 
 step '02 positive controls: both wave checkers fully catch their own injections, the two golden streams validate, the replay CLI total test passes'
 mv=$(node scripts/coverage-map-check.mjs --selftest 2>&1 | tail -1)
-printf '%s' "$mv" | grep -q 'SELFTEST GREEN' || { echo "RED: map selftest not green: $mv"; exit 1; }
+printf '%s' "$mv" | grep -q 'SELFTEST OK' || { echo "RED: map selftest not green: $mv"; exit 1; }
 lv=$(node scripts/threshold-ledger-check.mjs --selftest "$LOGDIR/gate-w18-eval.out" 2>&1 | tail -1)
-printf '%s' "$lv" | grep -q 'SELFTEST GREEN' || { echo "RED: ledger selftest not green: $lv"; exit 1; }
+printf '%s' "$lv" | grep -q 'SELFTEST OK' || { echo "RED: ledger selftest not green: $lv"; exit 1; }
 node scripts/validate-jsonl.mjs testdata/golden/danger.jsonl > "$LOGDIR/gate-w18-dv.out" 2>&1 \
   || { tail -5 "$LOGDIR/gate-w18-dv.out"; echo RED: danger stream failed validation; exit 1; }
 node scripts/validate-jsonl.mjs testdata/golden/normal.jsonl > "$LOGDIR/gate-w18-nv.out" 2>&1 \
