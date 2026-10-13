@@ -30,11 +30,15 @@ const (
 	FieldDomain  MatchField = "domain"  // matched against Attrs["domain"]
 	FieldCmdline MatchField = "cmdline" // matched against Attrs["cmdline"]
 	FieldExe     MatchField = "exe"     // matched against Attrs["exe"]
+	// FieldDataAction matches the typed optional data-classification
+	// record field (wire name data_action). Absence never matches: an
+	// unclassified legacy line is never inferred into a class.
+	FieldDataAction MatchField = "data_action"
 )
 
 func (m MatchField) Valid() bool {
 	switch m {
-	case FieldAgentID, FieldType, FieldTool, FieldPath, FieldDomain, FieldCmdline, FieldExe:
+	case FieldAgentID, FieldType, FieldTool, FieldPath, FieldDomain, FieldCmdline, FieldExe, FieldDataAction:
 		return true
 	}
 	return false
@@ -46,6 +50,7 @@ func AllMatchFields() []string {
 	return []string{
 		string(FieldAgentID), string(FieldType), string(FieldTool),
 		string(FieldPath), string(FieldDomain), string(FieldCmdline), string(FieldExe),
+		string(FieldDataAction),
 	}
 }
 

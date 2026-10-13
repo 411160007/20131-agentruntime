@@ -10,7 +10,7 @@
 //      built-in table (no stale/ghost references);
 //   3. every threat row (TM-xx) names at least one rule or carries
 //      an explicit known_gap marker — silence is not an option;
-//   4. threat row count >= 10 (v0 floor) and rule count == 12
+//   4. threat row count >= 10 (v0 floor) and rule count == 13
 //      (the v1 uplift ships documentation rows only — no new rules);
 //   5. external copy discipline: no border-device marketing word
 //      (any casing) in docs/threat-model.md or README;
@@ -147,7 +147,7 @@ const go = readFileSync(at('internal/rules/rules.go'), 'utf8');
 const ids = builtinRuleIds(go);
 const counters = counterTokens(readFileSync(at('internal/schema/agencyguard.go'), 'utf8'));
 const doc = readFileSync(at('docs/threat-model.md'), 'utf8');
-if (ids.length !== 12) { console.error(`RULE COUNT DRIFT: built-in table carries ${ids.length}, want 12 (the v1 uplift ships documentation rows only)`); process.exit(1); }
+if (ids.length !== 13) { console.error(`RULE COUNT DRIFT: built-in table carries ${ids.length}, want 13 (12 from the v0/v1 uplift baseline + the boundary-slice row egress.export)`); process.exit(1); }
 
 let errs = [...check(doc, ids, counters, 'live'), ...marketingWords(at('docs/threat-model.md')), ...marketingWords(at('README.md'))];
 
@@ -176,10 +176,10 @@ if (process.argv.includes('--selftest')) {
     process.exit(1);
   }
   if (errs.length) { console.error('SELFTEST FAIL: live doc does not pass:', errs); process.exit(1); }
-  console.log(`THREATMODEL SELFTEST OK: ${caught}/${cases.length} injected defects caught; live doc clean (12 rules, ${ids.length + 5}/17 uplift census, clauses+counters bidirectional)`);
+  console.log(`THREATMODEL SELFTEST OK: ${caught}/${cases.length} injected defects caught; live doc clean (13 rules, ${ids.length + 5}/17 uplift census, clauses+counters bidirectional)`);
   process.exit(0);
 }
 
 if (errs.length) { console.error('THREATMODEL CHECK FAIL:\n' + errs.join('\n')); process.exit(1); }
 const nRows = doc.split('\n').filter((l) => /^\|\s*TM-\d+\s*\|/.test(l)).length;
-console.log(`THREATMODEL OK: 12 rules <-> threat rows bidirectional, ${nRows} threats (TM-13..17 uplift present, clauses pinned), supply-chain section restates [${counters.join(', ')}] from shipped source, gaps explicit, marketing-word scan clean`);
+console.log(`THREATMODEL OK: 13 rules <-> threat rows bidirectional, ${nRows} threats (TM-13..17 uplift present, clauses pinned), supply-chain section restates [${counters.join(', ')}] from shipped source, gaps explicit, marketing-word scan clean`);

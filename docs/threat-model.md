@@ -3,8 +3,11 @@
 Revision note: v1 = the v0 observation model plus the specification
 family uplift (rows TM-13..TM-17) and the supply-chain observation
 record semantics stated below. The uplift ships **documentation rows
-only**: the built-in rule table stays at 12 rules and Phase 0 stays
-observe-only. No uplifted row claims prevention.
+only**: the built-in rule table stayed at 12 rules through the uplift
+and Phase 0 stays observe-only. No uplifted row claims prevention.
+(The golden-expansion boundary slice later added one judgement row,
+`egress.export`, taking the built-in table to 13 rules; the uplift
+itself still shipped documentation rows only.)
 
 Registration addendum (this wave): the agent-to-agent abuse family
 gains an explicit observation section below - a documentation-surface
@@ -17,7 +20,7 @@ observe-only agent-behaviour monitor (discovery + audit + judgement
 layer). This document enumerates what we watch for, which surface
 sees it, and which built-in rule (or explicit known gap) answers it.
 It is the external counterpart of the built-in rule table
-(`builtin-phase0`, 12 rules, embedded in the binary) and is
+(`builtin-phase0`, 13 rules, embedded in the binary) and is
 cross-checked against it in both directions by the gate.
 
 Honest-boundary notes (read before trusting any line):
@@ -55,7 +58,7 @@ Honest-boundary notes (read before trusting any line):
 | TM-13 | policy confusion: contradictory or overlapping rule shapes drive the deterministic evaluator to the wrong reading | `known_gap` — merge-time refusal of exact shadowing is mechanical; general conflict semantics are enforcement-phase scope. Reserved id consumed at this wave close, discharging the red-team plan's RT-09 obligation | `known_gap` |
 | TM-14 | untrusted content treated as instruction (spec section 240 family): web page, PDF, email, issue, README, tool response, MCP result, or browser content silently raising authority, granting capability, disabling protection, changing hard deny, or lowering risk | `known_gap` — Phase 0 never touches intent, authority, or capability; the adjacent shipped surface is the `mcp.eval` reserved slot only, which sees the tool shape, not the content's persuasive effect | `known_gap` |
 | TM-15 | prompt injection escalating into goal hijacking (spec section 241 family): external content → injection → agent goal takeover → tool abuse → sensitive access → egress as one chain | shipped segments `mcp.eval` and `exec.remotepipe` anchor the observable links; `known_gap` at the chain level — v0 records individual events and never models or interrupts chains; the boundary must still hold after a successful hijack, which is why Phase 0 carries no decision input from model-supplied content at all | `known_gap` |
-| TM-16 | egress re-check avoidance (spec section 238 family): compress/encode/encrypt/archive/copy/upload/send/share inheriting permission from an earlier read, or sensitivity laundered by transformation | shipped segment `net.egress` covers declared outbound intents only; `known_gap` on the transformation stage — no shipped content-sensitivity tracker exists, and no socket enumerator ships (inherited from the coverage matrix) | `known_gap` |
+| TM-16 | egress re-check avoidance (spec section 238 family): compress/encode/encrypt/archive/copy/upload/send/share inheriting permission from an earlier read, or sensitivity laundered by transformation | shipped segments `net.egress` (declared outbound intents) and `egress.export` (events recorded with the EXPORT data-classification annotation get their own observation-phase judgement, never inheriting an earlier read decision); `known_gap` narrowed to the transformation stage — no shipped tracker re-derives sensitivity from payload content, and no socket enumerator ships (inherited from the coverage matrix) | `known_gap` |
 | TM-17 | intent hijacking / intent deviation (spec section 242 family): the executed sequence drifts from the stated task intent while every step stays inside permitted surfaces | `known_gap` — intent is restated from the recorder, never inferred or compared by v0 (same no-arithmetic stance as the TTL and event-rate windows); chain dimensions like capability or sensitivity escalation over time are later-phase scope | `known_gap` |
 
 Every built-in rule answers at least one threat above, and every

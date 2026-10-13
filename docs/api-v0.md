@@ -193,7 +193,7 @@ Rule documents (the built-in set and user overrides) match one event
 field with one operator:
 
 ```contract
-rule_fields: agent_id, type, tool, path, domain, cmdline, exe
+rule_fields: agent_id, type, tool, path, domain, cmdline, exe, data_action
 ```
 
 ```contract
@@ -201,7 +201,10 @@ rule_ops: equals, prefix, suffix, contains
 ```
 
 `tool`, `path`, `domain`, `cmdline`, and `exe` read the matching attrs
-key; absent attrs never match. Additive members of the Rule object:
+key; absent attrs never match. `data_action` reads the typed optional
+data-classification record field; an absent field means unclassified
+legacy — it never matches and is never inferred. Additive members of
+the Rule object:
 
 - `hard` (bool, default false) — non-downgradable annotation. A hard
   rule MUST carry `effect=would_block` and `severity=4` (critical);
@@ -211,11 +214,11 @@ key; absent attrs never match. Additive members of the Rule object:
 - `caps` ([]string, default empty) — capability tokens guarded by the
   rule; every token must be a member of `caps` above.
 
-The built-in Phase 0 set is exactly 12 rules
+The built-in Phase 0 set is exactly 13 rules
 (`builtin-phase0`, embedded in the binary): cred.ssh, cred.aws,
 cred.browser, cred.dotenv, destroy.rmrf, destroy.disk,
-exec.remotepipe, net.egress, mcp.eval, agent.masquerade, path.sudoers,
-audit.tamper. Decisions are additive: matched rules record
+exec.remotepipe, net.egress, egress.export, mcp.eval, agent.masquerade,
+path.sudoers, audit.tamper. Decisions are additive: matched rules record
 `would_block` audit lines; nothing is ever enforced (see decisions
 note above). The id ↔ threat mapping is `docs/threat-model.md` and is
 cross-checked in both directions by the gate.

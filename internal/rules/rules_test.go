@@ -21,6 +21,18 @@ func ev(t *testing.T, id string, typ schema.EventType, attrs map[string]string) 
 	return e
 }
 
+// evDA builds the same validated fixture with the typed optional
+// data-classification record field set, for rules matching on it.
+func evDA(t *testing.T, id string, typ schema.EventType, da schema.DataAction, attrs map[string]string) *schema.Event {
+	t.Helper()
+	e := ev(t, id, typ, attrs)
+	e.DataAction = da
+	if err := e.Validate(); err != nil {
+		t.Fatalf("fixture %s invalid: %v", id, err)
+	}
+	return e
+}
+
 type ruleCase struct {
 	rule   string
 	posit  *schema.Event // must hit this rule
@@ -68,6 +80,9 @@ func ruleFixtures(t *testing.T) []ruleCase {
 		{"net.egress",
 			ev(t, "p12", schema.TypeNetworkIntent, map[string]string{"domain": "collector.metricsbox.io"}),
 			ev(t, "n12", schema.TypeToolCall, map[string]string{"cmdline": "ping example.com"})},
+		{"egress.export",
+			evDA(t, "p13", schema.TypeFileAccess, schema.DataActionExport, map[string]string{"path": "/srv/reports/quarterly.pdf"}),
+			evDA(t, "n13", schema.TypeFileAccess, schema.DataActionRead, map[string]string{"path": "/srv/reports/quarterly.pdf"})},
 	}
 	return cases
 }

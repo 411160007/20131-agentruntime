@@ -77,6 +77,16 @@ func fieldValue(e *schema.Event, f schema.MatchField) (string, bool) {
 		return e.AgentID, true
 	case schema.FieldType:
 		return string(e.Type), true
+	case "data_action":
+		// The wire name of the typed optional data-classification record
+		// field, projected through the schema module's match accessor so
+		// this plane keeps naming no vocabulary symbol. Empty projection
+		// means absent: unclassified legacy never matches and is never
+		// inferred into a default class.
+		if v := e.MatchableDataValue(); v != "" {
+			return v, true
+		}
+		return "", false
 	case schema.FieldTool, schema.FieldPath, schema.FieldDomain, schema.FieldCmdline, schema.FieldExe:
 		if e.Attrs == nil {
 			return "", false

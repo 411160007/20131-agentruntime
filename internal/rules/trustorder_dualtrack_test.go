@@ -141,6 +141,10 @@ func TestEvidenceTrustOrderDualTrack(t *testing.T) {
 	native := map[string]bool{
 		"agent_id": true, "type": true, "tool": true,
 		"path": true, "domain": true, "cmdline": true, "exe": true,
+		// data_action admitted with the boundary-slice row
+		// egress.export: producer-filled typed record field; its
+		// absence is unclassified legacy and never inferred.
+		"data_action": true,
 	}
 	p, err := Builtin()
 	if err != nil {

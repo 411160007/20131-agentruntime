@@ -308,12 +308,12 @@
     {
       "name": "Network Exfiltration",
       "status": "pending",
-      "rules": [],
+      "rules": ["egress.export"],
       "w_points": [
         "W4 \u2014 trust-domain mapping for net.outbound: egress intent events grade against the nine-class action vocabulary (EXPORT/SHARE)",
         "W10 \u2014 external-intelligence contract (zero-wired by default) could later enrich destination reputation without ever gating the deterministic core"
       ],
-      "note": "Outbound network intent is flagged as a class today (all four network-shaped dangers detected 4/4) but as generic egress visibility, not as confirmed data leaving with a payload; the egress semantics arrive with the boundary slice.",
+      "note": "Outbound network intent is flagged as a class today (all four network-shaped dangers detected 4/4) as generic egress visibility; the boundary slice shipped its first judgement row egress.export (events recorded with the EXPORT data-classification annotation are judged directly, observation only; an absent annotation stays unclassified legacy). The class's direct corpus cases arrive with the golden expansion corpus ticket; content-derived sensitivity stays the declared known gap.",
       "cases": [],
       "primitive_cases": [
         "g7-s08",

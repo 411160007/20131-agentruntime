@@ -31,7 +31,7 @@ import (
 	"20131.com/agentruntime/internal/schema"
 )
 
-// builtinPolicyJSON is the built-in 12-rule Phase 0 document. It is
+// builtinPolicyJSON is the built-in 13-rule Phase 0 document. It is
 // embedded verbatim (stdlib-only, no external file dependency): the
 // binary carries its own default policy. Priorities: hard rules share
 // 100, ties break by declaration order below, which keeps multi-match
@@ -55,12 +55,13 @@ const builtinPolicyJSON = `{
     {"id": "cred.dotenv",    "priority": 80,  "field": "path",    "op": "suffix",   "value": ".env",         "effect": "would_block", "severity": 3, "caps": ["credential.access", "file.read"]},
     {"id": "mcp.eval",       "priority": 70,  "field": "tool",    "op": "contains", "value": "eval",         "effect": "would_block", "severity": 3, "caps": ["mcp.tool"]},
     {"id": "agent.masquerade","priority": 50, "field": "exe",     "op": "contains", "value": "/tmp/",        "effect": "would_block", "severity": 2, "caps": ["process.inspect"]},
-    {"id": "net.egress",     "priority": 40,  "field": "type",    "op": "equals",   "value": "network.intent","effect": "would_block", "severity": 2, "caps": ["net.outbound"]}
+    {"id": "net.egress",     "priority": 40,  "field": "type",    "op": "equals",   "value": "network.intent","effect": "would_block", "severity": 2, "caps": ["net.outbound"]},
+    {"id": "egress.export",  "priority": 45,  "field": "data_action", "op": "equals", "value": "export",     "effect": "would_block", "severity": 2, "caps": ["net.outbound"]}
   ]
 }`
 
 // BuiltinRuleCount pins the built-in rule count for gate assertions.
-const BuiltinRuleCount = 12
+const BuiltinRuleCount = 13
 
 var (
 	builtinOnce  sync.Once
