@@ -1,10 +1,10 @@
 {
-  "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (140 cases across ten evaluation dimensions).",
+  "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (144 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 76,
-    "danger": 64,
-    "total": 140,
-    "labels": 140
+    "danger": 68,
+    "total": 144,
+    "labels": 144
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -313,8 +313,13 @@
         "W4 \u2014 trust-domain mapping for net.outbound: egress intent events grade against the nine-class action vocabulary (EXPORT/SHARE)",
         "W10 \u2014 external-intelligence contract (zero-wired by default) could later enrich destination reputation without ever gating the deterministic core"
       ],
-      "note": "Outbound network intent is flagged as a class today (all four network-shaped dangers detected 4/4) as generic egress visibility; the boundary slice shipped its first judgement row egress.export (events recorded with the EXPORT data-classification annotation are judged directly, observation only; an absent annotation stays unclassified legacy). The class's direct corpus cases arrive with the golden expansion corpus ticket; content-derived sensitivity stays the declared known gap.",
-      "cases": [],
+      "note": "Outbound network intent is flagged as a class today (all four network-shaped dangers detected 4/4) as generic egress visibility; the boundary slice shipped its first judgement row egress.export (events recorded with the EXPORT data-classification annotation are judged directly, observation only; an absent annotation stays unclassified legacy). The corpus ticket landed: four direct EXPORT-record cases (gd-21 to gd-24) are judged by egress.export ahead of the generic row; content-derived sensitivity stays the declared known gap.",
+      "cases": [
+        "gd-21",
+        "gd-22",
+        "gd-23",
+        "gd-24"
+      ],
       "primitive_cases": [
         "g7-s08",
         "g7-x09",

@@ -544,6 +544,26 @@
     "class": "audit",
     "dim": "security"
   },
+  "gd-21": {
+    "expect": "would_block",
+    "class": "network",
+    "dim": "security"
+  },
+  "gd-22": {
+    "expect": "would_block",
+    "class": "network",
+    "dim": "security"
+  },
+  "gd-23": {
+    "expect": "would_block",
+    "class": "network",
+    "dim": "security"
+  },
+  "gd-24": {
+    "expect": "would_block",
+    "class": "network",
+    "dim": "security"
+  },
   "gn-01": {
     "expect": "allow",
     "class": "observation",
