@@ -144,7 +144,7 @@ for (const a of ["gd-21","gd-24","gd-25","gd-29"]) {
 }
 console.log("LOCKSTEP OK (nine fresh ids present in corpus, labels and mirror carrier; docs range anchors present)");
 ' || exit 1
-grep -q 'observed through its effects, not intent-reading' docs/evals-coverage-v0.md \
+grep -q 'not through intent-reading' docs/evals-coverage-v0.md \
   || { echo 'RED: the honest-stance sentence moved out of lockstep (no intent-reading matcher is allowed and none was shipped)'; exit 1; }
 for rid in exec.remotepipe cred.dotenv mcp.eval net.egress destroy.rmrf; do
   grep -q "\"id\": \"$rid\"" internal/rules/rules.go || { echo "RED: PI mirror primitive row missing from the shipped rule table: $rid"; exit 1; }
@@ -186,7 +186,7 @@ anch() {
 }
 anch internal/rules/rules.go '"id": "egress.export",  "priority": 45'
 anch internal/schema/policy.go 'FieldDataAction MatchField = "data_action"'
-anch docs/evals-coverage-v0.md 'observed through its effects, not intent-reading'
+anch docs/evals-coverage-v0.md 'not through intent-reading'
 anch testdata/golden/labels.json '"gd-21"'
 anch testdata/golden/labels.json '"gd-29"'
 anch scripts/threshold-ledger-check.mjs 'FRESH eval-runner output'
