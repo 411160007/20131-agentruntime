@@ -3430,3 +3430,149 @@ the record-only-no-action stance, inherits the section 21 ban on
 ladder tokens in any Phase 0 record, and states the no-install-gating
 limit as a `known_gap` row rather than silence. If the counters move
 or rename, the section and the checker must upgrade in the same PR.
+
+## 41. Memory provenance observation record contract (slice W12.2)
+
+Section 262 of the owner spec closes the memory surface: six kinds of
+memory, as a closed set rather than an exemplar list, each significant
+record carrying at minimum seven provenance attributes, and one
+headline rule that decides what a remembered claim is worth - Memory
+is not Authorization. A record that asserts the user already allowed
+something is evidence of an intent claim; the real authority and the
+current policy must be re-verified at the moment of use.
+
+The design face for this clause landed first, as
+`docs/memory-learning-safety-design.md` (checked by
+`scripts/w12-memsec-check.mjs`), and it promised exactly one thing
+that no shipped file yet provided: a typed surface that a poisoning
+observation could stand on. This section is that typed surface - the
+record shape only. No memory store, no retrieval scanner, no trust
+computation, and no quarantine machinery ships behind it, and the
+design face's own self-ban ("no memory store ... ships behind it") is
+the reason this slice takes the shape of a record rather than the
+shape of a detector.
+
+Like sections 12 through 20 this contract is deliberately not one of
+the fifteen schema names of section 289: the wave enumerates no
+"memory" schema, so section 11 and its master cell table stay
+untouched and this section adds no master_cell block (the census
+doctrine forbids private rows beside the table).
+
+### 41.1 The six memory keys
+
+```schemav2
+memory_surface_vocabulary: conversation_memory,task_memory,long_term_memory,vector_store,scratchpad,cached_context
+memory_reverification_states: reverified,not_reverified,unrecorded
+memory_not_authorization_rule: memory-claim-never-carries-authorization
+memory_provenance_attribute_registry: origin,author,timestamp,trust,scope,ttl,integrity
+memory_reverification_obligation_rule: authority-and-policy-reverified-at-moment-of-use
+memory_enforcement_plane: none-in-observation-phase
+```
+
+The first two lines are closed vocabularies in normative order,
+pinned verbatim against `AllMemorySurfaces` and
+`AllMemoryReverificationStates` in
+`internal/schema/memoryprofile.go`; the last four are pinned against
+the rule constants (`MemoryNotAuthorizationRule`,
+`MemoryProvenanceAttributeRegistry`,
+`MemoryReverificationObligationRule`, `MemoryEnforcementPlane`) by the
+sync predicate in `scripts/schema-v2-check.mjs` and the Go test in
+this package; drift in either direction is a red build.
+
+The record is deliberately not a detector. The seven attributes are
+recorded as free text and never matched against live authority, policy
+state, or an ingest log: matching would pre-borrow the Phase 1
+enforcement posture the taskbook freezes, and a record that quietly
+gains suspicion-scoring power would itself violate the rule it exists
+to restate. `trust` in particular is what the recorder stated, never
+what this runtime computed - no clearance arithmetic exists in Phase 0
+and this slice does not start one. Absence is single-meaning: the
+seven attributes never accept an empty or whitespace-only value (the
+whole record fails, no half-provenanced row survives), the surface must
+be one of the closed six, and the re-verification obligation is only
+admissibly silent when the silence is itself stated as `unrecorded` -
+never defaulted to `reverified`, because "nothing recorded" is not
+evidence that anyone re-verified anything.
+
+### 41.2 The section 262 anchor bullets
+
+The six bullet lines below mirror the owner specification's closed
+memory-surface list; the Node checker derives the surface vocabulary
+mechanically from them (lower case, spaces and hyphens to single
+underscores) and pins it against the key line and the Go enum:
+
+* Conversation Memory
+* Task Memory
+* Long-term Memory
+* Vector Store
+* Scratchpad
+* Cached Context
+
+The seven bullet lines below mirror the same section's minimum
+attribute list and derive mechanically to the first seven record
+fields, in order:
+
+* Origin
+* Author
+* Timestamp
+* Trust
+* Scope
+* TTL
+* Integrity
+
+The spec's own words are "at minimum", and this record deliberately
+stops at the minimum: the fields a poisoning observation would need in
+order to *judge* - quoted-claim text, retrieval path, conflict against
+live authority - are Phase 1 inputs and are not faked here. The
+ninth row, `reverification`, is the one obligation the section states
+as a consequence rather than an attribute, and it is recorded as the
+closed three for the same reason section 20 records its sibling
+obligation: the honest shape of an unobserved obligation is a stated
+absence.
+
+### 41.3 The eleven-field record census
+
+| `origin` | recorder | section 262 attribute 1, free text, never matched |
+| `author` | recorder | section 262 attribute 2, free text, never matched |
+| `timestamp` | recorder | section 262 attribute 3, stated not derived, no clock arithmetic |
+| `trust` | recorder | section 262 attribute 4, as stated by the recorder, never computed |
+| `scope` | recorder | section 262 attribute 5, free text, never matched |
+| `ttl` | recorder | section 262 attribute 6, recorded as stated, no expiry arithmetic |
+| `integrity` | recorder | section 262 attribute 7, free text, never verified here |
+| `surface` | recorder | closed six of section 262 |
+| `reverification` | recorder | closed three; silence only via explicit unrecorded |
+| `memory_is_not_authorization` | constructor-pinned | restates section 262 verbatim, uneditable |
+| `enforcement_plane` | constructor-pinned | restates the Phase 0 stance, uneditable |
+
+A twelfth row, a reordered row, or a recorder field faking a pinned
+constant is a red build in both directions (Go reflection test and
+Node field table pin).
+
+### 41.4 Plane discipline
+
+`MemorySurface`, `MemoryReverificationState`,
+`MemoryProvenanceInput`, `MemoryProvenance`,
+`BuildMemoryProvenance`, `AllMemorySurfaces`,
+`AllMemoryReverificationStates`, `MemoryProvenanceFieldWireNames`, and
+the four rule constants join the planeLeak needle set in
+`scripts/schema-v2-check.mjs` in this same PR: no policy, rules, bus,
+or auditlog file may reference them while `memory_enforcement_plane`
+reads none-in-observation-phase, and the command tree is scanned for
+the same symbols by the Go test with a planted-shape positive control.
+Decision values stay inside the Phase 0 closed pair `{allow,
+would_block}` untouched by this slice: the record and its input carry
+no decision, score, severity, or effect field (the reflective test
+pins the field sets at 11 and 9).
+
+### 41.5 What this slice does not claim
+
+The evaluation coverage table keeps this class exactly where it was:
+no rule, no golden case, and a row that says the semantics are not yet
+observable. That is not timidity, it is the contract - a typed surface
+makes a future observation expressible, it does not make poisoning
+detectable, and claiming otherwise would be the one way this slice
+could actually mislead a reader. The honest ordering is: this record
+shape (W12.2), then a decision about which shipped vocabulary may read
+it, then a rule, then cases, and only then a coverage row that moves.
+Nothing in this PR touches the decision planes, the golden corpus, the
+rule vocabulary, or the thresholds.

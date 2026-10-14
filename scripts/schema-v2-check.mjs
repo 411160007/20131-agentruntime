@@ -454,6 +454,7 @@ const ewSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'exportwrap.
 const anSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'actionnecessity.go'), 'utf8');
 const cdSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'chaindimensions.go'), 'utf8');
 const dlSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'delegationobservation.go'), 'utf8');
+const mpSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'memoryprofile.go'), 'utf8');
 const agSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'agencyguard.go'), 'utf8');
 const cgSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'costguard.go'), 'utf8');
 const dtSrc = fs.readFileSync(path.join(root, 'internal', 'schema', 'decisiontrace.go'), 'utf8');
@@ -822,6 +823,72 @@ function delegationProblems(text, goText) {
   return bad;
 }
 
+// Memory provenance observation contract checks (slice W12.2): the
+// six surface tokens and three re-verification states must mirror the
+// Go vocabularies, the thirteen section 262 anchor bullets must derive
+// mechanically (six to the surface vocabulary, seven to the first
+// seven record fields), the four rule lines must match Go verbatim,
+// and the eleven-row field table must pin row order and ownership
+// against the Go wire list.
+function memoryProblems(text, goText) {
+  const bad = [];
+  const rules = [
+    ['memory_not_authorization_rule', 'MemoryNotAuthorizationRule', 'memory-claim-never-carries-authorization'],
+    ['memory_provenance_attribute_registry', 'MemoryProvenanceAttributeRegistry', 'origin,author,timestamp,trust,scope,ttl,integrity'],
+    ['memory_reverification_obligation_rule', 'MemoryReverificationObligationRule', 'authority-and-policy-reverified-at-moment-of-use'],
+    ['memory_enforcement_plane', 'MemoryEnforcementPlane', 'none-in-observation-phase'],
+  ];
+  const surf = findKey(text, 'memory_surface_vocabulary');
+  if (surf === null) return ['memory surface vocabulary key missing or duplicated'];
+  const toks = surf.split(',');
+  if (toks.length !== 6 || new Set(toks).size !== 6) bad.push('memory surface vocabulary not six unique tokens');
+  for (const t of toks) {
+    if (!goText.includes('"' + t + '"')) bad.push('memory surface token Go mirror missing: ' + t);
+  }
+  const states = findKey(text, 'memory_reverification_states');
+  if (states === null) return bad.concat(['memory reverification states key missing or duplicated']);
+  if (states !== 'reverified,not_reverified,unrecorded') bad.push('memory reverification states line drifted');
+  for (const tok of states.split(',')) {
+    if (!goText.includes('"' + tok + '"')) bad.push('memory reverification state Go mirror missing: ' + tok);
+  }
+  const fieldList = (goText.match(/var MemoryProvenanceFieldWireNames = \[\]string\{([\s\S]*?)\n\}/) || ['', ''])[1];
+  const goFields = (fieldList.match(/"[a-z_]+"/g) || []).map((s) => s.slice(1, -1));
+  if (goFields.length !== 11) bad.push('Go record field wire list census ' + goFields.length + ', want 11');
+  for (const [key, ident, val] of rules) {
+    const got = findKey(text, key);
+    if (got === null) return bad.concat(['memory contract keys missing or duplicated']);
+    if (got !== val) bad.push('memory line drifted: ' + key);
+    if (!goText.includes(ident + ' = "' + val + '"')) bad.push('memory rule Go mirror drifted: ' + ident);
+  }
+  const secAt = text.indexOf('## 41. Memory provenance observation record contract');
+  if (secAt < 0) return bad.concat(['section 41 header missing']);
+  const nextSec = text.indexOf('\n## ', secAt + 5);
+  const sec = text.slice(secAt, nextSec < 0 ? text.length : nextSec);
+  // Section 262 anchor reverse-check: six surface bullets then seven
+  // attribute bullets, both derived mechanically (hyphens and spaces
+  // collapse for the surface names, spaces only for the attributes).
+  const bullets = [...sec.matchAll(/^\* ([A-Z][A-Za-z -]+)$/gm)].map((m) => m[1]);
+  if (bullets.length !== 13) bad.push('section 262 anchor bullets ' + bullets.length + ', want 13');
+  else {
+    const surfDerived = bullets.slice(0, 6).map((b) => b.toLowerCase().replace(/[ -]+/g, '_')).join(',');
+    if (surfDerived !== surf) bad.push('section 262 surface bullets derive to a different vocabulary than the key line');
+    const attrDerived = bullets.slice(6).map((b) => b.toLowerCase().replace(/ +/g, '_'));
+    attrDerived.forEach((d, i) => {
+      if (goFields[i] !== d) bad.push('section 262 attribute bullet ' + (i + 1) + ' derives to ' + d + ', Go field is ' + goFields[i]);
+    });
+  }
+  // Field table pin: eleven rows, row order and ownership against the
+  // Go wire list (nine recorder lines then two constructor-pinned).
+  const rows = [...sec.matchAll(/^\| `([a-z_]+)` \| (recorder|constructor-pinned) \|[^|\n]*\|$/gm)];
+  if (rows.length !== 11) bad.push('memory field table row census ' + rows.length + ', want 11');
+  else rows.forEach((rm, i) => {
+    if (rm[1] !== goFields[i]) bad.push('memory field row-order pin broke at row ' + (i + 1) + ': ' + rm[1]);
+    const wantOwner = i < 9 ? 'recorder' : 'constructor-pinned';
+    if (rm[2] !== wantOwner) bad.push('memory field ' + rm[1] + ' ownership drifted (want ' + wantOwner + ')');
+  });
+  return bad;
+}
+
 // Agency guard observation contract checks (slice W6.1): the ten
 // section 261 bound-field words, three counter words, two scope
 // words, and four limit-state words are closed vocabularies pinned
@@ -1001,7 +1068,7 @@ function costGuardProblems(text, goText) {
 const PLANE_DIRS = ['policy', 'rules', 'bus', 'auditlog'];
 function planeLeakProblems() {
   const bad = [];
-  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane|TrustLevel|RunDomain|AllTrustLevels|AllRunDomains|LegacyClassOf|LiftCandidates|trustToLegacyClass|TrustDomainLegacyProjectionRule|TrustDomainCrossingRule|TrustDomainAbsentDefault|TrustDomainEnforcementPlane|PackagingWord|AllPackagingWords|ExportRejudgementRecord|BuildExportRejudgement|ExportPackagingSensitivityRule|ExportRejudgementIndependenceRule|ExportRejudgementAbsentDefault|ExportRejudgementEnforcementPlane|NecessityQuestion|NecessityAnswer|AllNecessityQuestions|AllNecessityAnswers|ActionNecessityRecord|BuildActionNecessity|ActionNecessityDangerOnlyRule|ActionNecessityEvidenceRule|ActionNecessityAbsentDefault|ActionNecessityEnforcementPlane|ChainDimension|ChainStep|ChainObservationState|ChainStateObserved|ChainStateNotObserved|ChainStateUnclassified|BuildChainDimensions|ComputableChainDimensions|AllChainDimensionCoverage|ChainPhaseComputable|ChainPhaseAnchored|ChainPhasePending|ChainDimensionCoverageRule|ChainDimensionUnclassifiedRule|ChainDimensionReversibilitySourceRule|ChainDimensionEnforcementPlane|DelegationSubject|DelegationRevalidationState|DelegationObservationInput|DelegationObservation|BuildDelegationObservation|AllDelegationSubjects|AllDelegationRevalidationStates|DelegationRecordFieldWireNames|DelegationNoAutoInheritanceRule|DelegationReevaluationRegistry|DelegationRevalidationObligationRule|DelegationEnforcementPlane/;
+  const needle = /GrantOrigin|AuthorityChain|IntentRecord|intentFieldWireNames|RecoveryClass|RecoveryRecord|ImpactRecord|BlastScope|BlastRadiusEstimate|blastScopeWireNames|impactFieldWireNames|EvidenceRecord|EvidenceField|evidenceFieldWireNames|PersonalProfileRecord|AgentProfileRecord|profilePersonalFieldWireNames|profileAgentFieldWireNames|profileScopeWireNames|ProfileScope|ActionClass|AlignmentRecord|alignmentClassWireNames|alignmentRecordFieldWireNames|AlignmentAbsentSemantics|AlignmentMaliciousRule|IntentModification|ApplyIntentModification|UntrustedConsumeRule|AuthorityPreservationRule|OriginForgeRule|StickyClearanceRule|ConsumeEnforcementPlane|IntentInflow|InflowSource|AllIntentInflowSources|InflowFromFile|InflowFromHookPayload|AbsentIntentRecord|HookTaskMappingRule|InflowAbsentDefault|InflowForgeRule|InflowEnforcementPlane|DataAction|AllDataActions|DataActionNonequivalenceRule|DataActionExportRejudgementRule|DataActionAbsentDefault|DataActionEnforcementPlane|TrustLevel|RunDomain|AllTrustLevels|AllRunDomains|LegacyClassOf|LiftCandidates|trustToLegacyClass|TrustDomainLegacyProjectionRule|TrustDomainCrossingRule|TrustDomainAbsentDefault|TrustDomainEnforcementPlane|PackagingWord|AllPackagingWords|ExportRejudgementRecord|BuildExportRejudgement|ExportPackagingSensitivityRule|ExportRejudgementIndependenceRule|ExportRejudgementAbsentDefault|ExportRejudgementEnforcementPlane|NecessityQuestion|NecessityAnswer|AllNecessityQuestions|AllNecessityAnswers|ActionNecessityRecord|BuildActionNecessity|ActionNecessityDangerOnlyRule|ActionNecessityEvidenceRule|ActionNecessityAbsentDefault|ActionNecessityEnforcementPlane|ChainDimension|ChainStep|ChainObservationState|ChainStateObserved|ChainStateNotObserved|ChainStateUnclassified|BuildChainDimensions|ComputableChainDimensions|AllChainDimensionCoverage|ChainPhaseComputable|ChainPhaseAnchored|ChainPhasePending|ChainDimensionCoverageRule|ChainDimensionUnclassifiedRule|ChainDimensionReversibilitySourceRule|ChainDimensionEnforcementPlane|DelegationSubject|DelegationRevalidationState|DelegationObservationInput|DelegationObservation|BuildDelegationObservation|AllDelegationSubjects|AllDelegationRevalidationStates|DelegationRecordFieldWireNames|DelegationNoAutoInheritanceRule|DelegationReevaluationRegistry|DelegationRevalidationObligationRule|DelegationEnforcementPlane|MemorySurface|MemoryReverificationState|MemoryProvenanceInput|MemoryProvenance|BuildMemoryProvenance|AllMemorySurfaces|AllMemoryReverificationStates|MemoryProvenanceFieldWireNames|MemoryNotAuthorizationRule|MemoryProvenanceAttributeRegistry|MemoryReverificationObligationRule|MemoryEnforcementPlane/;
   for (const d of PLANE_DIRS) {
     const dir = path.join(root, 'internal', d);
     let entries;
@@ -1132,7 +1199,8 @@ function decisionTraceProblems(text, goText) {
   }
   const sec23 = text.indexOf('## 23. Decision trace field table');
   if (sec23 === -1) return bad.concat(['docs section 23 missing']);
-  const secText = text.slice(sec23);
+  const next23 = text.indexOf('\n## ', sec23 + 5);
+  const secText = text.slice(sec23, next23 < 0 ? text.length : next23);
   const rowRe = /^\| `([a-z_]+)` \| ([a-z_]+) \|.*\|$/gm;
   const rows = [];
   let mm;
@@ -1344,7 +1412,8 @@ function evidenceExportProblems(text, goText) {
   if (!/EvidenceAbsentCellToken = "absent"/.test(goText)) bad.push('absent-cell token Go constant drifted');
   const sec24 = text.indexOf('## 24. Evidence export v0 contract');
   if (sec24 === -1) return bad.concat(['docs section 24 missing']);
-  const sec = text.slice(sec24);
+  const next24 = text.indexOf('\n## ', sec24 + 5);
+  const sec = text.slice(sec24, next24 < 0 ? text.length : next24);
   const fRows = [...sec.matchAll(/^\| `([a-z_.]+)` \| ([a-z_0-9]+) \|.*\|$/gm)].map((m) => [m[1], m[2]]);
   const fmtRows = fRows.filter((r) => toks.includes(r[0]));
   if (fmtRows.length !== 5) bad.push('evidence format table row census ' + fmtRows.length + ', want 5');
@@ -1370,6 +1439,9 @@ function evidenceExportProblems(text, goText) {
 
 const dl = delegationProblems(v, dlSrc);
 check(dl.length === 0, 'delegation observation: five-subject and three-state vocabularies mirrored docs<->Go, section 283 eight-bullet and section 236 five-bullet anchors derive mechanically, four rules and twelve-row field table pinned, none-plane, section 20 present');
+const mem = memoryProblems(v, mpSrc);
+check(mem.length === 0, 'memory provenance: six-surface and three-state vocabularies mirrored docs<->Go, section 262 thirteen-bullet anchor derives mechanically, four rules and eleven-row field table pinned, none-plane, section 41 present');
+if (mem.length) console.log('  ' + mem.join('\n  '));
 const ag = agencyGuardProblems(v, agSrc);
 check(ag.length === 0, 'agency guard counters: ten-field, three-counter, two-scope, and four-state vocabularies mirrored docs<->Go, section 261 ten-bullet anchor derives mechanically, conservation and enum-gate rules pinned, 10/10 coverage table row-pinned, none-plane, section 21 present');
 const cg = costGuardProblems(v, cgSrc);
@@ -1512,6 +1584,9 @@ if (process.argv.includes('--selftest')) {
     ['delegation subject vocabulary loses a word', (t) => t.replace('delegation_subject_vocabulary: skill,mcp,tool,child_process,plugin', 'delegation_subject_vocabulary: skill,mcp,tool,plugin'), (t) => delegationProblems(t, dlSrc)],
     ['delegation no-inheritance rule pre-borrowed into carry-over', (t) => t.replace('delegation_no_auto_inheritance_rule: parent-authority-never-auto-transfers-to-child', 'delegation_no_auto_inheritance_rule: parent-authority-carries-to-child'), (t) => delegationProblems(t, dlSrc)],
     ['delegation enforcement plane pre-borrowed', (t) => t.replace('delegation_enforcement_plane: none-in-observation-phase', 'delegation_enforcement_plane: enforce-now'), (t) => delegationProblems(t, dlSrc)],
+    ['memory surface vocabulary loses a surface', (t) => t.replace('memory_surface_vocabulary: conversation_memory,task_memory,long_term_memory,vector_store,scratchpad,cached_context', 'memory_surface_vocabulary: conversation_memory,task_memory,long_term_memory,vector_store,cached_context'), (t) => memoryProblems(t, mpSrc)],
+    ['memory not-authorization rule pre-borrowed into a grant', (t) => t.replace('memory_not_authorization_rule: memory-claim-never-carries-authorization', 'memory_not_authorization_rule: memory-claim-carries-authorization-on-high-trust'), (t) => memoryProblems(t, mpSrc)],
+    ['memory enforcement plane pre-borrowed', (t) => t.replace('memory_enforcement_plane: none-in-observation-phase', 'memory_enforcement_plane: enforce-now'), (t) => memoryProblems(t, mpSrc)],
     ['agency counter vocabulary loses a counter', (t) => t.replace('agency_counter_vocabulary: event_rate,step_count,parallelism', 'agency_counter_vocabulary: event_rate,step_count'), (t) => agencyGuardProblems(t, agSrc)],
     ['agency action enum gate pre-borrowed into enforcement', (t) => t.replace('agency_action_enum_gate: limit-hold-cancel-recover-never-recorded-as-response', 'agency_action_enum_gate: limit-hold-cancel-recover-recorded-as-response'), (t) => agencyGuardProblems(t, agSrc)],
     ['agency coverage counted row fakes an anchor', (t) => t.replace('| `max_steps` | counted_v0 | - |', '| `max_steps` | anchored | W6.2 |'), (t) => agencyGuardProblems(t, agSrc)],
@@ -1553,6 +1628,7 @@ if (process.argv.includes('--selftest')) {
     (t) => alignmentProblems(t, aaSrc),
     (t) => chainDimensionProblems(t, cdSrc),
     (t) => delegationProblems(t, dlSrc),
+    (t) => memoryProblems(t, mpSrc),
     (t) => agencyGuardProblems(t, agSrc),
     (t) => evidenceExportProblems(t, eeSrc),
     (t) => costGuardProblems(t, cgSrc),
