@@ -3,7 +3,7 @@
 Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.
 
 Scope: the evaluation coverage contract for the shipped golden corpus
-(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 88 = 168 cases,
+(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 92 = 172 cases,
 ten evaluation dimensions, labels in `labels.json`). This document and
 `testdata/golden/coverage-map.json` are the two required forms (human table +
 machine-readable) and MUST stay in lockstep; `scripts/gate-w0.sh` re-counts
@@ -21,14 +21,14 @@ Honesty rules of this map:
 |---|---|---|---|---|
 | Prompt Injection | semantics pending | — (primitives: exec.remotepipe, cred.dotenv, mcp.eval, net.egress, destroy.rmrf) | 0 / 10 | W1 + W3 |
 | Goal Hijacking | semantics pending | — (primitives: cred.ssh) | 0 / 1 | W3 + W5 |
-| Tool Abuse | covered | mcp.eval, exec.remotepipe | 21 / — | in service |
+| Tool Abuse | covered | mcp.eval, exec.remotepipe | 23 / — | in service |
 | MCP Abuse | covered | mcp.eval | 13 / — | in service |
 | Skill Abuse | semantics pending | — (primitives: mcp.eval) | 0 / 12 | W1.2 + W4 |
-| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 26 / — | in service |
+| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 28 / — | in service |
 | Privilege Escalation | covered | path.sudoers | 5 / — | in service |
 | Memory Poisoning | semantics pending | — | 0 / 0 | W2 + W12 |
 | Agent-to-Agent Abuse | semantics pending | — | 0 / 0 | W5/W6 carrier slice + W6; explicit threat-model counterpart registered (threat-model.md, Agent-to-Agent abuse observation v0) |
-| Supply Chain Attack | semantics pending | — (primitives: exec.remotepipe, cred.ssh) | 0 / 6 | W11 + W1.2 |
+| Supply Chain Attack | semantics pending | — (primitives: exec.remotepipe, cred.ssh) | 0 / 10 | W11 + W1.2 |
 | Mass Deletion | covered | destroy.rmrf, destroy.disk | 15 / — | in service |
 | Policy Bypass | covered | audit.tamper | 7 / — | in service |
 | Capability Escalation | semantics pending | — (primitives: agent.masquerade, path.sudoers) | 0 / 8 | W6 + W4 |
@@ -43,11 +43,11 @@ Per-row notes:
 - **Tool Abuse** — Eval-exposing tools and shell-piped command shapes on the hook/mcp surfaces.
 - **MCP Abuse** — Covered shape = tool-exposing-raw-eval (threat-model TM-05) via the mcp reserved slot. Deeper metadata-plane abuse (tool description poisoning, confused-deputy delegation) is graded later: W1.2 assigns Tool/MCP collection tier, policy semantics later phases.
 - **Skill Abuse** — No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes — no skill-vocabulary matcher ships.
-- **Credential Access** — Four hard-priority credential-store rules plus the dotenv suffix rule; danger-side class detection 26/26 in the runner table.
+- **Credential Access** — Four hard-priority credential-store rules plus the dotenv suffix rule; danger-side class detection 28/28 in the runner table.
 - **Privilege Escalation** — Privilege configuration drop-ins (sudoers, sudoers.d variants, macOS prefixes). The sudo-prefixed destructive case lands in Mass Deletion; full token/session escalation semantics are later-phase scope (see threat-model known_gap wording on OS-integrity surfaces).
 - **Memory Poisoning** — Nothing in today's corpus demonstrates this class as a detection; no existing case is invalidated — the class remains not yet observable by shipped vocabulary. The normal side now carries memory-provenance records on the typed event wire (g7-m01 through g7-m04): a stated record validates as data, matches no shipped rule, and never infers a grant — Memory is not Authorization.
 - **Agent-to-Agent Abuse** — Delegation shapes exist on the normal side of the corpus (delegated subtask session, webhook-bootstrapped agent detected as allow); no abuse-side golden case ships yet. The threat model now carries an explicit counterpart for this family (its "Agent-to-Agent abuse observation v0" section states the class as a `known_gap` with its shipped normal-side surfaces): a documentation-surface registration — this wave added no threat id, no rule, and no case on either side.
-- **Supply Chain Attack** — Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules.
+- **Supply Chain Attack** — Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules The corpus ticket landed: four direct attempts (gd-45 to gd-48) each mirror one shipped primitive effect (an install-hook stage of an ssh signing key under the package-sync home, a dependency bootstrap fetched from a registry host piped straight into a shell, a vendored toolkit installer reading an ssh identity under the agent home, an artifact-sync update script piped straight into a shell), caught downstream through their effects — poisoned-dependency and package-integrity semantics are still not observed by shipped rules.
 - **Mass Deletion** — Recursive force deletes and filesystem reformat shapes, incl. localized and piped variants.
 - **Policy Bypass** — Covered shape = attack on the audit/policy sink itself (TM-08) plus the merge-surface hard-rule no-downgrade gate (three negative-control fixtures in the runner battery). The winevt-clearing case gd-20 stays a declared known_gap (TM-12), honestly counted as a miss in the ledger, never silently passed.
 - **Capability Escalation** — Sudoers writes and world-writable masquerade runs are caught as primitives; the escalation-as-trajectory semantics (capability growth over time) awaits the least-agency slice.
@@ -124,13 +124,13 @@ gate-w0 re-runs the eval suite and cross-checks every value.
 
 | reading | pinned value | threshold |
 |---|---|---|
-| detection | 86/88 (97.7%) | >= 80% |
+| detection | 90/92 (97.8%) | >= 80% |
 | worst per-class false positive | 0.0000 | <= 0.05 |
 | credential-class false positive | 0.0000 | <= 0.02 |
 | disturbance (alerts on normal cases) | 0/76 | <= 1 |
 
 Dimension floors: every one of the ten dimensions carries >= 8 real cases
-(current counts: agent_behavior 10, compatibility 8, functional 28, localization 8, performance 8, security_regression 12, recovery 8, security 56, ux 10, untrusted 15); zero empty shells.
+(current counts: agent_behavior 10, compatibility 8, functional 28, localization 8, performance 8, security_regression 12, recovery 8, security 60, ux 10, untrusted 15); zero empty shells.
 
 Known-gap carry: **gd-19, gd-20** are two deliberately
 undetected shapes kept as declared blind spots (local resource exhaustion —
