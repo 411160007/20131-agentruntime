@@ -358,22 +358,23 @@ func (s Severity) Valid() bool { return s >= SevInfo && s <= SevCritical }
 //     the reserved keys "cap" and "res_class", when present, must be
 //     members of the capability and resource-sensitivity vocabularies.
 type Event struct {
-	V           int               `json:"v"`
-	TS          time.Time         `json:"ts"`
-	ID          string            `json:"id"`
-	AgentID     string            `json:"agent_id"`
-	Stage       Stage             `json:"stage"`
-	Type        EventType         `json:"type"`
-	Decision    Decision          `json:"decision"`
-	Severity    Severity          `json:"severity"`
-	Summary     string            `json:"summary"`
-	Tier        Tier              `json:"tier,omitempty"`
-	SourceClass SourceClass       `json:"source_class,omitempty"`
-	DataAction  DataAction        `json:"data_action,omitempty"`
-	Goal        string            `json:"goal,omitempty"`
-	TaskID      string            `json:"task_id,omitempty"`
-	TaskStatus  TaskStatus        `json:"task_status,omitempty"`
-	Attrs       map[string]string `json:"attrs,omitempty"`
+	V           int                    `json:"v"`
+	TS          time.Time              `json:"ts"`
+	ID          string                 `json:"id"`
+	AgentID     string                 `json:"agent_id"`
+	Stage       Stage                  `json:"stage"`
+	Type        EventType              `json:"type"`
+	Decision    Decision               `json:"decision"`
+	Severity    Severity               `json:"severity"`
+	Summary     string                 `json:"summary"`
+	Tier        Tier                   `json:"tier,omitempty"`
+	SourceClass SourceClass            `json:"source_class,omitempty"`
+	DataAction  DataAction             `json:"data_action,omitempty"`
+	Memory      *MemoryProvenanceInput `json:"memory_provenance,omitempty"`
+	Goal        string                 `json:"goal,omitempty"`
+	TaskID      string                 `json:"task_id,omitempty"`
+	TaskStatus  TaskStatus             `json:"task_status,omitempty"`
+	Attrs       map[string]string      `json:"attrs,omitempty"`
 }
 
 // SchemaVersion is the current Event schema version.
@@ -439,6 +440,19 @@ func (e *Event) Validate() error {
 	}
 	if !e.DataAction.Valid() {
 		return fmt.Errorf("schema: event %s: unknown data_action %q", e.ID, string(e.DataAction))
+	}
+	if e.Memory != nil {
+		// Section 262 typed memory surface riding the observation event
+		// (slice W12.2 follow-up): present means every recorder-stated
+		// attribute must build a complete provenance record - a rejected
+		// record invalidates the whole line and leaves no half
+		// observation behind. Absent means no memory record was
+		// attached; nothing is ever inferred from silence. No shipped
+		// rule reads this field: a recorded claim is evidence of a
+		// claim, never a grant (Memory is not Authorization).
+		if _, err := BuildMemoryProvenance(*e.Memory); err != nil {
+			return fmt.Errorf("schema: event %s: %w", e.ID, err)
+		}
 	}
 	if v, ok := e.Attrs["cap"]; ok && !Capability(v).Valid() {
 		return fmt.Errorf("schema: event %s: attr cap %q not in vocabulary", e.ID, v)

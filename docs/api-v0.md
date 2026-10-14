@@ -33,6 +33,7 @@ and grammar are fixed:
 | tier       | enum              | no       | see `tiers`; ABSENT MEANS L1 (additive v1 extension) |
 | source_class | enum            | no       | see `source_classes`; ABSENT MEANS unclassified legacy (additive v1 extension, observation-only) |
 | data_action  | enum              | no       | see `data_actions`; ABSENT MEANS unclassified legacy (additive v1 extension, record-only) |
+| memory_provenance | object | no | section 262 recorder-stated nine lines (closed sets pinned in docs/schema-v2.md section 41); ABSENT MEANS no memory record attached (additive v1 extension, record-only — no shipped rule reads it; Memory is not Authorization) |
 | attrs      | map[string]string | no       | keys ≤64B, values ≤1024B; reserved keys below |
 
 Reserved attrs keys:
