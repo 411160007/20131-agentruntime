@@ -1,14 +1,14 @@
 {
-  "doc": "Evals threshold ledger — pinned readings and floors for the golden corpus (machine form; docs form mirrors it inside docs/evals-coverage-v0.md).",
+  "doc": "Evals threshold ledger \u2014 pinned readings and floors for the golden corpus (machine form; docs form mirrors it inside docs/evals-coverage-v0.md).",
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
-  "readings_source": "parsed from `go test ./internal/rules -run TestGoldenEvals` EVAL SUMMARY / missed lines at ledger build time; gate-w0 re-runs and cross-checks — never hand-copied",
+  "readings_source": "parsed from `go test ./internal/rules -run TestGoldenEvals` EVAL SUMMARY / missed lines at ledger build time; gate-w0 re-runs and cross-checks \u2014 never hand-copied",
   "corpus": {
-    "normal": 76,
+    "normal": 80,
     "danger": 73,
-    "total": 149,
-    "labels": 149,
+    "total": 153,
+    "labels": 153,
     "dims": {
-      "agent_behavior": 11,
+      "agent_behavior": 15,
       "compatibility": 8,
       "functional": 28,
       "localization": 8,
@@ -35,7 +35,7 @@
     "worst_fp": "0.0000",
     "credential_fp": "0.0000",
     "normal_alerts": 0,
-    "normal_total": 76,
+    "normal_total": 80,
     "missed": [
       "gd-19",
       "gd-20"

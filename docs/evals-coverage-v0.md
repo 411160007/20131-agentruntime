@@ -3,7 +3,7 @@
 Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.
 
 Scope: the evaluation coverage contract for the shipped golden corpus
-(`testdata/golden/normal.jsonl` 76 + `danger.jsonl` 73 = 149 cases,
+(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 73 = 153 cases,
 ten evaluation dimensions, labels in `labels.json`). This document and
 `testdata/golden/coverage-map.json` are the two required forms (human table +
 machine-readable) and MUST stay in lockstep; `scripts/gate-w0.sh` re-counts
@@ -45,7 +45,7 @@ Per-row notes:
 - **Skill Abuse** — No skill-vocabulary matcher ships; eval-named tools are the closest primitive today.
 - **Credential Access** — Four hard-priority credential-store rules plus the dotenv suffix rule; danger-side class detection 20/20 in the runner table.
 - **Privilege Escalation** — Privilege configuration drop-ins (sudoers, sudoers.d variants, macOS prefixes). The sudo-prefixed destructive case lands in Mass Deletion; full token/session escalation semantics are later-phase scope (see threat-model known_gap wording on OS-integrity surfaces).
-- **Memory Poisoning** — Nothing in today's corpus demonstrates this class; no existing case is invalidated — the class is simply not yet observable by shipped vocabulary.
+- **Memory Poisoning** — Nothing in today's corpus demonstrates this class as a detection; no existing case is invalidated — the class remains not yet observable by shipped vocabulary. The normal side now carries memory-provenance records on the typed event wire (g7-m01 through g7-m04): a stated record validates as data, matches no shipped rule, and never infers a grant — Memory is not Authorization.
 - **Agent-to-Agent Abuse** — Delegation shapes exist on the normal side of the corpus (delegated subtask session, webhook-bootstrapped agent detected as allow); no abuse-side golden case ships yet. The threat model now carries an explicit counterpart for this family (its "Agent-to-Agent abuse observation v0" section states the class as a `known_gap` with its shipped normal-side surfaces): a documentation-surface registration — this wave added no threat id, no rule, and no case on either side.
 - **Supply Chain Attack** — Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules.
 - **Mass Deletion** — Recursive force deletes and filesystem reformat shapes, incl. localized and piped variants.
@@ -100,7 +100,7 @@ Pending-class carry points, in full:
 | Automation | 5 | g7-b01, g7-b07, g7-c03, g7-q01, g7-x01 |
 | File Management | 12 | g7-c02, g7-c05, g7-l01, g7-l02, g7-l03, g7-l05, g7-r04, g7-u03, g7-u06, g7-u08, g7-u09, g7-x03 |
 | Testing | 3 | g7-b05, g7-f02, g8-n03 |
-| Multi-Step Tasks | 3 | g7-b03, g7-b06, g7-b08 |
+| Multi-Step Tasks | 7 | g7-b03, g7-b06, g7-b08, g7-m01, g7-m02, g7-m03, g7-m04 |
 | Observation infrastructure (residual bucket, not a task class) | 33 | (collector lifecycle + discovery lines plus the typed intent hint carried inside the scripted session; full ids in coverage-map.json) |
 
 Classification is by the task shape the event demonstrates (command line,
@@ -112,7 +112,7 @@ Per-class notes:
 
 - **NPM** — Package and dependency operations; pip/brew/apt package installs are recorded under this class (same task shape, the spec names the ecosystem flagship).
 - **Database** — Honest zero: the shipped normal-side corpus (dogfood harvest + expanded benign work vocabulary) carries no database-task event shape today. Forcing one would fabricate coverage; the fill path is the dogfood collector harvest plus W-series collection expansion, not synthetic invention.
-- **Multi-Step Tasks** — Delegated-step shapes (step cache, summary output, delegated subtask session).
+- **Multi-Step Tasks** — Delegated-step shapes (step cache, summary output, delegated subtask session, memory-provenance recorded shapes).
 - **Deployment** — Local dev-server bring-up shape; the docker compose stack start is recorded under Docker (its named tool).
 
 ## Threshold ledger (v1.1 ledger form, W0.2)

@@ -39,6 +39,26 @@
     "class": "behavior",
     "dim": "agent_behavior"
   },
+  "g7-m01": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
+  "g7-m02": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
+  "g7-m03": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
+  "g7-m04": {
+    "expect": "allow",
+    "class": "behavior",
+    "dim": "agent_behavior"
+  },
   "g7-b09": {
     "expect": "would_block",
     "class": "credential",

@@ -1,10 +1,10 @@
 {
-  "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (149 cases across ten evaluation dimensions).",
+  "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
-    "normal": 76,
+    "normal": 80,
     "danger": 73,
-    "total": 149,
-    "labels": 149
+    "total": 153,
+    "labels": 153
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -188,7 +188,7 @@
         "W2 \u2014 persistence/profile schema family (section 289 contracts) creates the typed surface a poisoning observation needs",
         "W12 \u2014 memory-security and learning-safety design slice (sections 262-265) defines detection semantics before any enforcement claim"
       ],
-      "note": "Nothing in today's corpus demonstrates this class; no existing case is invalidated \u2014 the class is simply not yet observable by shipped vocabulary.",
+      "note": "Nothing in today's corpus demonstrates this class as a detection; no existing case is invalidated \u2014 the class remains not yet observable by shipped vocabulary. The normal side now carries memory-provenance records on the typed event wire (g7-m01 through g7-m04): a stated record validates as data, matches no shipped rule, and never infers a grant \u2014 Memory is not Authorization.",
       "cases": []
     },
     {
@@ -480,13 +480,17 @@
     },
     {
       "name": "Multi-Step Tasks",
-      "count": 3,
+      "count": 7,
       "cases": [
         "g7-b03",
         "g7-b06",
-        "g7-b08"
+        "g7-b08",
+        "g7-m01",
+        "g7-m02",
+        "g7-m03",
+        "g7-m04"
       ],
-      "note": "Delegated-step shapes (step cache, summary output, delegated subtask session)."
+      "note": "Delegated-step shapes (step cache, summary output, delegated subtask session, memory-provenance recorded shapes)."
     }
   ],
   "observation_infrastructure": {
