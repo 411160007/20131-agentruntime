@@ -644,6 +644,26 @@
     "class": "process",
     "dim": "security"
   },
+  "gd-37": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-38": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-39": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "security"
+  },
+  "gd-40": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
   "gn-01": {
     "expect": "allow",
     "class": "observation",
