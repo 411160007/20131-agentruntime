@@ -219,6 +219,7 @@ git rev-parse --verify "${W20_BASE}^{commit}" > /dev/null || { echo 'RED: wave b
 git worktree remove --force "$BASEWT" 2>/dev/null || true
 git worktree add --detach "$BASEWT" "$W20_BASE" > /dev/null \
   || { echo 'RED: cannot stage the base worktree'; exit 1; }
+mkdir -p "$BASEWT/.tmpdir" || { echo 'RED: cannot stage the base worktree scratch directory'; exit 1; }
 ( cd "$BASEWT" && bash scripts/gate-w19.sh > "$LOGDIR/gate-w19-inside-w20.out" 2>&1 ) \
   || { tail -30 "$LOGDIR/gate-w19-inside-w20.out"; echo RED: gate-w19 regression; git worktree remove --force "$BASEWT" 2>/dev/null || true; exit 1; }
 grep -q 'GATE-W19: ALL GREEN' "$LOGDIR/gate-w19-inside-w20.out" \
