@@ -2,9 +2,9 @@
   "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 80,
-    "danger": 84,
-    "total": 164,
-    "labels": 164
+    "danger": 88,
+    "total": 168,
+    "labels": 168
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -84,7 +84,11 @@
         "gd-25",
         "gd-27",
         "gd-36",
-        "gd-40"
+        "gd-40",
+        "gd-41",
+        "gd-42",
+        "gd-43",
+        "gd-44"
       ]
     },
     {
@@ -105,7 +109,11 @@
         "g8-d05",
         "gd-13",
         "gd-14",
-        "gd-27"
+        "gd-27",
+        "gd-41",
+        "gd-42",
+        "gd-43",
+        "gd-44"
       ]
     },
     {
@@ -116,7 +124,7 @@
         "W1.2 \u2014 collection-mount grading: tool/skill invocations enter as Tool/MCP metadata tier (self-described fields never raise the tier)",
         "W4 \u2014 nine data-action vocabulary re-adjudicates EXECUTE/SHARE per action, independent of skill naming"
       ],
-      "note": "No skill-vocabulary matcher ships; eval-named tools are the closest primitive today.",
+      "note": "No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes \u2014 no skill-vocabulary matcher ships.",
       "cases": [],
       "primitive_cases": [
         "g7-c08",
@@ -126,7 +134,11 @@
         "g7-x08",
         "gd-13",
         "gd-14",
-        "gd-27"
+        "gd-27",
+        "gd-41",
+        "gd-42",
+        "gd-43",
+        "gd-44"
       ]
     },
     {
