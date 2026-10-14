@@ -135,6 +135,12 @@ to get past the first-run trust prompts honestly.
 
 Bugs, feature requests, and questions: open an issue via [New issue](/issues/new/choose) and pick the matching template.
 
+A planned team edition (budget-cap visibility across multiple agents, plus a
+shared audit view) is gauging interest at
+[20131.com/en/cost-guard/?utm_source=github-readme](https://20131.com/en/cost-guard/?utm_source=github-readme)
+— that page records interest only; nothing is charged and no payment is
+collected there.
+
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
