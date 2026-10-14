@@ -609,6 +609,41 @@
     "class": "destructive",
     "dim": "untrusted"
   },
+  "gd-30": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-31": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-32": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-33": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-34": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "security"
+  },
+  "gd-35": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "security"
+  },
+  "gd-36": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
   "gn-01": {
     "expect": "allow",
     "class": "observation",

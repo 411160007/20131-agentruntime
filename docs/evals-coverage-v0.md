@@ -3,7 +3,7 @@
 Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.
 
 Scope: the evaluation coverage contract for the shipped golden corpus
-(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 73 = 153 cases,
+(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 80 = 160 cases,
 ten evaluation dimensions, labels in `labels.json`). This document and
 `testdata/golden/coverage-map.json` are the two required forms (human table +
 machine-readable) and MUST stay in lockstep; `scripts/gate-w0.sh` re-counts
@@ -21,18 +21,18 @@ Honesty rules of this map:
 |---|---|---|---|---|
 | Prompt Injection | semantics pending | — (primitives: exec.remotepipe, cred.dotenv, mcp.eval, net.egress, destroy.rmrf) | 0 / 10 | W1 + W3 |
 | Goal Hijacking | semantics pending | — (primitives: cred.ssh) | 0 / 1 | W3 + W5 |
-| Tool Abuse | covered | mcp.eval, exec.remotepipe | 15 / — | in service |
+| Tool Abuse | covered | mcp.eval, exec.remotepipe | 16 / — | in service |
 | MCP Abuse | covered | mcp.eval | 9 / — | in service |
 | Skill Abuse | semantics pending | — (primitives: mcp.eval) | 0 / 8 | W1.2 + W4 |
-| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 20 / — | in service |
+| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 24 / — | in service |
 | Privilege Escalation | covered | path.sudoers | 5 / — | in service |
 | Memory Poisoning | semantics pending | — | 0 / 0 | W2 + W12 |
 | Agent-to-Agent Abuse | semantics pending | — | 0 / 0 | W5/W6 carrier slice + W6; explicit threat-model counterpart registered (threat-model.md, Agent-to-Agent abuse observation v0) |
 | Supply Chain Attack | semantics pending | — (primitives: exec.remotepipe, cred.ssh) | 0 / 6 | W11 + W1.2 |
-| Mass Deletion | covered | destroy.rmrf, destroy.disk | 12 / — | in service |
+| Mass Deletion | covered | destroy.rmrf, destroy.disk | 14 / — | in service |
 | Policy Bypass | covered | audit.tamper | 7 / — | in service |
 | Capability Escalation | semantics pending | — (primitives: agent.masquerade, path.sudoers) | 0 / 8 | W6 + W4 |
-| Data Exfiltration | semantics pending | — (primitives: cred.ssh, cred.aws, cred.browser, cred.dotenv, destroy.rmrf, destroy.disk, exec.remotepipe) | 0 / 18 | W4 + W7 |
+| Data Exfiltration | semantics pending | — (primitives: cred.ssh, cred.aws, cred.browser, cred.dotenv, destroy.rmrf, destroy.disk, exec.remotepipe) | 0 / 25 | W4 + W7 |
 | Network Exfiltration | semantics pending | egress.export (EXPORT-record judgement) + `net.egress` primitive | 4 / 5 | W4 + W10 |
 | Child Process Pivot | covered | agent.masquerade | 5 / — | in service |
 
@@ -43,7 +43,7 @@ Per-row notes:
 - **Tool Abuse** — Eval-exposing tools and shell-piped command shapes on the hook/mcp surfaces.
 - **MCP Abuse** — Covered shape = tool-exposing-raw-eval (threat-model TM-05) via the mcp reserved slot. Deeper metadata-plane abuse (tool description poisoning, confused-deputy delegation) is graded later: W1.2 assigns Tool/MCP collection tier, policy semantics later phases.
 - **Skill Abuse** — No skill-vocabulary matcher ships; eval-named tools are the closest primitive today.
-- **Credential Access** — Four hard-priority credential-store rules plus the dotenv suffix rule; danger-side class detection 20/20 in the runner table.
+- **Credential Access** — Four hard-priority credential-store rules plus the dotenv suffix rule; danger-side class detection 24/24 in the runner table.
 - **Privilege Escalation** — Privilege configuration drop-ins (sudoers, sudoers.d variants, macOS prefixes). The sudo-prefixed destructive case lands in Mass Deletion; full token/session escalation semantics are later-phase scope (see threat-model known_gap wording on OS-integrity surfaces).
 - **Memory Poisoning** — Nothing in today's corpus demonstrates this class as a detection; no existing case is invalidated — the class remains not yet observable by shipped vocabulary. The normal side now carries memory-provenance records on the typed event wire (g7-m01 through g7-m04): a stated record validates as data, matches no shipped rule, and never infers a grant — Memory is not Authorization.
 - **Agent-to-Agent Abuse** — Delegation shapes exist on the normal side of the corpus (delegated subtask session, webhook-bootstrapped agent detected as allow); no abuse-side golden case ships yet. The threat model now carries an explicit counterpart for this family (its "Agent-to-Agent abuse observation v0" section states the class as a `known_gap` with its shipped normal-side surfaces): a documentation-surface registration — this wave added no threat id, no rule, and no case on either side.
@@ -51,7 +51,7 @@ Per-row notes:
 - **Mass Deletion** — Recursive force deletes and filesystem reformat shapes, incl. localized and piped variants.
 - **Policy Bypass** — Covered shape = attack on the audit/policy sink itself (TM-08) plus the merge-surface hard-rule no-downgrade gate (three negative-control fixtures in the runner battery). The winevt-clearing case gd-20 stays a declared known_gap (TM-12), honestly counted as a miss in the ledger, never silently passed.
 - **Capability Escalation** — Sudoers writes and world-writable masquerade runs are caught as primitives; the escalation-as-trajectory semantics (capability growth over time) awaits the least-agency slice.
-- **Data Exfiltration** — Credential-store reads (the typical exfiltration source step) are caught as primitives; payload-crossing-boundary semantics need the data-action vocabulary.
+- **Data Exfiltration** — Credential-store reads (the typical exfiltration source step) are caught as primitives; payload-crossing-boundary semantics need the data-action vocabulary. The corpus ticket landed: seven direct attempts (gd-30 to gd-36) each mirror one shipped primitive effect (ssh key staging, credentials bundle copy, browser login-store harvest, dotenv pull into outbox, staging shred after upload, drop-drive reformat, piped exfil relay), caught downstream through their effects — no exfiltration-semantics matcher ships.
 - **Network Exfiltration** — Outbound network intent is flagged as a class today (all five network-shaped primitive dangers detected 5/5) as generic egress visibility. The boundary slice shipped its first judgement row: events recorded with the EXPORT data-classification annotation are judged directly by `egress.export` (observation only — an absent annotation stays unclassified legacy and is never inferred). The corpus ticket landed: four direct EXPORT-record cases (gd-21 to gd-24 — sealed-archive upload, record-set webhook post, annotated beacon to resolver-over transport, workspace snapshot sync) are judged by that row ahead of the generic one; content-derived sensitivity remains the declared known gap.
 - **Child Process Pivot** — Covered shape = relabel/masquerade execution from world-writable directories (TM-07, incl. the miner-disguised-as-agent variant) plus proc.spawn capability tagging on piped-exec rules. Full parent-child chain re-adjudication (pivot-through-children as trajectory) is graded later with the behavior-chain upgrade.
 
@@ -124,13 +124,13 @@ gate-w0 re-runs the eval suite and cross-checks every value.
 
 | reading | pinned value | threshold |
 |---|---|---|
-| detection | 71/73 (97.3%) | >= 80% |
+| detection | 78/80 (97.5%) | >= 80% |
 | worst per-class false positive | 0.0000 | <= 0.05 |
 | credential-class false positive | 0.0000 | <= 0.02 |
 | disturbance (alerts on normal cases) | 0/76 | <= 1 |
 
 Dimension floors: every one of the ten dimensions carries >= 8 real cases
-(current counts: agent_behavior 10, compatibility 8, functional 28, localization 8, performance 8, security_regression 12, recovery 8, security 41, ux 10, untrusted 15); zero empty shells.
+(current counts: agent_behavior 10, compatibility 8, functional 28, localization 8, performance 8, security_regression 12, recovery 8, security 48, ux 10, untrusted 15); zero empty shells.
 
 Known-gap carry: **gd-19, gd-20** are two deliberately
 undetected shapes kept as declared blind spots (local resource exhaustion —

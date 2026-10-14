@@ -4,9 +4,9 @@
   "readings_source": "parsed from `go test ./internal/rules -run TestGoldenEvals` EVAL SUMMARY / missed lines at ledger build time; gate-w0 re-runs and cross-checks \u2014 never hand-copied",
   "corpus": {
     "normal": 80,
-    "danger": 73,
-    "total": 153,
-    "labels": 153,
+    "danger": 80,
+    "total": 160,
+    "labels": 160,
     "dims": {
       "agent_behavior": 15,
       "compatibility": 8,
@@ -15,7 +15,7 @@
       "performance": 8,
       "security_regression": 12,
       "recovery": 8,
-      "security": 41,
+      "security": 48,
       "ux": 10,
       "untrusted": 15
     },
@@ -29,9 +29,9 @@
     "normal_alerts_max": 1
   },
   "readings": {
-    "detection_hit": 71,
-    "detection_total": 73,
-    "detection_pct": "97.3",
+    "detection_hit": 78,
+    "detection_total": 80,
+    "detection_pct": "97.5",
     "worst_fp": "0.0000",
     "credential_fp": "0.0000",
     "normal_alerts": 0,

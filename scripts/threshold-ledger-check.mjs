@@ -87,6 +87,20 @@ if (process.argv.includes("--selftest")) {
   const root = ".";
   const evalOut = process.argv[process.argv.indexOf("--selftest") + 1];
   if (!evalOut) fail("selftest needs the eval output file as argument");
+  // Negative controls must be provably OFF the fresh reading: a hardcoded
+  // tamper value can one day collide with the legitimate runner pct (the
+  // 78/80 data-exfiltration wave made the old "97.5" control equal the
+  // truth, which is not a rejection but a vacuous control). Derive the
+  // control offsets from the runner output itself so the negative scan
+  // never goes silently vacuous.
+  const realPct = (() => {
+    const text = fs.readFileSync(evalOut, "utf8");
+    const line = text.split("\n").find((l) => l.includes("EVAL SUMMARY"));
+    const m = line && line.match(/detection=\d+\/\d+ \((\d+(?:\.\d+)?)%\)/);
+    if (!m) fail("selftest: no detection pct readable in runner output");
+    return Number(m[1]);
+  })();
+  const off = (d) => (realPct + d).toFixed(1);
   // negative controls: tampered ledgers must be rejected. We mutate a copy
   // in a temp tree and run the same checker against it.
   const tamper = (mut) => {
@@ -100,10 +114,10 @@ if (process.argv.includes("--selftest")) {
     return dir;
   };
   const bads = [
-    ["hand-tweaked detection pct", (j) => { j.readings.detection_pct = "97.5"; }],
+    ["hand-tweaked detection pct", (j) => { j.readings.detection_pct = off(0.1); }],
     ["missed list silently emptied", (j) => { j.readings.missed = []; j.known_gap.cases = []; }],
     ["dimension count floored to fake coverage", (j) => { j.corpus.dims.security = 999; }],
-    ["threshold bar relaxed", (j) => { j.thresholds.detection_min_pct = 50; j.readings.detection_pct = "96.5"; }],
+    ["threshold bar relaxed", (j) => { j.thresholds.detection_min_pct = 50; j.readings.detection_pct = off(-1); }],
   ];
   for (const [name, mut] of bads) {
     const dir = tamper(mut);
