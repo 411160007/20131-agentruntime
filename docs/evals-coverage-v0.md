@@ -3,7 +3,7 @@
 Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.
 
 Scope: the evaluation coverage contract for the shipped golden corpus
-(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 84 = 164 cases,
+(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 88 = 168 cases,
 ten evaluation dimensions, labels in `labels.json`). This document and
 `testdata/golden/coverage-map.json` are the two required forms (human table +
 machine-readable) and MUST stay in lockstep; `scripts/gate-w0.sh` re-counts
@@ -21,9 +21,9 @@ Honesty rules of this map:
 |---|---|---|---|---|
 | Prompt Injection | semantics pending | — (primitives: exec.remotepipe, cred.dotenv, mcp.eval, net.egress, destroy.rmrf) | 0 / 10 | W1 + W3 |
 | Goal Hijacking | semantics pending | — (primitives: cred.ssh) | 0 / 1 | W3 + W5 |
-| Tool Abuse | covered | mcp.eval, exec.remotepipe | 17 / — | in service |
-| MCP Abuse | covered | mcp.eval | 9 / — | in service |
-| Skill Abuse | semantics pending | — (primitives: mcp.eval) | 0 / 8 | W1.2 + W4 |
+| Tool Abuse | covered | mcp.eval, exec.remotepipe | 21 / — | in service |
+| MCP Abuse | covered | mcp.eval | 13 / — | in service |
+| Skill Abuse | semantics pending | — (primitives: mcp.eval) | 0 / 12 | W1.2 + W4 |
 | Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 26 / — | in service |
 | Privilege Escalation | covered | path.sudoers | 5 / — | in service |
 | Memory Poisoning | semantics pending | — | 0 / 0 | W2 + W12 |
@@ -42,7 +42,7 @@ Per-row notes:
 - **Goal Hijacking** — One corpus case (task drift into an agent ssh key) is caught downstream by credential primitives; goal-semantics detection awaits the intent slices.
 - **Tool Abuse** — Eval-exposing tools and shell-piped command shapes on the hook/mcp surfaces.
 - **MCP Abuse** — Covered shape = tool-exposing-raw-eval (threat-model TM-05) via the mcp reserved slot. Deeper metadata-plane abuse (tool description poisoning, confused-deputy delegation) is graded later: W1.2 assigns Tool/MCP collection tier, policy semantics later phases.
-- **Skill Abuse** — No skill-vocabulary matcher ships; eval-named tools are the closest primitive today.
+- **Skill Abuse** — No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes — no skill-vocabulary matcher ships.
 - **Credential Access** — Four hard-priority credential-store rules plus the dotenv suffix rule; danger-side class detection 26/26 in the runner table.
 - **Privilege Escalation** — Privilege configuration drop-ins (sudoers, sudoers.d variants, macOS prefixes). The sudo-prefixed destructive case lands in Mass Deletion; full token/session escalation semantics are later-phase scope (see threat-model known_gap wording on OS-integrity surfaces).
 - **Memory Poisoning** — Nothing in today's corpus demonstrates this class as a detection; no existing case is invalidated — the class remains not yet observable by shipped vocabulary. The normal side now carries memory-provenance records on the typed event wire (g7-m01 through g7-m04): a stated record validates as data, matches no shipped rule, and never infers a grant — Memory is not Authorization.
@@ -124,13 +124,13 @@ gate-w0 re-runs the eval suite and cross-checks every value.
 
 | reading | pinned value | threshold |
 |---|---|---|
-| detection | 82/84 (97.6%) | >= 80% |
+| detection | 86/88 (97.7%) | >= 80% |
 | worst per-class false positive | 0.0000 | <= 0.05 |
 | credential-class false positive | 0.0000 | <= 0.02 |
 | disturbance (alerts on normal cases) | 0/76 | <= 1 |
 
 Dimension floors: every one of the ten dimensions carries >= 8 real cases
-(current counts: agent_behavior 10, compatibility 8, functional 28, localization 8, performance 8, security_regression 12, recovery 8, security 52, ux 10, untrusted 15); zero empty shells.
+(current counts: agent_behavior 10, compatibility 8, functional 28, localization 8, performance 8, security_regression 12, recovery 8, security 56, ux 10, untrusted 15); zero empty shells.
 
 Known-gap carry: **gd-19, gd-20** are two deliberately
 undetected shapes kept as declared blind spots (local resource exhaustion —
