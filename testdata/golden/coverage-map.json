@@ -2,9 +2,9 @@
   "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 80,
-    "danger": 88,
-    "total": 168,
-    "labels": 168
+    "danger": 92,
+    "total": 172,
+    "labels": 172
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -88,7 +88,9 @@
         "gd-41",
         "gd-42",
         "gd-43",
-        "gd-44"
+        "gd-44",
+        "gd-46",
+        "gd-48"
       ]
     },
     {
@@ -179,7 +181,9 @@
         "gd-32",
         "gd-33",
         "gd-37",
-        "gd-38"
+        "gd-38",
+        "gd-45",
+        "gd-47"
       ]
     },
     {
@@ -231,7 +235,7 @@
         "W11 \u2014 supply-chain observation v0 (documentation surface + coverage truthfulness matrix) defines what is and is not seen",
         "W1.2 \u2014 fetch-and-run events grade by collection mount, keeping remote-payload provenance in the record"
       ],
-      "note": "Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules.",
+      "note": "Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules. The corpus ticket landed: four direct attempts (gd-45 to gd-48) each mirror one shipped primitive effect (an install-hook stage of an ssh signing key under the package-sync home, a dependency bootstrap fetched from a registry host piped straight into a shell, a vendored toolkit installer reading an ssh identity under the agent home, an artifact-sync update script piped straight into a shell), caught downstream through their effects \u2014 poisoned-dependency and package-integrity semantics are still not observed by shipped rules.",
       "cases": [],
       "primitive_cases": [
         "g7-p08",
@@ -239,7 +243,11 @@
         "g7-s12",
         "g7-x06",
         "gd-08",
-        "gd-25"
+        "gd-25",
+        "gd-45",
+        "gd-46",
+        "gd-47",
+        "gd-48"
       ]
     },
     {
