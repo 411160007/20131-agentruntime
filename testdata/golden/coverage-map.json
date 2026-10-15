@@ -2,9 +2,9 @@
   "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 80,
-    "danger": 112,
-    "total": 192,
-    "labels": 192
+    "danger": 116,
+    "total": 196,
+    "labels": 196
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -102,7 +102,8 @@
         "gd-57",
         "gd-59",
         "gd-61",
-        "gd-63"
+        "gd-63",
+        "gd-72"
       ]
     },
     {
@@ -207,7 +208,9 @@
         "gd-47",
         "gd-58",
         "gd-60",
-        "gd-62"
+        "gd-62",
+        "gd-69",
+        "gd-70"
       ]
     },
     {
@@ -308,7 +311,8 @@
         "gd-34",
         "gd-35",
         "gd-39",
-        "gd-64"
+        "gd-64",
+        "gd-71"
       ]
     },
     {
@@ -367,7 +371,7 @@
         "W4 \u2014 data-boundary engine: READ-allowed never implies EXPORT-allowed; EXPORT is an independently re-adjudicated action class",
         "W7 \u2014 evidence export envelope (manifest + hashes) keeps exfiltration observations themselves complete and tamper-evident"
       ],
-      "note": "Credential-store reads (the typical exfiltration source step) are caught as primitives; payload-crossing-boundary semantics need the data-action vocabulary. The corpus ticket landed: seven direct attempts (gd-30 to gd-36) each mirror one shipped primitive effect (ssh key staging, credentials bundle copy, browser login-store harvest, dotenv pull into outbox, staging shred after upload, drop-drive reformat, piped exfil relay), caught downstream through their effects \u2014 no exfiltration-semantics matcher ships. The second wave landed: four further direct attempts (gd-37 to gd-40) mirror four of the same shipped primitive effects (deploy-key staging for a relay handoff, browser login-store export on the macOS profile shape, relay-cache purge after the outbound push, drop-relay pipe straight into a shell), again caught downstream through their effects \u2014 still no exfiltration-semantics matcher ships.",
+      "note": "Credential-store reads (the typical exfiltration source step) are caught as primitives; payload-crossing-boundary semantics need the data-action vocabulary. The corpus ticket landed: seven direct attempts (gd-30 to gd-36) each mirror one shipped primitive effect (ssh key staging, credentials bundle copy, browser login-store harvest, dotenv pull into outbox, staging shred after upload, drop-drive reformat, piped exfil relay), caught downstream through their effects \u2014 no exfiltration-semantics matcher ships. The second wave landed: four further direct attempts (gd-37 to gd-40) mirror four of the same shipped primitive effects (deploy-key staging for a relay handoff, browser login-store export on the macOS profile shape, relay-cache purge after the outbound push, drop-relay pipe straight into a shell), again caught downstream through their effects \u2014 still no exfiltration-semantics matcher ships. The third wave landed: four further direct attempts (gd-69 to gd-72) mirror four of the same shipped primitive effects (a cloud credential snapshot packaged for an outbound mirror push, an outpost worker dotenv routed into an outbound archive, an outbound parts staging cleared after a relay push, an outbound relay handoff fetched from an edge host and piped straight into a shell), again caught downstream through their effects \u2014 still no exfiltration-semantics matcher ships.",
       "cases": [],
       "primitive_cases": [
         "g7-b09",
@@ -398,7 +402,11 @@
         "gd-37",
         "gd-38",
         "gd-39",
-        "gd-40"
+        "gd-40",
+        "gd-69",
+        "gd-70",
+        "gd-71",
+        "gd-72"
       ]
     },
     {
