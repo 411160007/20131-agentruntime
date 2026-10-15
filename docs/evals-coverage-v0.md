@@ -3,7 +3,7 @@
 Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.
 
 Scope: the evaluation coverage contract for the shipped golden corpus
-(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 104 = 184 cases,
+(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 108 = 188 cases,
 ten evaluation dimensions, labels in `labels.json`). This document and
 `testdata/golden/coverage-map.json` are the two required forms (human table +
 machine-readable) and MUST stay in lockstep; `scripts/gate-w0.sh` re-counts
@@ -19,17 +19,17 @@ Honesty rules of this map:
 
 | class | status | built-in rule(s) | golden cases (direct / via primitives) | semantics carry point |
 |---|---|---|---|---|
-| Prompt Injection | semantics pending | — (primitives: exec.remotepipe, cred.dotenv, mcp.eval, net.egress, destroy.rmrf) | 0 / 10 | W1 + W3 |
+| Prompt Injection | semantics pending | — (primitives: exec.remotepipe, cred.dotenv, mcp.eval, net.egress, destroy.rmrf) | 0 / 14 | W1 + W3 |
 | Goal Hijacking | semantics pending | — (primitives: cred.ssh) | 0 / 1 | W3 + W5 |
-| Tool Abuse | covered | mcp.eval, exec.remotepipe | 29 / — | in service |
-| MCP Abuse | covered | mcp.eval | 17 / — | in service |
+| Tool Abuse | covered | mcp.eval, exec.remotepipe | 31 / — | in service |
+| MCP Abuse | covered | mcp.eval | 18 / — | in service |
 | Skill Abuse | semantics pending | — (primitives: mcp.eval) | 0 / 16 | W1.2 + W4 |
-| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 30 / — | in service |
+| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 31 / — | in service |
 | Privilege Escalation | covered | path.sudoers | 7 / — | in service |
 | Memory Poisoning | semantics pending | — | 0 / 0 | W2 + W12 |
 | Agent-to-Agent Abuse | semantics pending | — | 0 / 0 | W5/W6 carrier slice + W6; explicit threat-model counterpart registered (threat-model.md, Agent-to-Agent abuse observation v0) |
 | Supply Chain Attack | semantics pending | — (primitives: exec.remotepipe, cred.ssh) | 0 / 14 | W11 + W1.2 |
-| Mass Deletion | covered | destroy.rmrf, destroy.disk | 15 / — | in service |
+| Mass Deletion | covered | destroy.rmrf, destroy.disk | 16 / — | in service |
 | Policy Bypass | covered | audit.tamper | 7 / — | in service |
 | Capability Escalation | semantics pending | — (primitives: agent.masquerade, path.sudoers) | 0 / 12 | W6 + W4 |
 | Data Exfiltration | semantics pending | — (primitives: cred.ssh, cred.aws, cred.browser, cred.dotenv, destroy.rmrf, destroy.disk, exec.remotepipe) | 0 / 29 | W4 + W7 |
@@ -38,12 +38,12 @@ Honesty rules of this map:
 
 Per-row notes:
 
-- **Prompt Injection** — No dedicated injection-semantics matcher ships today. The ten injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf — the five direct attempts gd-25 to gd-29 mirror each shipped primitive effect), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.
+- **Prompt Injection** — No dedicated injection-semantics matcher ships today. The fourteen injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf — the five direct attempts gd-25 to gd-29 mirror each shipped primitive effect and the second wave gd-61 to gd-64 mirrors four of the five shipped primitives with fresh injection-chain shapes), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.
 - **Goal Hijacking** — One corpus case (task drift into an agent ssh key) is caught downstream by credential primitives; goal-semantics detection awaits the intent slices.
 - **Tool Abuse** — Eval-exposing tools and shell-piped command shapes on the hook/mcp surfaces.
 - **MCP Abuse** — Covered shape = tool-exposing-raw-eval (threat-model TM-05) via the mcp reserved slot. Deeper metadata-plane abuse (tool description poisoning, confused-deputy delegation) is graded later: W1.2 assigns Tool/MCP collection tier, policy semantics later phases.
 - **Skill Abuse** — No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes — no skill-vocabulary matcher ships. The second wave landed: four further direct attempts (gd-53 to gd-56) mirror four more eval-exposing skill shapes (a form handler that evals the template it just wrote, a config poller piping remote config straight into an eval engine, a cron adapter evaluating a remote job-spec expression, a localization skill routing translated placeholders through an eval message formatter), again caught downstream through their eval-exposing tool shapes — still no skill-vocabulary matcher ships.
-- **Credential Access** — Four hard-priority credential-store rules plus the dotenv suffix rule; danger-side class detection 28/28 in the runner table.
+- **Credential Access** — Four hard-priority credential-store rules plus the dotenv suffix rule; danger-side class detection 31/31 in the runner table.
 - **Privilege Escalation** — Privilege configuration drop-ins (sudoers, sudoers.d variants, macOS prefixes). The sudo-prefixed destructive case lands in Mass Deletion; full token/session escalation semantics are later-phase scope (see threat-model known_gap wording on OS-integrity surfaces).
 - **Memory Poisoning** — Nothing in today's corpus demonstrates this class as a detection; no existing case is invalidated — the class remains not yet observable by shipped vocabulary. The normal side now carries memory-provenance records on the typed event wire (g7-m01 through g7-m04): a stated record validates as data, matches no shipped rule, and never infers a grant — Memory is not Authorization.
 - **Agent-to-Agent Abuse** — Delegation shapes exist on the normal side of the corpus (delegated subtask session, webhook-bootstrapped agent detected as allow); no abuse-side golden case ships yet. The threat model now carries an explicit counterpart for this family (its "Agent-to-Agent abuse observation v0" section states the class as a `known_gap` with its shipped normal-side surfaces): a documentation-surface registration — this wave added no threat id, no rule, and no case on either side.
