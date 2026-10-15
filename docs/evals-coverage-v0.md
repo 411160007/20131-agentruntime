@@ -21,9 +21,9 @@ Honesty rules of this map:
 |---|---|---|---|---|
 | Prompt Injection | semantics pending | — (primitives: exec.remotepipe, cred.dotenv, mcp.eval, net.egress, destroy.rmrf) | 0 / 10 | W1 + W3 |
 | Goal Hijacking | semantics pending | — (primitives: cred.ssh) | 0 / 1 | W3 + W5 |
-| Tool Abuse | covered | mcp.eval, exec.remotepipe | 23 / — | in service |
-| MCP Abuse | covered | mcp.eval | 13 / — | in service |
-| Skill Abuse | semantics pending | — (primitives: mcp.eval) | 0 / 12 | W1.2 + W4 |
+| Tool Abuse | covered | mcp.eval, exec.remotepipe | 27 / — | in service |
+| MCP Abuse | covered | mcp.eval | 17 / — | in service |
+| Skill Abuse | semantics pending | — (primitives: mcp.eval) | 0 / 16 | W1.2 + W4 |
 | Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 28 / — | in service |
 | Privilege Escalation | covered | path.sudoers | 7 / — | in service |
 | Memory Poisoning | semantics pending | — | 0 / 0 | W2 + W12 |
@@ -42,7 +42,7 @@ Per-row notes:
 - **Goal Hijacking** — One corpus case (task drift into an agent ssh key) is caught downstream by credential primitives; goal-semantics detection awaits the intent slices.
 - **Tool Abuse** — Eval-exposing tools and shell-piped command shapes on the hook/mcp surfaces.
 - **MCP Abuse** — Covered shape = tool-exposing-raw-eval (threat-model TM-05) via the mcp reserved slot. Deeper metadata-plane abuse (tool description poisoning, confused-deputy delegation) is graded later: W1.2 assigns Tool/MCP collection tier, policy semantics later phases.
-- **Skill Abuse** — No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes — no skill-vocabulary matcher ships.
+- **Skill Abuse** — No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes — no skill-vocabulary matcher ships. The second wave landed: four further direct attempts (gd-53 to gd-56) mirror four more eval-exposing skill shapes (a form handler that evals the template it just wrote, a config poller piping remote config straight into an eval engine, a cron adapter evaluating a remote job-spec expression, a localization skill routing translated placeholders through an eval message formatter), again caught downstream through their eval-exposing tool shapes — still no skill-vocabulary matcher ships.
 - **Credential Access** — Four hard-priority credential-store rules plus the dotenv suffix rule; danger-side class detection 28/28 in the runner table.
 - **Privilege Escalation** — Privilege configuration drop-ins (sudoers, sudoers.d variants, macOS prefixes). The sudo-prefixed destructive case lands in Mass Deletion; full token/session escalation semantics are later-phase scope (see threat-model known_gap wording on OS-integrity surfaces).
 - **Memory Poisoning** — Nothing in today's corpus demonstrates this class as a detection; no existing case is invalidated — the class remains not yet observable by shipped vocabulary. The normal side now carries memory-provenance records on the typed event wire (g7-m01 through g7-m04): a stated record validates as data, matches no shipped rule, and never infers a grant — Memory is not Authorization.
