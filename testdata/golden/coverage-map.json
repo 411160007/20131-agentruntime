@@ -2,9 +2,9 @@
   "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 80,
-    "danger": 92,
-    "total": 172,
-    "labels": 172
+    "danger": 96,
+    "total": 176,
+    "labels": 176
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -200,7 +200,9 @@
         "g7-s10",
         "g8-d01",
         "gd-15",
-        "gd-16"
+        "gd-16",
+        "gd-49",
+        "gd-51"
       ]
     },
     {
@@ -305,7 +307,7 @@
         "W6 \u2014 least-agency guard records capability growth per session/step (rate, steps, parallelism counters; observation only, no kill-switch in Phase 0)",
         "W4 \u2014 capability vocabulary migrates from the shipped 11-word set toward the nine data-action classes, making escalation diffs machine-readable"
       ],
-      "note": "Sudoers writes and world-writable masquerade runs are caught as primitives; the escalation-as-trajectory semantics (capability growth over time) awaits the least-agency slice.",
+      "note": "Sudoers writes and world-writable masquerade runs are caught as primitives; the escalation-as-trajectory semantics (capability growth over time) awaits the least-agency slice. The corpus ticket landed: four direct attempts (gd-49 to gd-52) each mirror one shipped primitive effect (an agent-authored sudoers drop-in under the primary prefix, a relabelled helper run from a world-writable directory, a macOS-prefix sudoers fragment widening the runner account, a service-relabelled binary staged under a world-writable cache path), caught downstream through their effects \u2014 the escalation-as-trajectory semantics still awaits the least-agency slice.",
       "cases": [],
       "primitive_cases": [
         "g7-c07",
@@ -315,7 +317,11 @@
         "g7-s10",
         "gd-10",
         "gd-15",
-        "gd-16"
+        "gd-16",
+        "gd-49",
+        "gd-50",
+        "gd-51",
+        "gd-52"
       ]
     },
     {
@@ -399,7 +405,9 @@
         "g7-q09",
         "g7-s07",
         "g8-d02",
-        "gd-10"
+        "gd-10",
+        "gd-50",
+        "gd-52"
       ]
     }
   ],

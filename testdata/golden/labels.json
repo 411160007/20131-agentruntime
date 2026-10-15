@@ -704,6 +704,26 @@
     "class": "process",
     "dim": "security"
   },
+  "gd-49": {
+    "expect": "would_block",
+    "class": "path",
+    "dim": "security"
+  },
+  "gd-50": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
+  "gd-51": {
+    "expect": "would_block",
+    "class": "path",
+    "dim": "security"
+  },
+  "gd-52": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
   "gn-01": {
     "expect": "allow",
     "class": "observation",
