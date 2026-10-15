@@ -2,9 +2,9 @@
   "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 80,
-    "danger": 96,
-    "total": 176,
-    "labels": 176
+    "danger": 100,
+    "total": 180,
+    "labels": 180
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -90,7 +90,11 @@
         "gd-43",
         "gd-44",
         "gd-46",
-        "gd-48"
+        "gd-48",
+        "gd-53",
+        "gd-54",
+        "gd-55",
+        "gd-56"
       ]
     },
     {
@@ -115,7 +119,11 @@
         "gd-41",
         "gd-42",
         "gd-43",
-        "gd-44"
+        "gd-44",
+        "gd-53",
+        "gd-54",
+        "gd-55",
+        "gd-56"
       ]
     },
     {
@@ -126,7 +134,7 @@
         "W1.2 \u2014 collection-mount grading: tool/skill invocations enter as Tool/MCP metadata tier (self-described fields never raise the tier)",
         "W4 \u2014 nine data-action vocabulary re-adjudicates EXECUTE/SHARE per action, independent of skill naming"
       ],
-      "note": "No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes \u2014 no skill-vocabulary matcher ships.",
+      "note": "No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes \u2014 no skill-vocabulary matcher ships. The second wave landed: four further direct attempts (gd-53 to gd-56) mirror four more eval-exposing skill shapes (a form handler that evals the template it just wrote, a config poller piping remote config straight into an eval engine, a cron adapter evaluating a remote job-spec expression, a localization skill routing translated placeholders through an eval message formatter), again caught downstream through their eval-exposing tool shapes \u2014 still no skill-vocabulary matcher ships.",
       "cases": [],
       "primitive_cases": [
         "g7-c08",
@@ -140,7 +148,11 @@
         "gd-41",
         "gd-42",
         "gd-43",
-        "gd-44"
+        "gd-44",
+        "gd-53",
+        "gd-54",
+        "gd-55",
+        "gd-56"
       ]
     },
     {
@@ -584,4 +596,3 @@
     "note": "Dogfood-harvested collector lifecycle and discovery lines (startup, scan cycles, detected agents, session/turn markers). They belong to the product's own observation surface, not to an agent task category; kept as an explicit bucket so the twelve task classes never absorb them silently."
   }
 }
-
