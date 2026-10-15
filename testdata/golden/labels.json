@@ -784,6 +784,26 @@
     "class": "destructive",
     "dim": "untrusted"
   },
+  "gd-65": {
+    "expect": "would_block",
+    "class": "path",
+    "dim": "security"
+  },
+  "gd-66": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
+  "gd-67": {
+    "expect": "would_block",
+    "class": "path",
+    "dim": "security"
+  },
+  "gd-68": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
   "gn-01": {
     "expect": "allow",
     "class": "observation",
