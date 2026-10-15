@@ -3,7 +3,7 @@
 Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.
 
 Scope: the evaluation coverage contract for the shipped golden corpus
-(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 96 = 176 cases,
+(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 104 = 184 cases,
 ten evaluation dimensions, labels in `labels.json`). This document and
 `testdata/golden/coverage-map.json` are the two required forms (human table +
 machine-readable) and MUST stay in lockstep; `scripts/gate-w0.sh` re-counts
@@ -21,14 +21,14 @@ Honesty rules of this map:
 |---|---|---|---|---|
 | Prompt Injection | semantics pending | — (primitives: exec.remotepipe, cred.dotenv, mcp.eval, net.egress, destroy.rmrf) | 0 / 10 | W1 + W3 |
 | Goal Hijacking | semantics pending | — (primitives: cred.ssh) | 0 / 1 | W3 + W5 |
-| Tool Abuse | covered | mcp.eval, exec.remotepipe | 27 / — | in service |
+| Tool Abuse | covered | mcp.eval, exec.remotepipe | 29 / — | in service |
 | MCP Abuse | covered | mcp.eval | 17 / — | in service |
 | Skill Abuse | semantics pending | — (primitives: mcp.eval) | 0 / 16 | W1.2 + W4 |
-| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 28 / — | in service |
+| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 30 / — | in service |
 | Privilege Escalation | covered | path.sudoers | 7 / — | in service |
 | Memory Poisoning | semantics pending | — | 0 / 0 | W2 + W12 |
 | Agent-to-Agent Abuse | semantics pending | — | 0 / 0 | W5/W6 carrier slice + W6; explicit threat-model counterpart registered (threat-model.md, Agent-to-Agent abuse observation v0) |
-| Supply Chain Attack | semantics pending | — (primitives: exec.remotepipe, cred.ssh) | 0 / 10 | W11 + W1.2 |
+| Supply Chain Attack | semantics pending | — (primitives: exec.remotepipe, cred.ssh) | 0 / 14 | W11 + W1.2 |
 | Mass Deletion | covered | destroy.rmrf, destroy.disk | 15 / — | in service |
 | Policy Bypass | covered | audit.tamper | 7 / — | in service |
 | Capability Escalation | semantics pending | — (primitives: agent.masquerade, path.sudoers) | 0 / 12 | W6 + W4 |
@@ -47,7 +47,7 @@ Per-row notes:
 - **Privilege Escalation** — Privilege configuration drop-ins (sudoers, sudoers.d variants, macOS prefixes). The sudo-prefixed destructive case lands in Mass Deletion; full token/session escalation semantics are later-phase scope (see threat-model known_gap wording on OS-integrity surfaces).
 - **Memory Poisoning** — Nothing in today's corpus demonstrates this class as a detection; no existing case is invalidated — the class remains not yet observable by shipped vocabulary. The normal side now carries memory-provenance records on the typed event wire (g7-m01 through g7-m04): a stated record validates as data, matches no shipped rule, and never infers a grant — Memory is not Authorization.
 - **Agent-to-Agent Abuse** — Delegation shapes exist on the normal side of the corpus (delegated subtask session, webhook-bootstrapped agent detected as allow); no abuse-side golden case ships yet. The threat model now carries an explicit counterpart for this family (its "Agent-to-Agent abuse observation v0" section states the class as a `known_gap` with its shipped normal-side surfaces): a documentation-surface registration — this wave added no threat id, no rule, and no case on either side.
-- **Supply Chain Attack** — Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules The corpus ticket landed: four direct attempts (gd-45 to gd-48) each mirror one shipped primitive effect (an install-hook stage of an ssh signing key under the package-sync home, a dependency bootstrap fetched from a registry host piped straight into a shell, a vendored toolkit installer reading an ssh identity under the agent home, an artifact-sync update script piped straight into a shell), caught downstream through their effects — poisoned-dependency and package-integrity semantics are still not observed by shipped rules.
+- **Supply Chain Attack** — Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules The corpus ticket landed: four direct attempts (gd-45 to gd-48) each mirror one shipped primitive effect (an install-hook stage of an ssh signing key under the package-sync home, a dependency bootstrap fetched from a registry host piped straight into a shell, a vendored toolkit installer reading an ssh identity under the agent home, an artifact-sync update script piped straight into a shell), caught downstream through their effects — poisoned-dependency and package-integrity semantics are still not observed by shipped rules. The second wave landed: four further direct attempts (gd-57 to gd-60) mirror four more shipped primitive effects (a CI onboarding step piping a freshly fetched build-farm bootstrap straight into a shell, a release upload step reading an ssh identity staged under the CI runner home, a package-mirror post-install checker fetched from upstream and piped straight into a shell, a dependency mirror sync reading an ssh signing key staged under the package cache home), again caught downstream through their effects — still no poisoned-dependency or package-integrity semantics on shipped rules.
 - **Mass Deletion** — Recursive force deletes and filesystem reformat shapes, incl. localized and piped variants.
 - **Policy Bypass** — Covered shape = attack on the audit/policy sink itself (TM-08) plus the merge-surface hard-rule no-downgrade gate (three negative-control fixtures in the runner battery). The winevt-clearing case gd-20 stays a declared known_gap (TM-12), honestly counted as a miss in the ledger, never silently passed.
 - **Capability Escalation** — Sudoers writes and world-writable masquerade runs are caught as primitives; the escalation-as-trajectory semantics (capability growth over time) awaits the least-agency slice. The corpus ticket landed: four direct attempts (gd-49 to gd-52) each mirror one shipped primitive effect (an agent-authored sudoers drop-in under the primary prefix, a relabelled helper run from a world-writable directory, a macOS-prefix sudoers fragment widening the runner account, a service-relabelled binary staged under a world-writable cache path), caught downstream through their effects — the escalation-as-trajectory semantics still awaits the least-agency slice.
