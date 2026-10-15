@@ -3,7 +3,7 @@
 Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.
 
 Scope: the evaluation coverage contract for the shipped golden corpus
-(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 112 = 192 cases,
+(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 116 = 196 cases,
 ten evaluation dimensions, labels in `labels.json`). This document and
 `testdata/golden/coverage-map.json` are the two required forms (human table +
 machine-readable) and MUST stay in lockstep; `scripts/gate-w0.sh` re-counts
@@ -21,18 +21,18 @@ Honesty rules of this map:
 |---|---|---|---|---|
 | Prompt Injection | semantics pending | — (primitives: exec.remotepipe, cred.dotenv, mcp.eval, net.egress, destroy.rmrf) | 0 / 14 | W1 + W3 |
 | Goal Hijacking | semantics pending | — (primitives: cred.ssh) | 0 / 1 | W3 + W5 |
-| Tool Abuse | covered | mcp.eval, exec.remotepipe | 31 / — | in service |
+| Tool Abuse | covered | mcp.eval, exec.remotepipe | 32 / — | in service |
 | MCP Abuse | covered | mcp.eval | 18 / — | in service |
 | Skill Abuse | semantics pending | — (primitives: mcp.eval) | 0 / 16 | W1.2 + W4 |
-| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 31 / — | in service |
+| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 33 / — | in service |
 | Privilege Escalation | covered | path.sudoers | 9 / — | in service |
 | Memory Poisoning | semantics pending | — | 0 / 0 | W2 + W12 |
 | Agent-to-Agent Abuse | semantics pending | — | 0 / 0 | W5/W6 carrier slice + W6; explicit threat-model counterpart registered (threat-model.md, Agent-to-Agent abuse observation v0) |
 | Supply Chain Attack | semantics pending | — (primitives: exec.remotepipe, cred.ssh) | 0 / 14 | W11 + W1.2 |
-| Mass Deletion | covered | destroy.rmrf, destroy.disk | 16 / — | in service |
+| Mass Deletion | covered | destroy.rmrf, destroy.disk | 17 / — | in service |
 | Policy Bypass | covered | audit.tamper | 7 / — | in service |
 | Capability Escalation | semantics pending | — (primitives: agent.masquerade, path.sudoers) | 0 / 16 | W6 + W4 |
-| Data Exfiltration | semantics pending | — (primitives: cred.ssh, cred.aws, cred.browser, cred.dotenv, destroy.rmrf, destroy.disk, exec.remotepipe) | 0 / 29 | W4 + W7 |
+| Data Exfiltration | semantics pending | — (primitives: cred.ssh, cred.aws, cred.browser, cred.dotenv, destroy.rmrf, destroy.disk, exec.remotepipe) | 0 / 33 | W4 + W7 |
 | Network Exfiltration | semantics pending | egress.export (EXPORT-record judgement) + `net.egress` primitive | 4 / 5 | W4 + W10 |
 | Child Process Pivot | covered | agent.masquerade | 9 / — | in service |
 
@@ -51,7 +51,7 @@ Per-row notes:
 - **Mass Deletion** — Recursive force deletes and filesystem reformat shapes, incl. localized and piped variants.
 - **Policy Bypass** — Covered shape = attack on the audit/policy sink itself (TM-08) plus the merge-surface hard-rule no-downgrade gate (three negative-control fixtures in the runner battery). The winevt-clearing case gd-20 stays a declared known_gap (TM-12), honestly counted as a miss in the ledger, never silently passed.
 - **Capability Escalation** — Sudoers writes and world-writable masquerade runs are caught as primitives; the escalation-as-trajectory semantics (capability growth over time) awaits the least-agency slice. The corpus ticket landed: four direct attempts (gd-49 to gd-52) each mirror one shipped primitive effect (an agent-authored sudoers drop-in under the primary prefix, a relabelled helper run from a world-writable directory, a macOS-prefix sudoers fragment widening the runner account, a service-relabelled binary staged under a world-writable cache path), caught downstream through their effects — the escalation-as-trajectory semantics still awaits the least-agency slice. The second wave landed: four further direct attempts (gd-65 to gd-68) mirror four more shipped primitive effects (a ports-prefixed sudoers drop-in leaving a passwordless escape for an update agent, a relabelled artifact repackager run from a temporary build sandbox, an installer rewriting the packaged main sudoers file to enroll its own account, a telemetry indexer staged under a world-writable tmp path and launched as a one-shot service), again caught downstream through their effects — still no capability-growth trajectory semantics on shipped rules.
-- **Data Exfiltration** — Credential-store reads (the typical exfiltration source step) are caught as primitives; payload-crossing-boundary semantics need the data-action vocabulary. The corpus ticket landed: seven direct attempts (gd-30 to gd-36) each mirror one shipped primitive effect (ssh key staging, credentials bundle copy, browser login-store harvest, dotenv pull into outbox, staging shred after upload, drop-drive reformat, piped exfil relay), caught downstream through their effects — no exfiltration-semantics matcher ships. The second wave landed: four further direct attempts (gd-37 to gd-40) mirror four of the same shipped primitive effects (deploy-key staging for a relay handoff, browser login-store export on the macOS profile shape, relay-cache purge after the outbound push, drop-relay pipe straight into a shell), again caught downstream through their effects — still no exfiltration-semantics matcher ships.
+- **Data Exfiltration** — Credential-store reads (the typical exfiltration source step) are caught as primitives; payload-crossing-boundary semantics need the data-action vocabulary. The corpus ticket landed: seven direct attempts (gd-30 to gd-36) each mirror one shipped primitive effect (ssh key staging, credentials bundle copy, browser login-store harvest, dotenv pull into outbox, staging shred after upload, drop-drive reformat, piped exfil relay), caught downstream through their effects — no exfiltration-semantics matcher ships. The second wave landed: four further direct attempts (gd-37 to gd-40) mirror four of the same shipped primitive effects (deploy-key staging for a relay handoff, browser login-store export on the macOS profile shape, relay-cache purge after the outbound push, drop-relay pipe straight into a shell), again caught downstream through their effects — still no exfiltration-semantics matcher ships. The third wave landed: four further direct attempts (gd-69 to gd-72) mirror four of the same shipped primitive effects (a cloud credential snapshot packaged for an outbound mirror push, an outpost worker dotenv routed into an outbound archive, an outbound parts staging cleared after a relay push, an outbound relay handoff fetched from an edge host and piped straight into a shell), again caught downstream through their effects — still no exfiltration-semantics matcher ships.
 - **Network Exfiltration** — Outbound network intent is flagged as a class today (all five network-shaped primitive dangers detected 5/5) as generic egress visibility. The boundary slice shipped its first judgement row: events recorded with the EXPORT data-classification annotation are judged directly by `egress.export` (observation only — an absent annotation stays unclassified legacy and is never inferred). The corpus ticket landed: four direct EXPORT-record cases (gd-21 to gd-24 — sealed-archive upload, record-set webhook post, annotated beacon to resolver-over transport, workspace snapshot sync) are judged by that row ahead of the generic one; content-derived sensitivity remains the declared known gap.
 - **Child Process Pivot** — Covered shape = relabel/masquerade execution from world-writable directories (TM-07, incl. the miner-disguised-as-agent variant) plus proc.spawn capability tagging on piped-exec rules. Full parent-child chain re-adjudication (pivot-through-children as trajectory) is graded later with the behavior-chain upgrade.
 
