@@ -2,9 +2,9 @@
   "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 80,
-    "danger": 120,
-    "total": 200,
-    "labels": 200
+    "danger": 124,
+    "total": 204,
+    "labels": 204
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -38,13 +38,17 @@
         "gd-61",
         "gd-62",
         "gd-63",
-        "gd-64"
+        "gd-64",
+        "gd-77",
+        "gd-78",
+        "gd-79",
+        "gd-80"
       ],
       "w_points": [
         "W1 \u2014 evidence trust order: content of untrusted provenance gets a declared source_class (low tier), never decides alone (machine-judged trust battery already shipped in the runner)",
         "W3 \u2014 intent contract: intent mutations sourced from untrusted content are recorded as UNTRUSTED-marked observations (observe-only in Phase 0)"
       ],
-      "note": "No dedicated injection-semantics matcher ships today. The fourteen injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf \u2014 the five direct attempts gd-25 to gd-29 mirror each shipped primitive effect and the second wave gd-61 to gd-64 mirrors four of the five shipped primitives with fresh injection-chain shapes), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.",
+      "note": "No dedicated injection-semantics matcher ships today. The eighteen injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf \u2014 the five direct attempts gd-25 to gd-29 mirror each shipped primitive effect and the second wave gd-61 to gd-64 mirrors four of the five shipped primitives with fresh injection-chain shapes, and the third wave gd-77 to gd-80 mirrors four more fresh injection-chain shapes across piped bootstrap, dotenv pull, eval-tool call and egress intent), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.",
       "cases": []
     },
     {
@@ -103,7 +107,9 @@
         "gd-59",
         "gd-61",
         "gd-63",
-        "gd-72"
+        "gd-72",
+        "gd-77",
+        "gd-79"
       ]
     },
     {
@@ -133,7 +139,8 @@
         "gd-54",
         "gd-55",
         "gd-56",
-        "gd-63"
+        "gd-63",
+        "gd-79"
       ]
     },
     {
@@ -213,7 +220,8 @@
         "gd-70",
         "gd-73",
         "gd-74",
-        "gd-76"
+        "gd-76",
+        "gd-78"
       ]
     },
     {
