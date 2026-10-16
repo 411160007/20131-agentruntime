@@ -2,9 +2,9 @@
   "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 80,
-    "danger": 128,
-    "total": 208,
-    "labels": 208
+    "danger": 132,
+    "total": 212,
+    "labels": 212
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -246,7 +246,9 @@
         "gd-49",
         "gd-51",
         "gd-65",
-        "gd-67"
+        "gd-67",
+        "gd-85",
+        "gd-86"
       ]
     },
     {
@@ -362,7 +364,7 @@
         "W6 \u2014 least-agency guard records capability growth per session/step (rate, steps, parallelism counters; observation only, no kill-switch in Phase 0)",
         "W4 \u2014 capability vocabulary migrates from the shipped 11-word set toward the nine data-action classes, making escalation diffs machine-readable"
       ],
-      "note": "Sudoers writes and world-writable masquerade runs are caught as primitives; the escalation-as-trajectory semantics (capability growth over time) awaits the least-agency slice. The corpus ticket landed: four direct attempts (gd-49 to gd-52) each mirror one shipped primitive effect (an agent-authored sudoers drop-in under the primary prefix, a relabelled helper run from a world-writable directory, a macOS-prefix sudoers fragment widening the runner account, a service-relabelled binary staged under a world-writable cache path), caught downstream through their effects \u2014 the escalation-as-trajectory semantics still awaits the least-agency slice. The second wave landed: four further direct attempts (gd-65 to gd-68) mirror four more shipped primitive effects (a ports-prefixed sudoers drop-in leaving a passwordless escape for an update agent, a relabelled artifact repackager run from a temporary build sandbox, an installer rewriting the packaged main sudoers file to enroll its own account, a telemetry indexer staged under a world-writable tmp path and launched as a one-shot service), again caught downstream through their effects \u2014 still no capability-growth trajectory semantics on shipped rules.",
+      "note": "Sudoers writes and world-writable masquerade runs are caught as primitives; the escalation-as-trajectory semantics (capability growth over time) awaits the least-agency slice. The corpus ticket landed: four direct attempts (gd-49 to gd-52) each mirror one shipped primitive effect (an agent-authored sudoers drop-in under the primary prefix, a relabelled helper run from a world-writable directory, a macOS-prefix sudoers fragment widening the runner account, a service-relabelled binary staged under a world-writable cache path), caught downstream through their effects \u2014 the escalation-as-trajectory semantics still awaits the least-agency slice. The second wave landed: four further direct attempts (gd-65 to gd-68) mirror four more shipped primitive effects (a ports-prefixed sudoers drop-in leaving a passwordless escape for an update agent, a relabelled artifact repackager run from a temporary build sandbox, an installer rewriting the packaged main sudoers file to enroll its own account, a telemetry indexer staged under a world-writable tmp path and launched as a one-shot service), again caught downstream through their effects \u2014 still no capability-growth trajectory semantics on shipped rules. The third wave landed: four further direct attempts (gd-85 to gd-88) mirror the same two shipped primitives in fresh domains (a container rootfs template staging a passwordless sudoers drop-in for the build agent, a provisioning copy of the main sudoers file rewritten to widen the deploy account, a relabelled compiler shim run from a world-writable tool cache, a portable updater bundle staged under a world-writable kit path and launched as the relabelled agent daemon), again caught downstream through their effects \u2014 still no capability-growth trajectory semantics on shipped rules.",
       "cases": [],
       "primitive_cases": [
         "g7-c07",
@@ -380,7 +382,11 @@
         "gd-65",
         "gd-66",
         "gd-67",
-        "gd-68"
+        "gd-68",
+        "gd-85",
+        "gd-86",
+        "gd-87",
+        "gd-88"
       ]
     },
     {
@@ -476,7 +482,9 @@
         "gd-50",
         "gd-52",
         "gd-66",
-        "gd-68"
+        "gd-68",
+        "gd-87",
+        "gd-88"
       ]
     }
   ],
