@@ -864,6 +864,26 @@
     "class": "network",
     "dim": "untrusted"
   },
+  "gd-81": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-82": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "security"
+  },
+  "gd-83": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
+  "gd-84": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "security"
+  },
   "gn-01": {
     "expect": "allow",
     "class": "observation",
