@@ -2,9 +2,9 @@
   "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 80,
-    "danger": 132,
-    "total": 212,
-    "labels": 212
+    "danger": 136,
+    "total": 216,
+    "labels": 216
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -111,7 +111,11 @@
         "gd-77",
         "gd-79",
         "gd-83",
-        "gd-84"
+        "gd-84",
+        "gd-89",
+        "gd-90",
+        "gd-91",
+        "gd-92"
       ]
     },
     {
@@ -142,7 +146,11 @@
         "gd-55",
         "gd-56",
         "gd-63",
-        "gd-79"
+        "gd-79",
+        "gd-89",
+        "gd-90",
+        "gd-91",
+        "gd-92"
       ]
     },
     {
@@ -153,7 +161,7 @@
         "W1.2 \u2014 collection-mount grading: tool/skill invocations enter as Tool/MCP metadata tier (self-described fields never raise the tier)",
         "W4 \u2014 nine data-action vocabulary re-adjudicates EXECUTE/SHARE per action, independent of skill naming"
       ],
-      "note": "No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes \u2014 no skill-vocabulary matcher ships. The second wave landed: four further direct attempts (gd-53 to gd-56) mirror four more eval-exposing skill shapes (a form handler that evals the template it just wrote, a config poller piping remote config straight into an eval engine, a cron adapter evaluating a remote job-spec expression, a localization skill routing translated placeholders through an eval message formatter), again caught downstream through their eval-exposing tool shapes \u2014 still no skill-vocabulary matcher ships.",
+      "note": "No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes \u2014 no skill-vocabulary matcher ships. The second wave landed: four further direct attempts (gd-53 to gd-56) mirror four more eval-exposing skill shapes (a form handler that evals the template it just wrote, a config poller piping remote config straight into an eval engine, a cron adapter evaluating a remote job-spec expression, a localization skill routing translated placeholders through an eval message formatter), again caught downstream through their eval-exposing tool shapes \u2014 still no skill-vocabulary matcher ships. The third wave landed: four further direct attempts (gd-89 to gd-92) mirror four more eval-exposing skill shapes (a slides skill evaluating an assembled chart formula expression at render time, a mail-merge skill resolving template fields through an eval token resolver, a pivot workbook skill evaluating a saved pivot expression against pasted rows, a code-review skill routing suggested patches through an eval patch-apply bridge), again caught downstream through their eval-exposing tool shapes \u2014 still no skill-vocabulary matcher ships.",
       "cases": [],
       "primitive_cases": [
         "g7-c08",
@@ -171,7 +179,11 @@
         "gd-53",
         "gd-54",
         "gd-55",
-        "gd-56"
+        "gd-56",
+        "gd-89",
+        "gd-90",
+        "gd-91",
+        "gd-92"
       ]
     },
     {
