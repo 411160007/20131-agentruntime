@@ -70,8 +70,8 @@ func TestReplayCLIGoldenRun(t *testing.T) {
 	if !strings.Contains(rep.Stance, "record-only, zero enforcement plane") {
 		t.Fatalf("CLI report lost the stance line: %q", rep.Stance)
 	}
-	if rep.Totals.Cases != 240 || rep.Totals.Held != 0 {
-		t.Fatalf("CLI totals cases=%d held=%d, want 240/0", rep.Totals.Cases, rep.Totals.Held)
+	if rep.Totals.Cases != 244 || rep.Totals.Held != 0 {
+		t.Fatalf("CLI totals cases=%d held=%d, want 244/0", rep.Totals.Cases, rep.Totals.Held)
 	}
 	for _, w := range []string{"denied", "blocked", "killed", "terminated", "enforced", "intercept"} {
 		if strings.Contains(strings.ToLower(string(body)), w) {
