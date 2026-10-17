@@ -984,6 +984,26 @@
     "class": "credential",
     "dim": "security"
   },
+  "gd-105": {
+    "expect": "would_block",
+    "class": "process",
+    "dim": "untrusted"
+  },
+  "gd-106": {
+    "expect": "would_block",
+    "class": "credential",
+    "dim": "untrusted"
+  },
+  "gd-107": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "untrusted"
+  },
+  "gd-108": {
+    "expect": "would_block",
+    "class": "destructive",
+    "dim": "untrusted"
+  },
   "gn-01": {
     "expect": "allow",
     "class": "observation",

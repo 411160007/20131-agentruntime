@@ -3,7 +3,7 @@
 Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.
 
 Scope: the evaluation coverage contract for the shipped golden corpus
-(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 148 = 228 cases,
+(`testdata/golden/normal.jsonl` 80 + `danger.jsonl` 152 = 232 cases,
 ten evaluation dimensions, labels in `labels.json`). This document and
 `testdata/golden/coverage-map.json` are the two required forms (human table +
 machine-readable) and MUST stay in lockstep; `scripts/gate-w0.sh` re-counts
@@ -19,17 +19,17 @@ Honesty rules of this map:
 
 | class | status | built-in rule(s) | golden cases (direct / via primitives) | semantics carry point |
 |---|---|---|---|---|
-| Prompt Injection | semantics pending | — (primitives: exec.remotepipe, cred.dotenv, mcp.eval, net.egress, destroy.rmrf) | 0 / 18 | W1 + W3 |
+| Prompt Injection | semantics pending | — (primitives: exec.remotepipe, cred.dotenv, mcp.eval, net.egress, destroy.rmrf) | 0 / 22 | W1 + W3 |
 | Goal Hijacking | semantics pending | — (primitives: cred.ssh) | 0 / 1 | W3 + W5 |
-| Tool Abuse | covered | mcp.eval, exec.remotepipe | 42 / — | in service |
-| MCP Abuse | covered | mcp.eval | 23 / — | in service |
+| Tool Abuse | covered | mcp.eval, exec.remotepipe | 44 / — | in service |
+| MCP Abuse | covered | mcp.eval | 24 / — | in service |
 | Skill Abuse | semantics pending | — (primitives: mcp.eval) | 0 / 20 | W1.2 + W4 |
-| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 47 / — | in service |
+| Credential Access | covered | cred.ssh, cred.aws, cred.browser, cred.dotenv | 48 / — | in service |
 | Privilege Escalation | covered | path.sudoers | 11 / — | in service |
 | Memory Poisoning | semantics pending | — | 0 / 0 | W2 + W12 |
 | Agent-to-Agent Abuse | semantics pending | — | 0 / 0 | W5/W6 carrier slice + W6; explicit threat-model counterpart registered (threat-model.md, Agent-to-Agent abuse observation v0) |
 | Supply Chain Attack | semantics pending | — (primitives: exec.remotepipe, cred.ssh) | 0 / 18 | W11 + W1.2 |
-| Mass Deletion | covered | destroy.rmrf, destroy.disk | 20 / — | in service |
+| Mass Deletion | covered | destroy.rmrf, destroy.disk | 21 / — | in service |
 | Policy Bypass | covered | audit.tamper | 7 / — | in service |
 | Capability Escalation | semantics pending | — (primitives: agent.masquerade, path.sudoers) | 0 / 20 | W6 + W4 |
 | Data Exfiltration | semantics pending | — (primitives: cred.ssh, cred.aws, cred.browser, cred.dotenv, destroy.rmrf, destroy.disk, exec.remotepipe) | 0 / 49 | W4 + W7 |
@@ -38,7 +38,7 @@ Honesty rules of this map:
 
 Per-row notes:
 
-- **Prompt Injection** — No dedicated injection-semantics matcher ships today. The eighteen injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf — the five direct attempts gd-25 to gd-29 mirror each shipped primitive effect and the second wave gd-61 to gd-64 mirrors four of the five shipped primitives with fresh injection-chain shapes, and the third wave gd-77 to gd-80 mirrors four more fresh injection-chain shapes across piped bootstrap, dotenv pull, eval-tool call and egress intent), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.
+- **Prompt Injection** — No dedicated injection-semantics matcher ships today. The twenty-two injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf — the five direct attempts gd-25 to gd-29 mirror each shipped primitive effect and the second wave gd-61 to gd-64 mirrors four of the five shipped primitives with fresh injection-chain shapes, and the third wave gd-77 to gd-80 mirrors four more fresh injection-chain shapes across piped bootstrap, dotenv pull, eval-tool call and egress intent, and the fourth wave gd-105 to gd-108 mirrors four more fresh injection-chain shapes across piped suite bootstrap, dotenv harvest, eval-relay call and injected purge), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.
 - **Goal Hijacking** — One corpus case (task drift into an agent ssh key) is caught downstream by credential primitives; goal-semantics detection awaits the intent slices.
 - **Tool Abuse** — Eval-exposing tools and shell-piped command shapes on the hook/mcp surfaces.
 - **MCP Abuse** — Covered shape = tool-exposing-raw-eval (threat-model TM-05) via the mcp reserved slot. Deeper metadata-plane abuse (tool description poisoning, confused-deputy delegation) is graded later: W1.2 assigns Tool/MCP collection tier, policy semantics later phases.
