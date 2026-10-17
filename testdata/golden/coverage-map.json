@@ -2,9 +2,9 @@
   "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 80,
-    "danger": 148,
-    "total": 228,
-    "labels": 228
+    "danger": 152,
+    "total": 232,
+    "labels": 232
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -42,13 +42,17 @@
         "gd-77",
         "gd-78",
         "gd-79",
-        "gd-80"
+        "gd-80",
+        "gd-105",
+        "gd-106",
+        "gd-107",
+        "gd-108"
       ],
       "w_points": [
         "W1 \u2014 evidence trust order: content of untrusted provenance gets a declared source_class (low tier), never decides alone (machine-judged trust battery already shipped in the runner)",
         "W3 \u2014 intent contract: intent mutations sourced from untrusted content are recorded as UNTRUSTED-marked observations (observe-only in Phase 0)"
       ],
-      "note": "No dedicated injection-semantics matcher ships today. The eighteen injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf \u2014 the five direct attempts gd-25 to gd-29 mirror each shipped primitive effect and the second wave gd-61 to gd-64 mirrors four of the five shipped primitives with fresh injection-chain shapes, and the third wave gd-77 to gd-80 mirrors four more fresh injection-chain shapes across piped bootstrap, dotenv pull, eval-tool call and egress intent), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.",
+      "note": "No dedicated injection-semantics matcher ships today. The twenty-two injection-chain cases are caught downstream by primitive rules (piped installer, dotenv read, eval tool, egress intent, rm -rf \u2014 the five direct attempts gd-25 to gd-29 mirror each shipped primitive effect and the second wave gd-61 to gd-64 mirrors four of the five shipped primitives with fresh injection-chain shapes, and the third wave gd-77 to gd-80 mirrors four more fresh injection-chain shapes across piped bootstrap, dotenv pull, eval-tool call and egress intent, and the fourth wave gd-105 to gd-108 mirrors four more fresh injection-chain shapes across piped suite bootstrap, dotenv harvest, eval-relay call and injected purge), which is exactly the Phase 0 honest shape: injection is observed through its effects, not through intent-reading.",
       "cases": []
     },
     {
@@ -87,6 +91,9 @@
         "g7-x08",
         "g8-d05",
         "gd-08",
+        "gd-100",
+        "gd-105",
+        "gd-107",
         "gd-13",
         "gd-14",
         "gd-25",
@@ -116,8 +123,7 @@
         "gd-90",
         "gd-91",
         "gd-92",
-        "gd-97",
-        "gd-100"
+        "gd-97"
       ]
     },
     {
@@ -136,6 +142,7 @@
         "g7-s09",
         "g7-x08",
         "g8-d05",
+        "gd-107",
         "gd-13",
         "gd-14",
         "gd-27",
@@ -219,6 +226,11 @@
         "gd-04",
         "gd-05",
         "gd-09",
+        "gd-101",
+        "gd-102",
+        "gd-103",
+        "gd-104",
+        "gd-106",
         "gd-18",
         "gd-26",
         "gd-30",
@@ -243,11 +255,7 @@
         "gd-93",
         "gd-94",
         "gd-96",
-        "gd-98",
-        "gd-101",
-        "gd-102",
-        "gd-103",
-        "gd-104"
+        "gd-98"
       ]
     },
     {
@@ -350,6 +358,7 @@
         "gd-06",
         "gd-07",
         "gd-09",
+        "gd-108",
         "gd-29",
         "gd-34",
         "gd-35",
