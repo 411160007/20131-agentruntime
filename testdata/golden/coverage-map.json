@@ -2,9 +2,9 @@
   "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 80,
-    "danger": 152,
-    "total": 232,
-    "labels": 232
+    "danger": 156,
+    "total": 236,
+    "labels": 236
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -94,6 +94,10 @@
         "gd-100",
         "gd-105",
         "gd-107",
+        "gd-109",
+        "gd-110",
+        "gd-111",
+        "gd-112",
         "gd-13",
         "gd-14",
         "gd-25",
@@ -143,6 +147,10 @@
         "g7-x08",
         "g8-d05",
         "gd-107",
+        "gd-109",
+        "gd-110",
+        "gd-111",
+        "gd-112",
         "gd-13",
         "gd-14",
         "gd-27",
@@ -170,7 +178,7 @@
         "W1.2 \u2014 collection-mount grading: tool/skill invocations enter as Tool/MCP metadata tier (self-described fields never raise the tier)",
         "W4 \u2014 nine data-action vocabulary re-adjudicates EXECUTE/SHARE per action, independent of skill naming"
       ],
-      "note": "No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes \u2014 no skill-vocabulary matcher ships. The second wave landed: four further direct attempts (gd-53 to gd-56) mirror four more eval-exposing skill shapes (a form handler that evals the template it just wrote, a config poller piping remote config straight into an eval engine, a cron adapter evaluating a remote job-spec expression, a localization skill routing translated placeholders through an eval message formatter), again caught downstream through their eval-exposing tool shapes \u2014 still no skill-vocabulary matcher ships. The third wave landed: four further direct attempts (gd-89 to gd-92) mirror four more eval-exposing skill shapes (a slides skill evaluating an assembled chart formula expression at render time, a mail-merge skill resolving template fields through an eval token resolver, a pivot workbook skill evaluating a saved pivot expression against pasted rows, a code-review skill routing suggested patches through an eval patch-apply bridge), again caught downstream through their eval-exposing tool shapes \u2014 still no skill-vocabulary matcher ships.",
+      "note": "No skill-vocabulary matcher ships; eval-named tools are the closest primitive today. The corpus ticket landed: four direct attempts (gd-41 to gd-44) each mirror one shipped primitive effect (a third-party skill exposing a raw eval bridge tool, a skill hook invoking an eval passthrough adapter, an installed skill registering an eval exec helper, a productivity skill routing through an eval rpc router), caught downstream through their eval-exposing tool shapes \u2014 no skill-vocabulary matcher ships. The second wave landed: four further direct attempts (gd-53 to gd-56) mirror four more eval-exposing skill shapes (a form handler that evals the template it just wrote, a config poller piping remote config straight into an eval engine, a cron adapter evaluating a remote job-spec expression, a localization skill routing translated placeholders through an eval message formatter), again caught downstream through their eval-exposing tool shapes \u2014 still no skill-vocabulary matcher ships. The third wave landed: four further direct attempts (gd-89 to gd-92) mirror four more eval-exposing skill shapes (a slides skill evaluating an assembled chart formula expression at render time, a mail-merge skill resolving template fields through an eval token resolver, a pivot workbook skill evaluating a saved pivot expression against pasted rows, a code-review skill routing suggested patches through an eval patch-apply bridge), again caught downstream through their eval-exposing tool shapes \u2014 still no skill-vocabulary matcher ships. The fourth wave landed: four further direct attempts (gd-109 to gd-112) mirror four more eval-exposing skill shapes (a calendar-sync skill routing assembled reminders through an eval reminder expander, an invoice-ocr skill resolving extracted totals through an eval amount reducer, a chat-summary skill composing pinned digests through an eval digest composer, a ticket-triage skill routing suggested replies through an mcp eval reply-router), again caught downstream through their eval-exposing tool shapes \u2014 still no skill-vocabulary matcher ships.",
       "cases": [],
       "primitive_cases": [
         "g7-c08",
@@ -178,6 +186,10 @@
         "g7-q07",
         "g7-s09",
         "g7-x08",
+        "gd-109",
+        "gd-110",
+        "gd-111",
+        "gd-112",
         "gd-13",
         "gd-14",
         "gd-27",
