@@ -2,9 +2,9 @@
   "doc": "Evaluation coverage map v0 \u2014 the V2 evaluation specification's sixteen security classes and twelve normal-task classes cross the shipped golden corpus (153 cases across ten evaluation dimensions).",
   "corpus": {
     "normal": 80,
-    "danger": 156,
-    "total": 236,
-    "labels": 236
+    "danger": 160,
+    "total": 240,
+    "labels": 240
   },
   "version_lock": "Version lock: this table, the built-in rule vocabulary (internal/rules/rules.go) and testdata/golden/labels.json MUST evolve in one PR; gate-w0 re-counts corpus, labels, map and docs table from independent sources and fails on any drift.",
   "honesty": [
@@ -98,6 +98,8 @@
         "gd-110",
         "gd-111",
         "gd-112",
+        "gd-114",
+        "gd-116",
         "gd-13",
         "gd-14",
         "gd-25",
@@ -243,6 +245,8 @@
         "gd-103",
         "gd-104",
         "gd-106",
+        "gd-113",
+        "gd-115",
         "gd-18",
         "gd-26",
         "gd-30",
@@ -325,7 +329,7 @@
         "W11 \u2014 supply-chain observation v0 (documentation surface + coverage truthfulness matrix) defines what is and is not seen",
         "W1.2 \u2014 fetch-and-run events grade by collection mount, keeping remote-payload provenance in the record"
       ],
-      "note": "Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules. The corpus ticket landed: four direct attempts (gd-45 to gd-48) each mirror one shipped primitive effect (an install-hook stage of an ssh signing key under the package-sync home, a dependency bootstrap fetched from a registry host piped straight into a shell, a vendored toolkit installer reading an ssh identity under the agent home, an artifact-sync update script piped straight into a shell), caught downstream through their effects \u2014 poisoned-dependency and package-integrity semantics are still not observed by shipped rules. The second wave landed: four further direct attempts (gd-57 to gd-60) mirror four more shipped primitive effects (a CI onboarding step piping a freshly fetched build-farm bootstrap straight into a shell, a release upload step reading an ssh identity staged under the CI runner home, a package-mirror post-install checker fetched from upstream and piped straight into a shell, a dependency mirror sync reading an ssh signing key staged under the package cache home), again caught downstream through their effects \u2014 still no poisoned-dependency or package-integrity semantics on shipped rules. The third wave landed: four further direct attempts (gd-81 to gd-84) mirror four more shipped primitive effects (a package patch queue step reading an ssh deploy key staged under the vendor-bot home, a dependency audit tool reading an ssh identity under the monorepo build home, a registry drift fixer piping a freshly fetched lockfile bootstrap straight into a shell, an artifact index warm-up piping a fetched mirror seed script straight into a shell), again caught downstream through their effects \u2014 still no poisoned-dependency or package-integrity semantics on shipped rules.",
+      "note": "Fetch-and-run piping is caught today as a primitive (remote script straight into a shell); poisoned-dependency and package-integrity semantics are not observed by shipped rules. The corpus ticket landed: four direct attempts (gd-45 to gd-48) each mirror one shipped primitive effect (an install-hook stage of an ssh signing key under the package-sync home, a dependency bootstrap fetched from a registry host piped straight into a shell, a vendored toolkit installer reading an ssh identity under the agent home, an artifact-sync update script piped straight into a shell), caught downstream through their effects \u2014 poisoned-dependency and package-integrity semantics are still not observed by shipped rules. The second wave landed: four further direct attempts (gd-57 to gd-60) mirror four more shipped primitive effects (a CI onboarding step piping a freshly fetched build-farm bootstrap straight into a shell, a release upload step reading an ssh identity staged under the CI runner home, a package-mirror post-install checker fetched from upstream and piped straight into a shell, a dependency mirror sync reading an ssh signing key staged under the package cache home), again caught downstream through their effects \u2014 still no poisoned-dependency or package-integrity semantics on shipped rules. The third wave landed: four further direct attempts (gd-81 to gd-84) mirror four more shipped primitive effects (a package patch queue step reading an ssh deploy key staged under the vendor-bot home, a dependency audit tool reading an ssh identity under the monorepo build home, a registry drift fixer piping a freshly fetched lockfile bootstrap straight into a shell, an artifact index warm-up piping a fetched mirror seed script straight into a shell), again caught downstream through their effects \u2014 still no poisoned-dependency or package-integrity semantics on shipped rules. The fourth wave landed: four further direct attempts (gd-113 to gd-116) mirror four more shipped primitive effects (a dependency pinning step reading an ssh notary identity staged under the pinsmith home, a build farm seed step piping a freshly fetched dependency seed hook straight into a shell, a release patch binder reading an ssh attestation key staged under the patchbinder home, a crate staging preflight piping a fetched audit stage script straight into a shell), again caught downstream through their effects \u2014 still no poisoned-dependency or package-integrity semantics on shipped rules.",
       "cases": [],
       "primitive_cases": [
         "g7-p08",
@@ -345,7 +349,11 @@
         "gd-81",
         "gd-82",
         "gd-83",
-        "gd-84"
+        "gd-84",
+        "gd-113",
+        "gd-114",
+        "gd-115",
+        "gd-116"
       ]
     },
     {
