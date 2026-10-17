@@ -1004,6 +1004,26 @@
     "class": "destructive",
     "dim": "untrusted"
   },
+  "gd-109": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "security"
+  },
+  "gd-110": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "security"
+  },
+  "gd-111": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "security"
+  },
+  "gd-112": {
+    "expect": "would_block",
+    "class": "tool",
+    "dim": "security"
+  },
   "gn-01": {
     "expect": "allow",
     "class": "observation",
